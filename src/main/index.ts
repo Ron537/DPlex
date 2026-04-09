@@ -148,17 +148,19 @@ function registerIpcHandlers(): void {
     return result.filePaths[0]
   })
 
-  // Git branch for a directory
+  // Git branch for a directory (async to avoid blocking main process)
   ipcMain.handle('app:getGitBranch', async (_event, dirPath: string) => {
     try {
-      const { execSync } = await import('child_process')
-      const branch = execSync('git rev-parse --abbrev-ref HEAD', {
-        cwd: dirPath,
-        encoding: 'utf-8',
-        timeout: 3000,
-        stdio: ['pipe', 'pipe', 'pipe']
-      }).trim()
-      return branch || null
+      const { execFile } = await import('child_process')
+      return new Promise<string | null>((resolve) => {
+        execFile('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+          cwd: dirPath,
+          timeout: 3000
+        }, (err, stdout) => {
+          if (err) return resolve(null)
+          resolve(stdout.trim() || null)
+        })
+      })
     } catch {
       return null
     }

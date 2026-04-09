@@ -1,4 +1,5 @@
 import * as fs from 'fs'
+import * as fsp from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 
@@ -111,13 +112,17 @@ function resolveAndValidateSessionPath(sessionId: string): string | null {
   return resolved
 }
 
-export function discoverCopilotSessions(): DiscoveredSession[] {
+export async function discoverCopilotSessions(): Promise<DiscoveredSession[]> {
   const sessionDir = getCopilotSessionDir()
 
-  if (!fs.existsSync(sessionDir)) return []
+  try {
+    await fsp.access(sessionDir)
+  } catch {
+    return []
+  }
 
   try {
-    const entries = fs.readdirSync(sessionDir, { withFileTypes: true })
+    const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
     const sessions: DiscoveredSession[] = []
 
     for (const entry of entries) {
@@ -126,7 +131,7 @@ export function discoverCopilotSessions(): DiscoveredSession[] {
       const fullPath = path.join(sessionDir, entry.name)
 
       try {
-        const stat = fs.statSync(fullPath)
+        const stat = await fsp.stat(fullPath)
         const displayName = getDisplayName(fullPath, entry.name)
         const workspace = parseWorkspaceYaml(fullPath)
 
