@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Settings, Palette, Terminal, Bot } from 'lucide-react'
+import { X, Settings, Palette, Terminal, Bot, Keyboard } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { getThemeList, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
@@ -10,12 +10,43 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type SettingsTab = 'appearance' | 'terminal' | 'ai-tools'
+type SettingsTab = 'appearance' | 'terminal' | 'ai-tools' | 'shortcuts'
+
+const isMac = navigator.platform.toUpperCase().includes('MAC')
+const MOD = isMac ? '⌘' : 'Ctrl+'
+
+const SHORTCUTS: { category: string; items: { keys: string; description: string }[] }[] = [
+  {
+    category: 'General',
+    items: [
+      { keys: `${MOD}T`, description: 'New terminal' },
+      { keys: `${MOD}W`, description: 'Close terminal' },
+      { keys: `${MOD},`, description: 'Open settings' },
+      { keys: `${MOD}B`, description: 'Toggle sidebar' }
+    ]
+  },
+  {
+    category: 'Layout',
+    items: [
+      { keys: `${MOD}\\`, description: 'Split right' },
+      { keys: `${MOD}⇧\\`, description: 'Split down' }
+    ]
+  },
+  {
+    category: 'Tabs',
+    items: [
+      { keys: `${MOD}1–9`, description: 'Switch to tab 1–9' },
+      { keys: 'Drag tab', description: 'Reorder or move between groups' },
+      { keys: 'Double-click tab', description: 'Rename terminal' }
+    ]
+  }
+]
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'terminal', label: 'Terminal', icon: Terminal },
-  { id: 'ai-tools', label: 'AI Tools', icon: Bot }
+  { id: 'ai-tools', label: 'AI Tools', icon: Bot },
+  { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard }
 ]
 
 function SettingItem({ label, description, children }: {
@@ -193,6 +224,35 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
                   />
                 </SettingItem>
               </>
+            )}
+
+            {activeTab === 'shortcuts' && (
+              <div className="space-y-4">
+                {SHORTCUTS.map((group) => (
+                  <div key={group.category}>
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--dplex-accent)' }}>
+                      {group.category}
+                    </h4>
+                    <div className="space-y-1">
+                      {group.items.map((item) => (
+                        <div
+                          key={item.keys}
+                          className="flex items-center justify-between py-1.5 px-2 rounded"
+                          style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
+                        >
+                          <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>{item.description}</span>
+                          <kbd
+                            className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                            style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text-muted)' }}
+                          >
+                            {item.keys}
+                          </kbd>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
