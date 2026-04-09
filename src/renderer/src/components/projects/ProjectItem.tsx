@@ -1,4 +1,5 @@
-import { ChevronRight, ChevronDown, Play, X, FolderOpen } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ChevronRight, ChevronDown, Play, X, FolderOpen, GitBranch } from 'lucide-react'
 import type { Project, AISession } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
 import { useSessionStore } from '../../stores/sessionStore'
@@ -36,8 +37,18 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
   const startAISession = useProjectStore((s) => s.startAISession)
   const sessions = useSessionStore((s) => s.sessions)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
+  const [branch, setBranch] = useState<string | null>(null)
 
   const isExpanded = expandedIds.has(project.id)
+
+  useEffect(() => {
+    window.dplex.app.getGitBranch(project.path).then(setBranch)
+    // Poll branch every 10 seconds
+    const interval = setInterval(() => {
+      window.dplex.app.getGitBranch(project.path).then(setBranch)
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [project.path])
 
   const projectSessions = sessions.filter(
     (s) => s.cwd && isInsideProject(s.cwd, project.path)
@@ -63,10 +74,25 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
         {/* Folder icon */}
         <FolderOpen size={13} style={{ color: 'var(--dplex-accent)' }} className="flex-shrink-0" />
 
-        {/* Project name */}
+        {/* Project name + branch */}
         <div className="flex-1 min-w-0">
-          <div className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
-            {project.name}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
+              {project.name}
+            </span>
+            {branch && (
+              <span
+                className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[9px] font-medium flex-shrink-0"
+                style={{
+                  backgroundColor: 'var(--dplex-accent)',
+                  color: 'var(--dplex-bg)',
+                  opacity: 0.85
+                }}
+              >
+                <GitBranch size={8} />
+                {branch}
+              </span>
+            )}
           </div>
           <div className="text-[9px] truncate" style={{ color: 'var(--dplex-text-muted)' }}>
             {project.path}

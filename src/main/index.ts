@@ -147,6 +147,22 @@ function registerIpcHandlers(): void {
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
   })
+
+  // Git branch for a directory
+  ipcMain.handle('app:getGitBranch', async (_event, dirPath: string) => {
+    try {
+      const { execSync } = await import('child_process')
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+        cwd: dirPath,
+        encoding: 'utf-8',
+        timeout: 3000,
+        stdio: ['pipe', 'pipe', 'pipe']
+      }).trim()
+      return branch || null
+    } catch {
+      return null
+    }
+  })
 }
 
 // Single instance lock
