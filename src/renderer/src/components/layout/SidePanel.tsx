@@ -11,6 +11,7 @@ export function SidePanel(): JSX.Element {
   const searchQuery = useSessionStore((s) => s.searchQuery)
   const setSearchQuery = useSessionStore((s) => s.setSearchQuery)
   const refreshSessions = useSessionStore((s) => s.refreshSessions)
+  const loading = useSessionStore((s) => s.loading)
   const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const [activeTab, setActiveTab] = useState<SidebarTab>('projects')
@@ -51,11 +52,12 @@ export function SidePanel(): JSX.Element {
           {activeTab === 'sessions' && (
             <button
               onClick={() => refreshSessions()}
+              disabled={loading}
               className="p-1 hover:bg-white/10 rounded transition-colors"
               style={{ color: 'var(--dplex-text-muted)' }}
               title="Refresh sessions"
             >
-              <RefreshCw size={12} />
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             </button>
           )}
           <button
