@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { SessionItem } from './SessionItem'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ChevronRight, ChevronDown } from 'lucide-react'
 import type { AISession } from '../../types'
 
 interface TimeGroup {
@@ -94,26 +94,42 @@ export function SessionList(): JSX.Element {
   return (
     <div className="flex flex-col gap-1">
       {active.length > 0 && (
-        <div>
-          <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--dplex-accent)' }}>
-            Active ({active.length})
-          </div>
+        <CollapsibleGroup label={`Active (${active.length})`} accent>
           {active.map((session) => (
             <SessionItem key={session.id} session={session} onDelete={deleteSession} />
           ))}
-        </div>
+        </CollapsibleGroup>
       )}
 
       {timeGroups.map((group) => (
-        <div key={group.label}>
-          <div className="px-3 py-1 text-[10px] font-medium text-zinc-500 uppercase tracking-wider mt-1">
-            {group.label}
-          </div>
+        <CollapsibleGroup key={group.label} label={group.label}>
           {group.sessions.map((session) => (
             <SessionItem key={session.id} session={session} onDelete={deleteSession} />
           ))}
-        </div>
+        </CollapsibleGroup>
       ))}
+    </div>
+  )
+}
+
+function CollapsibleGroup({ label, accent, children }: {
+  label: string
+  accent?: boolean
+  children: React.ReactNode
+}): JSX.Element {
+  const [collapsed, setCollapsed] = useState(false)
+
+  return (
+    <div>
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex items-center gap-1 w-full px-2 py-1 mt-1 text-[10px] font-medium uppercase tracking-wider hover:bg-white/5 transition-colors"
+        style={{ color: accent ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)' }}
+      >
+        {collapsed ? <ChevronRight size={10} /> : <ChevronDown size={10} />}
+        {label}
+      </button>
+      {!collapsed && children}
     </div>
   )
 }
