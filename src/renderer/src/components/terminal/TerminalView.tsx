@@ -19,8 +19,8 @@ export function TerminalView({ terminalId, isActive, onFocus }: TerminalViewProp
     >
       <div ref={containerRef} className="w-full h-full" />
       {!ready && (
-        <div className="absolute inset-0 flex items-center justify-center z-10" style={{ backgroundColor: 'var(--tplex-bg)' }}>
-          <div className="flex items-center gap-2" style={{ color: 'var(--tplex-text-muted)' }}>
+        <div className="absolute inset-0 flex items-center justify-center z-10" style={{ backgroundColor: 'var(--dplex-bg)' }}>
+          <div className="flex items-center gap-2" style={{ color: 'var(--dplex-text-muted)' }}>
             <Loader2 size={16} className="animate-spin" />
             <span className="text-xs">Starting terminal...</span>
           </div>

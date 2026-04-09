@@ -32,17 +32,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="rounded-lg shadow-2xl w-[480px] max-h-[80vh] flex flex-col" style={{ backgroundColor: 'var(--tplex-bg)', border: '1px solid var(--tplex-border)' }}>
+      <div className="rounded-lg shadow-2xl w-[480px] max-h-[80vh] flex flex-col" style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}>
         {/* Header — fixed */}
-        <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--tplex-border)' }}>
-          <div className="flex items-center gap-2" style={{ color: 'var(--tplex-text)' }}>
+        <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--dplex-border)' }}>
+          <div className="flex items-center gap-2" style={{ color: 'var(--dplex-text)' }}>
             <Settings size={16} />
             <span className="text-sm font-medium">Settings</span>
           </div>
           <button
             onClick={onClose}
             className="p-1 hover:bg-white/10 rounded transition-colors"
-            style={{ color: 'var(--tplex-text-muted)' }}
+            style={{ color: 'var(--dplex-text-muted)' }}
           >
             <X size={14} />
           </button>
@@ -52,7 +52,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
         <div className="p-5 space-y-5 overflow-y-auto flex-1 min-h-0">
           {/* Theme */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--tplex-text-muted)' }}>Theme</label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--dplex-text-muted)' }}>Theme</label>
             <div className="grid grid-cols-3 gap-2">
               {themes.map((t) => {
                 const theme = getTheme(t.id)
@@ -85,14 +85,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
 
           {/* AI Tool */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--tplex-text-muted)' }}>Default AI Tool</label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--dplex-text-muted)' }}>Default AI Tool</label>
             <select
               value={localSettings.defaultAITool}
               onChange={(e) =>
                 setLocalSettings({ ...localSettings, defaultAITool: e.target.value })
               }
               className="w-full rounded px-3 py-2 text-sm outline-none"
-              style={{ backgroundColor: 'var(--tplex-bg-alt)', border: '1px solid var(--tplex-border)', color: 'var(--tplex-text)' }}
+              style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
             >
               <option value="copilot-cli">Copilot CLI</option>
               <option value="claude-code">Claude Code (coming soon)</option>
@@ -101,7 +101,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
 
           {/* Shell */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--tplex-text-muted)' }}>Shell Path</label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--dplex-text-muted)' }}>Shell Path</label>
             <input
               type="text"
               value={localSettings.defaultShell}
@@ -110,13 +110,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
               }
               placeholder="Leave empty for default shell"
               className="w-full rounded px-3 py-2 text-sm placeholder-zinc-600 outline-none"
-              style={{ backgroundColor: 'var(--tplex-bg-alt)', border: '1px solid var(--tplex-border)', color: 'var(--tplex-text)' }}
+              style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
             />
           </div>
 
           {/* Font Size */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--tplex-text-muted)' }}>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--dplex-text-muted)' }}>
               Font Size ({localSettings.fontSize}px)
             </label>
             <input
@@ -133,7 +133,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
 
           {/* Font Family */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--tplex-text-muted)' }}>Font Family</label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--dplex-text-muted)' }}>Font Family</label>
             <input
               type="text"
               value={localSettings.fontFamily}
@@ -141,13 +141,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
                 setLocalSettings({ ...localSettings, fontFamily: e.target.value })
               }
               className="w-full rounded px-3 py-2 text-sm outline-none"
-              style={{ backgroundColor: 'var(--tplex-bg-alt)', border: '1px solid var(--tplex-border)', color: 'var(--tplex-text)' }}
+              style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
             />
           </div>
 
           {/* Poll Interval */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--tplex-text-muted)' }}>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--dplex-text-muted)' }}>
               Session poll interval ({localSettings.sessionPollIntervalMs / 1000}s)
             </label>
             <input
@@ -168,11 +168,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
         </div>
 
         {/* Footer — fixed at bottom */}
-        <div className="flex justify-end gap-2 px-5 py-3 flex-shrink-0" style={{ borderTop: '1px solid var(--tplex-border)' }}>
+        <div className="flex justify-end gap-2 px-5 py-3 flex-shrink-0" style={{ borderTop: '1px solid var(--dplex-border)' }}>
           <button
             onClick={onClose}
             className="px-4 py-1.5 text-xs hover:bg-white/10 rounded transition-colors"
-            style={{ color: 'var(--tplex-text-muted)' }}
+            style={{ color: 'var(--dplex-text-muted)' }}
           >
             Cancel
           </button>

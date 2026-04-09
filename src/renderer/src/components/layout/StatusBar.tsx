@@ -16,7 +16,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): JSX.Element {
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
 
   return (
-    <div className="flex items-center justify-between h-6 px-1 text-[10px] select-none" style={{ backgroundColor: 'var(--tplex-bg-alt)', borderTop: '1px solid var(--tplex-border)', color: 'var(--tplex-text-muted)' }}>
+    <div className="flex items-center justify-between h-6 px-1 text-[10px] select-none" style={{ backgroundColor: 'var(--dplex-bg-alt)', borderTop: '1px solid var(--dplex-border)', color: 'var(--dplex-text-muted)' }}>
       <div className="flex items-center gap-2">
         <button
           onClick={toggleSidebar}

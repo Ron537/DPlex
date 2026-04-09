@@ -54,7 +54,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       const earlyBuffer: { id: string; data: string }[] = []
       let ptyIdResolved: string | null = null
 
-      const removeDataListener = window.tplex.pty.onData((id, data) => {
+      const removeDataListener = window.dplex.pty.onData((id, data) => {
         if (ptyIdResolved) {
           if (id === ptyIdResolved) {
             entry.term.write(data)
@@ -68,14 +68,14 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         }
       })
 
-      const removeExitListener = window.tplex.pty.onExit((id, _exitCode) => {
+      const removeExitListener = window.dplex.pty.onExit((id, _exitCode) => {
         if (id === ptyIdResolved) {
           entry.term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n')
         }
       })
 
       // Create PTY
-      window.tplex.pty.create().then((ptyId) => {
+      window.dplex.pty.create().then((ptyId) => {
         entry.ptyId = ptyId
         ptyIdResolved = ptyId
 
@@ -95,24 +95,24 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
 
         // Connect terminal input → PTY
         const onDataDisposable = entry.term.onData((data) => {
-          window.tplex.pty.write(ptyId, data)
+          window.dplex.pty.write(ptyId, data)
         })
 
         const onResizeDisposable = entry.term.onResize(({ cols, rows }) => {
-          window.tplex.pty.resize(ptyId, cols, rows)
+          window.dplex.pty.resize(ptyId, cols, rows)
         })
 
         // Sync current terminal size to PTY (it was created with default 80x24)
         const { cols, rows } = entry.term
         if (cols && rows) {
-          window.tplex.pty.resize(ptyId, cols, rows)
+          window.dplex.pty.resize(ptyId, cols, rows)
         }
 
         // Check for pending command
         const pendingCmd = useTerminalStore.getState().popPendingCommand(terminalId)
         if (pendingCmd) {
           setTimeout(() => {
-            window.tplex.pty.write(ptyId, pendingCmd + '\n')
+            window.dplex.pty.write(ptyId, pendingCmd + '\n')
           }, 500)
         }
 

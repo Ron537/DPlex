@@ -2,20 +2,20 @@
 @import "@xterm/xterm/css/xterm.css";
 
 :root {
-  --tplex-bg: #1a1a2e;
-  --tplex-bg-alt: #16162a;
-  --tplex-border: #2a2a4a;
-  --tplex-text: #e0e0e0;
-  --tplex-text-muted: #888;
-  --tplex-accent: #74c0fc;
+  --dplex-bg: #1a1a2e;
+  --dplex-bg-alt: #16162a;
+  --dplex-border: #2a2a4a;
+  --dplex-text: #e0e0e0;
+  --dplex-text-muted: #888;
+  --dplex-accent: #74c0fc;
 }
 
 body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: var(--tplex-bg);
-  color: var(--tplex-text);
+  background-color: var(--dplex-bg);
+  color: var(--dplex-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -42,10 +42,10 @@ body {
 }
 
 .split-view-view .sash-container .sash {
-  background-color: var(--tplex-border);
+  background-color: var(--dplex-border);
 }
 
 .split-view-view .sash-container .sash:hover {
-  background-color: var(--tplex-accent);
+  background-color: var(--dplex-accent);
   opacity: 0.5;
 }

@@ -73,7 +73,7 @@ export function destroyTerminal(terminalId: string): void {
   if (!entry) return
 
   if (entry.cleanupIpc) entry.cleanupIpc()
-  if (entry.ptyId) window.tplex.pty.destroy(entry.ptyId)
+  if (entry.ptyId) window.dplex.pty.destroy(entry.ptyId)
   entry.term.dispose()
   entry.wrapperEl.remove()
   registry.delete(terminalId)

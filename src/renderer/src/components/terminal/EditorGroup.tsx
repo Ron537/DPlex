@@ -32,7 +32,7 @@ export function EditorGroup({ group }: EditorGroupProps): JSX.Element {
   }
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>): void => {
-    const terminalId = e.dataTransfer.types.includes('tplex/terminal-id')
+    const terminalId = e.dataTransfer.types.includes('dplex/terminal-id')
     if (!terminalId) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
@@ -41,8 +41,8 @@ export function EditorGroup({ group }: EditorGroupProps): JSX.Element {
 
   const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault()
-    const terminalId = e.dataTransfer.getData('tplex/terminal-id')
-    const sourceGroupId = e.dataTransfer.getData('tplex/source-group')
+    const terminalId = e.dataTransfer.getData('dplex/terminal-id')
+    const sourceGroupId = e.dataTransfer.getData('dplex/source-group')
     const zone = dropZone
     setDropZone(null)
 

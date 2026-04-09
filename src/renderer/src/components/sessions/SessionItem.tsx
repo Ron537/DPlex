@@ -41,8 +41,8 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
       />
 
       <div className="flex-1 min-w-0">
-        <div className="text-xs truncate" style={{ color: 'var(--tplex-text)' }}>{session.displayName}</div>
-        <div className="text-[10px] truncate" style={{ color: 'var(--tplex-text-muted)' }}>
+        <div className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>{session.displayName}</div>
+        <div className="text-[10px] truncate" style={{ color: 'var(--dplex-text-muted)' }}>
           {timeAgo(session.updatedAt)}
         </div>
       </div>
@@ -54,20 +54,20 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
         }}
         className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded transition-opacity"
       >
-        <MoreVertical size={12} style={{ color: 'var(--tplex-text-muted)' }} />
+        <MoreVertical size={12} style={{ color: 'var(--dplex-text-muted)' }} />
       </button>
 
       {showMenu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-          <div className="absolute right-2 top-8 z-50 rounded shadow-xl py-1 min-w-[140px]" style={{ backgroundColor: 'var(--tplex-bg)', border: '1px solid var(--tplex-border)' }}>
+          <div className="absolute right-2 top-8 z-50 rounded shadow-xl py-1 min-w-[140px]" style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}>
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 handleResume()
               }}
               className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
-              style={{ color: 'var(--tplex-text)' }}
+              style={{ color: 'var(--dplex-text)' }}
             >
               <Play size={11} /> Resume
             </button>

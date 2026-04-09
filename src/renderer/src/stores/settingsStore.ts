@@ -5,7 +5,7 @@ import { getTheme } from '../services/themes'
 // Read cached theme from localStorage synchronously to avoid flash
 function getCachedTheme(): string {
   try {
-    return localStorage.getItem('tplex-theme') || 'midnight'
+    return localStorage.getItem('dplex-theme') || 'midnight'
   } catch {
     return 'midnight'
   }
@@ -13,7 +13,7 @@ function getCachedTheme(): string {
 
 function cacheTheme(themeId: string): void {
   try {
-    localStorage.setItem('tplex-theme', themeId)
+    localStorage.setItem('dplex-theme', themeId)
   } catch {
     // ignore
   }
@@ -23,12 +23,12 @@ function cacheTheme(themeId: string): void {
 export function applyCssVarsSync(themeId: string): void {
   const theme = getTheme(themeId)
   const root = document.documentElement
-  root.style.setProperty('--tplex-bg', theme.ui.bg)
-  root.style.setProperty('--tplex-bg-alt', theme.ui.bgAlt)
-  root.style.setProperty('--tplex-border', theme.ui.border)
-  root.style.setProperty('--tplex-text', theme.ui.text)
-  root.style.setProperty('--tplex-text-muted', theme.ui.textMuted)
-  root.style.setProperty('--tplex-accent', theme.ui.accent)
+  root.style.setProperty('--dplex-bg', theme.ui.bg)
+  root.style.setProperty('--dplex-bg-alt', theme.ui.bgAlt)
+  root.style.setProperty('--dplex-border', theme.ui.border)
+  root.style.setProperty('--dplex-text', theme.ui.text)
+  root.style.setProperty('--dplex-text-muted', theme.ui.textMuted)
+  root.style.setProperty('--dplex-accent', theme.ui.accent)
   document.body.style.backgroundColor = theme.ui.bg
 }
 
@@ -60,7 +60,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   loadSettings: async () => {
     try {
-      const saved = await window.tplex.settings.getAll()
+      const saved = await window.dplex.settings.getAll()
       const merged = { ...DEFAULT_SETTINGS, ...saved }
       set({ settings: merged, loaded: true })
       cacheTheme(merged.theme)
@@ -73,7 +73,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const newSettings = { ...get().settings, ...partial }
     set({ settings: newSettings })
     if (partial.theme) cacheTheme(partial.theme)
-    await window.tplex.settings.setAll(newSettings)
+    await window.dplex.settings.setAll(newSettings)
   },
 
   toggleSidebar: () => {

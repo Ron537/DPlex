@@ -15,15 +15,15 @@ export function SidePanel(): JSX.Element {
   }
 
   return (
-    <div className="flex flex-col h-full w-[260px] flex-shrink-0" style={{ backgroundColor: 'var(--tplex-bg-alt)', borderRight: '1px solid var(--tplex-border)' }}>
+    <div className="flex flex-col h-full w-[260px] flex-shrink-0" style={{ backgroundColor: 'var(--dplex-bg-alt)', borderRight: '1px solid var(--dplex-border)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 h-9" style={{ borderBottom: '1px solid var(--tplex-border)' }}>
-        <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--tplex-text)' }}>SESSIONS</span>
+      <div className="flex items-center justify-between px-3 h-9" style={{ borderBottom: '1px solid var(--dplex-border)' }}>
+        <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--dplex-text)' }}>SESSIONS</span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => refreshSessions()}
             className="p-1 hover:bg-white/10 rounded transition-colors"
-            style={{ color: 'var(--tplex-text-muted)' }}
+            style={{ color: 'var(--dplex-text-muted)' }}
             title="Refresh sessions"
           >
             <RefreshCw size={12} />
@@ -31,7 +31,7 @@ export function SidePanel(): JSX.Element {
           <button
             onClick={toggleSidebar}
             className="p-1 hover:bg-white/10 rounded transition-colors"
-            style={{ color: 'var(--tplex-text-muted)' }}
+            style={{ color: 'var(--dplex-text-muted)' }}
             title="Hide sidebar (⌘B)"
           >
             <PanelLeftClose size={12} />
@@ -41,15 +41,15 @@ export function SidePanel(): JSX.Element {
 
       {/* Search */}
       <div className="px-2 py-2">
-        <div className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors" style={{ backgroundColor: 'var(--tplex-bg)', border: '1px solid var(--tplex-border)' }}>
-          <Search size={12} style={{ color: 'var(--tplex-text-muted)' }} className="flex-shrink-0" />
+        <div className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors" style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}>
+          <Search size={12} style={{ color: 'var(--dplex-text-muted)' }} className="flex-shrink-0" />
           <input
             type="text"
             placeholder="Search sessions..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="bg-transparent text-xs placeholder-zinc-600 outline-none w-full"
-            style={{ color: 'var(--tplex-text)' }}
+            style={{ color: 'var(--dplex-text)' }}
           />
         </div>
       </div>

@@ -25,7 +25,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   refreshSessions: async () => {
     set({ loading: true, error: null })
     try {
-      const sessions = await window.tplex.sessions.discover()
+      const sessions = await window.dplex.sessions.discover()
       set({ sessions, loading: false })
     } catch (err) {
       set({ error: String(err), loading: false })
@@ -38,7 +38,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   deleteSession: async (sessionId) => {
     try {
-      await window.tplex.sessions.delete(sessionId)
+      await window.dplex.sessions.delete(sessionId)
       set((state) => ({
         sessions: state.sessions.filter((s) => s.id !== sessionId)
       }))

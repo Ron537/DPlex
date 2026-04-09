@@ -150,7 +150,7 @@ if (!gotLock) {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.tplex')
+  electronApp.setAppUserModelId('com.dplex')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

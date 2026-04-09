@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-export interface TplexAPI {
+export interface DplexAPI {
   pty: {
     create: (shell?: string, cwd?: string) => Promise<string>
     write: (id: string, data: string) => void
@@ -25,7 +25,7 @@ export interface TplexAPI {
   }
 }
 
-const tplexAPI: TplexAPI = {
+const dplexAPI: DplexAPI = {
   pty: {
     create: (shell?, cwd?) => ipcRenderer.invoke('pty:create', shell, cwd),
     write: (id, data) => ipcRenderer.send('pty:write', id, data),
@@ -66,7 +66,7 @@ const tplexAPI: TplexAPI = {
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('tplex', tplexAPI)
+    contextBridge.exposeInMainWorld('dplex', dplexAPI)
   } catch (error) {
     console.error(error)
   }
@@ -74,5 +74,5 @@ if (process.contextIsolated) {
   // @ts-ignore
   window.electron = electronAPI
   // @ts-ignore
-  window.tplex = tplexAPI
+  window.dplex = dplexAPI
 }

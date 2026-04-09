@@ -38,7 +38,7 @@ function App(): React.JSX.Element {
 
       if (meta && e.key === ',') {
         e.preventDefault()
-        window.dispatchEvent(new CustomEvent('tplex:open-settings'))
+        window.dispatchEvent(new CustomEvent('dplex:open-settings'))
       }
 
       if (meta && !e.shiftKey && e.key === '\\') {
