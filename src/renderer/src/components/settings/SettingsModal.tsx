@@ -214,15 +214,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
                     <option value="claude-code">Claude Code</option>
                   </select>
                 </SettingItem>
-
-                <SettingItem label="Session Poll Interval" description={`How often to scan for AI sessions. Currently every ${localSettings.sessionPollIntervalMs / 1000} seconds.`}>
-                  <input
-                    type="range" min={2000} max={30000} step={1000}
-                    value={localSettings.sessionPollIntervalMs}
-                    onChange={(e) => setLocalSettings({ ...localSettings, sessionPollIntervalMs: Number(e.target.value) })}
-                    className="w-full accent-blue-500"
-                  />
-                </SettingItem>
               </>
             )}
 
