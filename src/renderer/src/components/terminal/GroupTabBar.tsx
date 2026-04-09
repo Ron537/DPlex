@@ -1,6 +1,7 @@
 import { useRef, useState, DragEvent } from 'react'
 import { Plus, X, Terminal as TerminalIcon, SplitSquareHorizontal, SplitSquareVertical } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { ShellSelector } from './ShellSelector'
 import type { EditorGroup } from '../../types'
 
 interface GroupTabBarProps {
@@ -150,10 +151,16 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): JSX.Ele
           }}
           className="flex items-center justify-center w-7 h-8 hover:bg-white/10 transition-colors flex-shrink-0"
           style={{ color: 'var(--dplex-text-muted)' }}
-          title="New terminal"
+          title="New terminal (default shell)"
         >
           <Plus size={12} />
         </button>
+        <ShellSelector
+          onSelect={(shell) => {
+            setActiveGroup(group.id)
+            createTerminal(group.id, undefined, undefined, shell)
+          }}
+        />
       </div>
 
       {/* Split controls */}

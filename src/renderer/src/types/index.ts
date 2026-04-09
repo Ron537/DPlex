@@ -1,6 +1,12 @@
 export interface TerminalTab {
   id: string
   title: string
+  shell?: string
+}
+
+export interface ShellInfo {
+  name: string
+  path: string
 }
 
 export interface EditorGroup {

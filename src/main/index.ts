@@ -11,7 +11,8 @@ import {
   destroyPty,
   destroyAllPtys,
   destroyPtysForWindow,
-  getDefaultShellPath
+  getDefaultShellPath,
+  discoverAvailableShells
 } from './services/ptyManager'
 import { discoverCopilotSessions, deleteSessionDir } from './services/sessionDiscovery'
 
@@ -134,6 +135,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle('app:getDefaultShell', () => getDefaultShellPath())
   ipcMain.handle('app:getPlatform', () => process.platform)
   ipcMain.handle('app:getHomedir', () => os.homedir())
+  ipcMain.handle('app:getAvailableShells', () => discoverAvailableShells())
 }
 
 // Single instance lock

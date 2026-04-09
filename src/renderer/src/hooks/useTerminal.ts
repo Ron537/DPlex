@@ -75,7 +75,11 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       })
 
       // Create PTY
-      window.dplex.pty.create().then((ptyId) => {
+      const termState = useTerminalStore.getState()
+      const tabShell = termState.groups
+        .flatMap((g) => g.tabs)
+        .find((t) => t.id === terminalId)?.shell
+      window.dplex.pty.create(tabShell).then((ptyId) => {
         entry.ptyId = ptyId
         ptyIdResolved = ptyId
 
