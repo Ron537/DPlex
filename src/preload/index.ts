@@ -7,6 +7,7 @@ export interface DplexAPI {
     write: (id: string, data: string) => void
     resize: (id: string, cols: number, rows: number) => void
     destroy: (id: string) => void
+    getCwd: (id: string) => Promise<string | null>
     onData: (callback: (id: string, data: string) => void) => () => void
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }
@@ -32,6 +33,7 @@ const dplexAPI: DplexAPI = {
     write: (id, data) => ipcRenderer.send('pty:write', id, data),
     resize: (id, cols, rows) => ipcRenderer.send('pty:resize', id, cols, rows),
     destroy: (id) => ipcRenderer.send('pty:destroy', id),
+    getCwd: (id) => ipcRenderer.invoke('pty:getCwd', id),
     onData: (callback) => {
       const handler = (
         _event: Electron.IpcRendererEvent,
