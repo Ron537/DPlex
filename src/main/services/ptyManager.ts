@@ -47,21 +47,14 @@ export function createPty(
     env: {
       ...process.env,
       TERM: 'xterm-256color',
-      COLORTERM: 'truecolor'
+      COLORTERM: 'truecolor',
+      SHELL_SESSIONS_DISABLE: '1'
     } as Record<string, string>
   })
 
-  // Buffer initial output until renderer confirms attachment
-  let attached = false
-  const outputBuffer: string[] = []
-
   ptyProcess.onData((data) => {
     if (!window.isDestroyed()) {
-      if (attached) {
-        window.webContents.send('pty:data', { id, data })
-      } else {
-        outputBuffer.push(data)
-      }
+      window.webContents.send('pty:data', { id, data })
     }
   })
 
@@ -75,20 +68,6 @@ export function createPty(
   ptys.set(id, { process: ptyProcess, windowId: window.id })
 
   return id
-}
-
-export function attachPty(id: string, window: BrowserWindow): void {
-  const entry = ptys.get(id)
-  if (!entry) return
-  // Flush any buffered output, then mark as attached
-  // The renderer is now listening, so we can send buffered data
-  // Note: buffered data is handled via the closure in createPty
-}
-
-export function flushAndAttach(id: string, window: BrowserWindow): string[] {
-  // This is called by the renderer to signal it's ready to receive data
-  // Returns any buffered output that was collected before attachment
-  return []
 }
 
 export function writePty(id: string, data: string): void {

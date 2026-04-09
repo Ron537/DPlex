@@ -9,14 +9,14 @@ interface SessionItemProps {
 }
 
 export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Element {
-  const createTab = useTerminalStore((s) => s.createTab)
+  const createTerminal = useTerminalStore((s) => s.createTerminal)
   const [showMenu, setShowMenu] = useState(false)
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(session.displayName)
 
   const handleResume = (): void => {
     const cmd = `copilot --resume=${session.id}`
-    createTab(`↻ ${session.displayName}`, cmd)
+    createTerminal(undefined, `↻ ${session.displayName}`, cmd)
     setShowMenu(false)
   }
 

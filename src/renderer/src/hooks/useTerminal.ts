@@ -1,167 +1,145 @@
-import { useEffect, useRef, useCallback } from 'react'
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import { WebLinksAddon } from '@xterm/addon-web-links'
+import { useEffect, useRef, useState } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useTerminalStore } from '../stores/terminalStore'
+import {
+  getOrCreateTerminal,
+  getTerminalEntry,
+  updateTerminalFont,
+  type TerminalEntry
+} from '../services/terminalRegistry'
 
 interface UseTerminalOptions {
   terminalId: string
   containerRef: React.RefObject<HTMLDivElement | null>
 }
 
-const DARK_THEME = {
-  background: '#1a1a2e',
-  foreground: '#e0e0e0',
-  cursor: '#e0e0e0',
-  cursorAccent: '#1a1a2e',
-  selectionBackground: '#3a3a5e',
-  black: '#1a1a2e',
-  red: '#ff6b6b',
-  green: '#51cf66',
-  yellow: '#ffd43b',
-  blue: '#74c0fc',
-  magenta: '#cc5de8',
-  cyan: '#66d9e8',
-  white: '#e0e0e0',
-  brightBlack: '#555577',
-  brightRed: '#ff8787',
-  brightGreen: '#69db7c',
-  brightYellow: '#ffe066',
-  brightBlue: '#91d5ff',
-  brightMagenta: '#da77f2',
-  brightCyan: '#99e9f2',
-  brightWhite: '#ffffff'
-}
-
 export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
-  terminal: Terminal | null
+  ready: boolean
 } {
-  const termRef = useRef<Terminal | null>(null)
-  const fitAddonRef = useRef<FitAddon | null>(null)
-  const cleanupRef = useRef<(() => void) | null>(null)
-  const ptyIdRef = useRef<string | null>(null)
+  const [ready, setReady] = useState(false)
   const settings = useSettingsStore((s) => s.settings)
-
-  const handleResize = useCallback(() => {
-    if (fitAddonRef.current) {
-      try {
-        fitAddonRef.current.fit()
-      } catch {
-        // Ignore fit errors during teardown
-      }
-    }
-  }, [])
+  const entryRef = useRef<TerminalEntry | null>(null)
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    const term = new Terminal({
-      fontFamily: settings.fontFamily,
-      fontSize: settings.fontSize,
-      theme: DARK_THEME,
-      cursorBlink: true,
-      cursorStyle: 'block',
-      allowProposedApi: true,
-      macOptionIsMeta: true,
-      scrollback: 10000
-    })
+    const entry = getOrCreateTerminal(terminalId, settings.fontSize, settings.fontFamily)
+    entryRef.current = entry
 
-    const fitAddon = new FitAddon()
-    term.loadAddon(fitAddon)
-    term.loadAddon(new WebLinksAddon())
+    // Attach the persistent xterm DOM element to this container
+    container.appendChild(entry.wrapperEl)
 
-    term.open(container)
-
+    // Fit after attaching (needs dimensions from container)
     requestAnimationFrame(() => {
       try {
-        fitAddon.fit()
+        entry.fitAddon.fit()
       } catch {
         // ignore
       }
     })
 
-    termRef.current = term
-    fitAddonRef.current = fitAddon
+    // If already connected to a PTY, we're ready
+    if (entry.ready) {
+      setReady(true)
+    }
 
-    // Step 1: Subscribe to IPC data FIRST (before creating PTY) to prevent output loss
-    const removeDataListener = window.tplex.pty.onData((id, data) => {
-      if (id === ptyIdRef.current) {
-        term.write(data)
-      }
-    })
+    // Only set up PTY if not already connected
+    if (!entry.ptyId && !entry.cleanupIpc) {
+      setReady(false)
 
-    const removeExitListener = window.tplex.pty.onExit((id, _exitCode) => {
-      if (id === ptyIdRef.current) {
-        term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n')
-      }
-    })
+      // Subscribe to IPC data FIRST
+      const earlyBuffer: { id: string; data: string }[] = []
+      let ptyIdResolved: string | null = null
 
-    // Step 2: Create PTY in main process (invoke returns the server-generated ID)
-    window.tplex.pty.create().then((ptyId) => {
-      ptyIdRef.current = ptyId
-
-      // Now connect terminal input → PTY
-      const onDataDisposable = term.onData((data) => {
-        window.tplex.pty.write(ptyId, data)
+      const removeDataListener = window.tplex.pty.onData((id, data) => {
+        if (ptyIdResolved) {
+          if (id === ptyIdResolved) {
+            entry.term.write(data)
+            if (!entry.ready) {
+              entry.ready = true
+              setReady(true)
+            }
+          }
+        } else {
+          earlyBuffer.push({ id, data })
+        }
       })
 
-      const onResizeDisposable = term.onResize(({ cols, rows }) => {
-        window.tplex.pty.resize(ptyId, cols, rows)
+      const removeExitListener = window.tplex.pty.onExit((id, _exitCode) => {
+        if (id === ptyIdResolved) {
+          entry.term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n')
+        }
       })
 
-      // Check for pending command (e.g., resume session)
-      const pendingCmd = useTerminalStore.getState().popPendingCommand(terminalId)
-      if (pendingCmd) {
-        setTimeout(() => {
-          window.tplex.pty.write(ptyId, pendingCmd + '\n')
-        }, 500)
-      }
+      // Create PTY
+      window.tplex.pty.create().then((ptyId) => {
+        entry.ptyId = ptyId
+        ptyIdResolved = ptyId
 
-      // Store disposables for cleanup
-      cleanupRef.current = () => {
-        onDataDisposable.dispose()
-        onResizeDisposable.dispose()
-        removeDataListener()
-        removeExitListener()
-        window.tplex.pty.destroy(ptyId)
-        term.dispose()
-        termRef.current = null
-        fitAddonRef.current = null
-        ptyIdRef.current = null
-      }
-    })
+        // Flush buffered output
+        let hadData = false
+        for (const item of earlyBuffer) {
+          if (item.id === ptyId) {
+            entry.term.write(item.data)
+            hadData = true
+          }
+        }
+        earlyBuffer.length = 0
+        if (hadData) {
+          entry.ready = true
+          setReady(true)
+        }
 
-    // ResizeObserver for container changes
+        // Connect terminal input → PTY
+        const onDataDisposable = entry.term.onData((data) => {
+          window.tplex.pty.write(ptyId, data)
+        })
+
+        const onResizeDisposable = entry.term.onResize(({ cols, rows }) => {
+          window.tplex.pty.resize(ptyId, cols, rows)
+        })
+
+        // Check for pending command
+        const pendingCmd = useTerminalStore.getState().popPendingCommand(terminalId)
+        if (pendingCmd) {
+          setTimeout(() => {
+            window.tplex.pty.write(ptyId, pendingCmd + '\n')
+          }, 500)
+        }
+
+        entry.cleanupIpc = () => {
+          onDataDisposable.dispose()
+          onResizeDisposable.dispose()
+          removeDataListener()
+          removeExitListener()
+        }
+      })
+    }
+
+    // ResizeObserver for container size changes
     const resizeObserver = new ResizeObserver(() => {
-      handleResize()
+      try {
+        entry.fitAddon.fit()
+      } catch {
+        // ignore
+      }
     })
     resizeObserver.observe(container)
 
     return () => {
+      // Only detach the DOM element — do NOT destroy the terminal or PTY
       resizeObserver.disconnect()
-      if (cleanupRef.current) {
-        cleanupRef.current()
-      } else {
-        // PTY create hasn't resolved yet — clean up what we can
-        removeDataListener()
-        removeExitListener()
-        term.dispose()
-        termRef.current = null
-        fitAddonRef.current = null
+      if (container.contains(entry.wrapperEl)) {
+        container.removeChild(entry.wrapperEl)
       }
     }
-  }, [terminalId]) // Only re-run if terminalId changes
+  }, [terminalId])
 
-  // Update font settings when they change
+  // Update font settings
   useEffect(() => {
-    if (termRef.current) {
-      termRef.current.options.fontSize = settings.fontSize
-      termRef.current.options.fontFamily = settings.fontFamily
-      handleResize()
-    }
-  }, [settings.fontSize, settings.fontFamily, handleResize])
+    updateTerminalFont(terminalId, settings.fontSize, settings.fontFamily)
+  }, [terminalId, settings.fontSize, settings.fontFamily])
 
-  return { terminal: termRef.current }
+  return { ready }
 }

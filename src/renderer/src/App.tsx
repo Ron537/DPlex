@@ -8,13 +8,10 @@ function App(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const loadSettings = useSettingsStore((s) => s.loadSettings)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
-  const createTab = useTerminalStore((s) => s.createTab)
-  const closeTab = useTerminalStore((s) => s.closeTab)
-  const activeTabId = useTerminalStore((s) => s.activeTabId)
-  const tabs = useTerminalStore((s) => s.tabs)
-  const setActiveTab = useTerminalStore((s) => s.setActiveTab)
-  const activeTerminalId = useTerminalStore((s) => s.activeTerminalId)
-  const splitTerminal = useTerminalStore((s) => s.splitTerminal)
+  const createTerminal = useTerminalStore((s) => s.createTerminal)
+  const closeTerminal = useTerminalStore((s) => s.closeTerminal)
+  const splitGroup = useTerminalStore((s) => s.splitGroup)
+  const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
 
   useEffect(() => {
     loadSettings()
@@ -23,17 +20,21 @@ function App(): React.JSX.Element {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey
+      const state = useTerminalStore.getState()
+      const activeGroup = state.groups.find((g) => g.id === state.activeGroupId)
 
-      // Cmd+T — new tab
+      // Cmd+T — new terminal in active group
       if (meta && e.key === 't') {
         e.preventDefault()
-        createTab()
+        createTerminal(state.activeGroupId ?? undefined)
       }
 
-      // Cmd+W — close tab
+      // Cmd+W — close active terminal
       if (meta && e.key === 'w') {
         e.preventDefault()
-        if (activeTabId) closeTab(activeTabId)
+        if (activeGroup) {
+          closeTerminal(activeGroup.activeTabId)
+        }
       }
 
       // Cmd+B — toggle sidebar
@@ -48,28 +49,30 @@ function App(): React.JSX.Element {
         setSettingsOpen(true)
       }
 
-      // Cmd+\ — split right
+      // Cmd+\ — split group right
       if (meta && !e.shiftKey && e.key === '\\') {
         e.preventDefault()
-        if (activeTerminalId) splitTerminal(activeTerminalId, 'horizontal')
+        if (state.activeGroupId) splitGroup(state.activeGroupId, 'horizontal')
       }
 
-      // Cmd+Shift+\ — split down
+      // Cmd+Shift+\ — split group down
       if (meta && e.shiftKey && e.key === '\\') {
         e.preventDefault()
-        if (activeTerminalId) splitTerminal(activeTerminalId, 'vertical')
+        if (state.activeGroupId) splitGroup(state.activeGroupId, 'vertical')
       }
 
-      // Cmd+1-9 — switch tabs
+      // Cmd+1-9 — switch tabs in active group
       if (meta && e.key >= '1' && e.key <= '9') {
         e.preventDefault()
-        const idx = parseInt(e.key) - 1
-        if (idx < tabs.length) {
-          setActiveTab(tabs[idx].id)
+        if (activeGroup) {
+          const idx = parseInt(e.key) - 1
+          if (idx < activeGroup.tabs.length) {
+            setActiveTerminalInGroup(activeGroup.id, activeGroup.tabs[idx].id)
+          }
         }
       }
     },
-    [activeTabId, activeTerminalId, tabs, createTab, closeTab, toggleSidebar, splitTerminal, setActiveTab]
+    [createTerminal, closeTerminal, toggleSidebar, splitGroup, setActiveTerminalInGroup]
   )
 
   useEffect(() => {

@@ -1,12 +1,30 @@
+import { useMemo } from 'react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { SessionItem } from './SessionItem'
 import { Loader2 } from 'lucide-react'
 
 export function SessionList(): JSX.Element {
-  const { active, idle } = useSessionStore((s) => s.getFilteredSessions())
+  const sessions = useSessionStore((s) => s.sessions)
+  const searchQuery = useSessionStore((s) => s.searchQuery)
   const loading = useSessionStore((s) => s.loading)
   const error = useSessionStore((s) => s.error)
   const deleteSession = useSessionStore((s) => s.deleteSession)
+
+  const { active, idle } = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    const filtered = q
+      ? sessions.filter(
+          (s) =>
+            s.displayName.toLowerCase().includes(q) ||
+            s.id.toLowerCase().includes(q) ||
+            (s.summary && s.summary.toLowerCase().includes(q))
+        )
+      : sessions
+    return {
+      active: filtered.filter((s) => s.status === 'active'),
+      idle: filtered.filter((s) => s.status === 'idle')
+    }
+  }, [sessions, searchQuery])
 
   if (loading && active.length === 0 && idle.length === 0) {
     return (

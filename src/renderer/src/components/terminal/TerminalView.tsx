@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { useTerminal } from '../../hooks/useTerminal'
+import { Loader2 } from 'lucide-react'
 
 interface TerminalViewProps {
   terminalId: string
@@ -9,7 +10,7 @@ interface TerminalViewProps {
 
 export function TerminalView({ terminalId, isActive, onFocus }: TerminalViewProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
-  useTerminal({ terminalId, containerRef })
+  const { ready } = useTerminal({ terminalId, containerRef })
 
   return (
     <div
@@ -17,6 +18,14 @@ export function TerminalView({ terminalId, isActive, onFocus }: TerminalViewProp
       onClick={onFocus}
     >
       <div ref={containerRef} className="w-full h-full" />
+      {!ready && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#1a1a2e] z-10">
+          <div className="flex items-center gap-2 text-zinc-500">
+            <Loader2 size={16} className="animate-spin" />
+            <span className="text-xs">Starting terminal...</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

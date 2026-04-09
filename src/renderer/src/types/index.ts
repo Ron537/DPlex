@@ -1,21 +1,19 @@
-export interface TerminalInstance {
+export interface TerminalTab {
   id: string
   title: string
-  cwd?: string
 }
 
-export interface PaneNode {
-  type: 'terminal' | 'split'
+export interface EditorGroup {
+  id: string
+  tabs: TerminalTab[]
+  activeTabId: string
+}
+
+export interface LayoutNode {
+  type: 'group' | 'split'
+  groupId?: string
   direction?: 'horizontal' | 'vertical'
-  terminalId?: string
-  children?: PaneNode[]
-  sizes?: number[]
-}
-
-export interface TabData {
-  id: string
-  title: string
-  paneTree: PaneNode
+  children?: LayoutNode[]
 }
 
 export interface AISession {
