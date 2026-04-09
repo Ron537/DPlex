@@ -83,6 +83,16 @@ export function isTerminalRegistered(terminalId: string): boolean {
   return registry.has(terminalId)
 }
 
+export function fitTerminal(terminalId: string): void {
+  const entry = registry.get(terminalId)
+  if (!entry) return
+  try {
+    entry.fitAddon.fit()
+  } catch {
+    // ignore
+  }
+}
+
 export function updateTerminalFont(terminalId: string, fontSize: number, fontFamily: string): void {
   const entry = registry.get(terminalId)
   if (!entry) return

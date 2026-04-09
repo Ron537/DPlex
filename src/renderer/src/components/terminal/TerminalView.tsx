@@ -1,5 +1,6 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useTerminal } from '../../hooks/useTerminal'
+import { fitTerminal } from '../../services/terminalRegistry'
 import { Loader2 } from 'lucide-react'
 
 interface TerminalViewProps {
@@ -11,6 +12,13 @@ interface TerminalViewProps {
 export function TerminalView({ terminalId, isActive, onFocus }: TerminalViewProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const { ready } = useTerminal({ terminalId, containerRef })
+
+  // Fit immediately when this terminal becomes visible to prevent flicker
+  useEffect(() => {
+    if (isActive) {
+      fitTerminal(terminalId)
+    }
+  }, [isActive, terminalId])
 
   return (
     <div
