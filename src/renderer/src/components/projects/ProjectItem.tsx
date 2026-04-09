@@ -76,28 +76,21 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
 
         {/* Project name + branch */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-xs truncate flex-shrink" style={{ color: 'var(--dplex-text)' }}>
-              {project.name}
-            </span>
-            {branch && (
-              <span
-                className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[9px] font-medium truncate max-w-[50%] flex-shrink-0"
-                style={{
-                  backgroundColor: 'var(--dplex-accent)',
-                  color: 'var(--dplex-bg)',
-                  opacity: 0.85
-                }}
-                title={branch}
-              >
-                <GitBranch size={8} className="flex-shrink-0" />
-                <span className="truncate">{branch}</span>
+          <div className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
+            {project.name}
+          </div>
+          {branch ? (
+            <div className="flex items-center gap-1 mt-0.5">
+              <GitBranch size={9} style={{ color: 'var(--dplex-text-muted)' }} className="flex-shrink-0" />
+              <span className="text-[9px] truncate" style={{ color: 'var(--dplex-text-muted)' }}>
+                {branch}
               </span>
-            )}
-          </div>
-          <div className="text-[9px] truncate" style={{ color: 'var(--dplex-text-muted)' }}>
-            {project.path}
-          </div>
+            </div>
+          ) : (
+            <div className="text-[9px] truncate" style={{ color: 'var(--dplex-text-muted)' }}>
+              {project.path}
+            </div>
+          )}
         </div>
 
         {/* Hover actions */}
