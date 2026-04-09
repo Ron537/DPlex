@@ -74,12 +74,14 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         }
       })
 
-      // Create PTY
+      // Create PTY — use tab-specific shell, then settings default, then system default
       const termState = useTerminalStore.getState()
       const tabShell = termState.groups
         .flatMap((g) => g.tabs)
         .find((t) => t.id === terminalId)?.shell
-      window.dplex.pty.create(tabShell).then((ptyId) => {
+      const defaultShell = useSettingsStore.getState().settings.defaultShell
+      const shellToUse = tabShell || defaultShell || undefined
+      window.dplex.pty.create(shellToUse).then((ptyId) => {
         entry.ptyId = ptyId
         ptyIdResolved = ptyId
 

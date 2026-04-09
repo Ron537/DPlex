@@ -3,6 +3,7 @@ import { X, Settings } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { getThemeList, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
+import type { ShellInfo } from '../../types'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -13,11 +14,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
   const settings = useSettingsStore((s) => s.settings)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
   const [localSettings, setLocalSettings] = useState(settings)
+  const [shells, setShells] = useState<ShellInfo[]>([])
   const themes = getThemeList()
 
   // Sync local state when modal opens
   useEffect(() => {
-    if (isOpen) setLocalSettings(settings)
+    if (isOpen) {
+      setLocalSettings(settings)
+      window.dplex.app.getAvailableShells().then(setShells)
+    }
   }, [isOpen, settings])
 
   if (!isOpen) return null
@@ -99,19 +104,24 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
             </select>
           </div>
 
-          {/* Shell */}
+          {/* Default Shell */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--dplex-text-muted)' }}>Shell Path</label>
-            <input
-              type="text"
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--dplex-text-muted)' }}>Default Shell</label>
+            <select
               value={localSettings.defaultShell}
               onChange={(e) =>
                 setLocalSettings({ ...localSettings, defaultShell: e.target.value })
               }
-              placeholder="Leave empty for default shell"
-              className="w-full rounded px-3 py-2 text-sm placeholder-zinc-600 outline-none"
+              className="w-full rounded px-3 py-2 text-sm outline-none"
               style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
-            />
+            >
+              <option value="">System default</option>
+              {shells.map((s) => (
+                <option key={s.path} value={s.path}>
+                  {s.name} ({s.path})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Font Size */}
