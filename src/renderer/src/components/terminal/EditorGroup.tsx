@@ -89,20 +89,26 @@ export function EditorGroup({ group }: EditorGroupProps): JSX.Element {
         onDrop={handleDrop}
         onDragLeave={handleDragLeave}
       >
-        {/* Render all tabs, show only active */}
-        {group.tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className="absolute inset-0"
-            style={{ display: tab.id === group.activeTabId ? 'block' : 'none' }}
-          >
-            <TerminalView
-              terminalId={tab.id}
-              isActive={isActiveGroup && tab.id === group.activeTabId}
-              onFocus={() => setActiveGroup(group.id)}
-            />
-          </div>
-        ))}
+        {/* Render all tabs — active on top, inactive hidden but laid out */}
+        {group.tabs.map((tab) => {
+          const isActive = tab.id === group.activeTabId
+          return (
+            <div
+              key={tab.id}
+              className="absolute inset-0"
+              style={{
+                visibility: isActive ? 'visible' : 'hidden',
+                zIndex: isActive ? 1 : 0
+              }}
+            >
+              <TerminalView
+                terminalId={tab.id}
+                isActive={isActiveGroup && isActive}
+                onFocus={() => setActiveGroup(group.id)}
+              />
+            </div>
+          )
+        })}
 
         {/* Drop zone overlays */}
         {dropZone && (
