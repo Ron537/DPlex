@@ -214,25 +214,6 @@ export function destroyPtysForWindow(windowId: number): void {
   }
 }
 
-export function getPtyCwd(id: string): string | null {
-  const entry = ptys.get(id)
-  if (!entry) return null
-  try {
-    const pid = entry.process.pid
-    if (process.platform === 'darwin') {
-      const { execSync } = require('child_process')
-      const result = execSync(`lsof -d cwd -a -p ${pid} -Fn 2>/dev/null`, { encoding: 'utf-8' })
-      const match = result.match(/\nn(.+)/)
-      return match ? match[1] : null
-    } else if (process.platform === 'linux') {
-      return fs.readlinkSync(`/proc/${pid}/cwd`)
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
 export function getDefaultShellPath(): string {
   return getDefaultShell()
 }

@@ -1,22 +1,9 @@
-import { useState, useEffect } from 'react'
-import { Terminal, FolderOpen, Cpu, PanelLeftOpen, PanelLeftClose, Settings } from 'lucide-react'
+import { Terminal, Cpu, PanelLeftOpen, PanelLeftClose, Settings } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { getTerminalEntry } from '../../services/terminalRegistry'
 
 interface StatusBarProps {
   onOpenSettings: () => void
-}
-
-function shortenPath(path: string): string {
-  const home = '/Users/'
-  if (path.startsWith(home)) {
-    const afterUsers = path.slice(home.length)
-    const slashIdx = afterUsers.indexOf('/')
-    if (slashIdx === -1) return '~'
-    return '~' + afterUsers.slice(slashIdx)
-  }
-  return path
 }
 
 export function StatusBar({ onOpenSettings }: StatusBarProps): JSX.Element {
@@ -27,24 +14,6 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): JSX.Element {
   const totalTerminals = groups.reduce((sum, g) => sum + g.tabs.length, 0)
   const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
-  const [cwd, setCwd] = useState('~')
-
-  // Poll cwd of active terminal
-  useEffect(() => {
-    if (!activeTab) return
-    const entry = getTerminalEntry(activeTab.id)
-    if (!entry?.ptyId) return
-
-    const fetchCwd = (): void => {
-      window.dplex.pty.getCwd(entry.ptyId!).then((result) => {
-        if (result) setCwd(shortenPath(result))
-      }).catch(() => {})
-    }
-
-    fetchCwd()
-    const interval = setInterval(fetchCwd, 3000)
-    return () => clearInterval(interval)
-  }, [activeTab?.id])
 
   return (
     <div className="flex items-center justify-between h-6 px-1 text-[10px] select-none" style={{ backgroundColor: 'var(--dplex-bg-alt)', borderTop: '1px solid var(--dplex-border)', color: 'var(--dplex-text-muted)' }}>
@@ -56,10 +25,6 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): JSX.Element {
         >
           {sidebarVisible ? <PanelLeftClose size={12} /> : <PanelLeftOpen size={12} />}
         </button>
-        <span className="flex items-center gap-1">
-          <FolderOpen size={10} />
-          {cwd}
-        </span>
         <span className="flex items-center gap-1">
           <Cpu size={10} />
           Copilot CLI

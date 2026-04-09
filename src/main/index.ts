@@ -12,8 +12,7 @@ import {
   destroyAllPtys,
   destroyPtysForWindow,
   getDefaultShellPath,
-  discoverAvailableShells,
-  getPtyCwd
+  discoverAvailableShells
 } from './services/ptyManager'
 import { discoverCopilotSessions, deleteSessionDir } from './services/sessionDiscovery'
 
@@ -115,10 +114,6 @@ function registerIpcHandlers(): void {
 
   ipcMain.on('pty:destroy', (_event, id: string) => {
     destroyPty(id)
-  })
-
-  ipcMain.handle('pty:getCwd', (_event, id: string) => {
-    return getPtyCwd(id)
   })
 
   // Session discovery
