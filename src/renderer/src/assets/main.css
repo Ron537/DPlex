@@ -1,12 +1,21 @@
 @import "tailwindcss";
 @import "@xterm/xterm/css/xterm.css";
 
+:root {
+  --tplex-bg: #1a1a2e;
+  --tplex-bg-alt: #16162a;
+  --tplex-border: #2a2a4a;
+  --tplex-text: #e0e0e0;
+  --tplex-text-muted: #888;
+  --tplex-accent: #74c0fc;
+}
+
 body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: #1a1a2e;
-  color: #e0e0e0;
+  background-color: var(--tplex-bg);
+  color: var(--tplex-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -16,7 +25,6 @@ body {
   height: 100vh;
 }
 
-/* macOS frameless window drag region */
 .drag-region {
   -webkit-app-region: drag;
 }
@@ -25,22 +33,19 @@ body {
   -webkit-app-region: no-drag;
 }
 
-/* Hide scrollbar for tab strip */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-/* xterm container must have explicit dimensions */
 .terminal-container .xterm {
   height: 100%;
-  padding: 4px;
 }
 
-/* Allotment sash styling */
 .split-view-view .sash-container .sash {
-  background-color: #2a2a4a;
+  background-color: var(--tplex-border);
 }
 
 .split-view-view .sash-container .sash:hover {
-  background-color: #3a3a6e;
+  background-color: var(--tplex-accent);
+  opacity: 0.5;
 }

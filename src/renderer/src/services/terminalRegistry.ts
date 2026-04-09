@@ -1,30 +1,7 @@
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
-
-const DARK_THEME = {
-  background: '#1a1a2e',
-  foreground: '#e0e0e0',
-  cursor: '#e0e0e0',
-  cursorAccent: '#1a1a2e',
-  selectionBackground: '#3a3a5e',
-  black: '#1a1a2e',
-  red: '#ff6b6b',
-  green: '#51cf66',
-  yellow: '#ffd43b',
-  blue: '#74c0fc',
-  magenta: '#cc5de8',
-  cyan: '#66d9e8',
-  white: '#e0e0e0',
-  brightBlack: '#555577',
-  brightRed: '#ff8787',
-  brightGreen: '#69db7c',
-  brightYellow: '#ffe066',
-  brightBlue: '#91d5ff',
-  brightMagenta: '#da77f2',
-  brightCyan: '#99e9f2',
-  brightWhite: '#ffffff'
-}
+import { getTheme } from './themes'
 
 export interface TerminalEntry {
   term: Terminal
@@ -32,6 +9,7 @@ export interface TerminalEntry {
   ptyId: string | null
   wrapperEl: HTMLDivElement
   ready: boolean
+  creating: boolean
   cleanupIpc: (() => void) | null
 }
 
@@ -41,15 +19,18 @@ const registry = new Map<string, TerminalEntry>()
 export function getOrCreateTerminal(
   terminalId: string,
   fontSize: number,
-  fontFamily: string
+  fontFamily: string,
+  themeId?: string
 ): TerminalEntry {
   const existing = registry.get(terminalId)
   if (existing) return existing
 
+  const appTheme = getTheme(themeId || 'midnight')
+
   const term = new Terminal({
     fontFamily,
     fontSize,
-    theme: DARK_THEME,
+    theme: appTheme.terminal,
     cursorBlink: true,
     cursorStyle: 'block',
     allowProposedApi: true,
@@ -65,6 +46,7 @@ export function getOrCreateTerminal(
   const wrapperEl = document.createElement('div')
   wrapperEl.style.width = '100%'
   wrapperEl.style.height = '100%'
+  wrapperEl.style.backgroundColor = appTheme.terminal.background || '#000'
 
   term.open(wrapperEl)
 
@@ -74,6 +56,7 @@ export function getOrCreateTerminal(
     ptyId: null,
     wrapperEl,
     ready: false,
+    creating: false,
     cleanupIpc: null
   }
 
@@ -109,5 +92,13 @@ export function updateTerminalFont(terminalId: string, fontSize: number, fontFam
     entry.fitAddon.fit()
   } catch {
     // ignore
+  }
+}
+
+export function applyThemeToAll(themeId: string): void {
+  const appTheme = getTheme(themeId)
+  for (const [, entry] of registry) {
+    entry.term.options.theme = appTheme.terminal
+    entry.wrapperEl.style.backgroundColor = appTheme.terminal.background || '#000'
   }
 }

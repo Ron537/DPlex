@@ -35,6 +35,20 @@ function saveSettings(data: Record<string, unknown>): void {
 }
 
 function createWindow(): void {
+  // Read saved theme to set correct initial window background
+  const savedSettings = loadSettings()
+  const savedTheme = (savedSettings.theme as string) || 'midnight'
+  // Map theme ID to its UI background color
+  const themeBgMap: Record<string, string> = {
+    'midnight': '#1a1a2e',
+    'dracula': '#282a36',
+    'monokai': '#272822',
+    'nord': '#2e3440',
+    'solarized-dark': '#002b36',
+    'github-dark': '#0d1117'
+  }
+  const windowBg = themeBgMap[savedTheme] || '#1a1a2e'
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -42,9 +56,9 @@ function createWindow(): void {
     minHeight: 500,
     show: false,
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 12, y: 12 },
+    trafficLightPosition: { x: 12, y: 14 },
     autoHideMenuBar: true,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: windowBg,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

@@ -8,6 +8,16 @@ interface GroupLayoutProps {
   node: LayoutNode
 }
 
+// Generate a stable key from the layout tree structure so Allotment
+// fully remounts when the tree shape changes (direction, child count, etc.)
+function layoutKey(node: LayoutNode): string {
+  if (node.type === 'group') return `g:${node.groupId}`
+  if (node.children) {
+    return `s:${node.direction}:[${node.children.map(layoutKey).join(',')}]`
+  }
+  return 'empty'
+}
+
 export function GroupLayout({ node }: GroupLayoutProps): JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
 
@@ -21,8 +31,9 @@ export function GroupLayout({ node }: GroupLayoutProps): JSX.Element {
 
   if (node.type === 'split' && node.children && node.children.length > 0) {
     const isVertical = node.direction === 'vertical'
+    const key = layoutKey(node)
     return (
-      <Allotment vertical={isVertical}>
+      <Allotment key={key} vertical={isVertical}>
         {node.children.map((child, i) => (
           <Allotment.Pane key={child.groupId || `split-${i}`} minSize={120}>
             <GroupLayout node={child} />

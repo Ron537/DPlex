@@ -5,6 +5,7 @@ import {
   getOrCreateTerminal,
   getTerminalEntry,
   updateTerminalFont,
+  applyThemeToAll,
   type TerminalEntry
 } from '../services/terminalRegistry'
 
@@ -24,7 +25,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
     const container = containerRef.current
     if (!container) return
 
-    const entry = getOrCreateTerminal(terminalId, settings.fontSize, settings.fontFamily)
+    const entry = getOrCreateTerminal(terminalId, settings.fontSize, settings.fontFamily, settings.theme)
     entryRef.current = entry
 
     // Attach the persistent xterm DOM element to this container
@@ -44,8 +45,9 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       setReady(true)
     }
 
-    // Only set up PTY if not already connected
-    if (!entry.ptyId && !entry.cleanupIpc) {
+    // Only set up PTY if not already connected or in progress
+    if (!entry.ptyId && !entry.cleanupIpc && !entry.creating) {
+      entry.creating = true
       setReady(false)
 
       // Subscribe to IPC data FIRST
@@ -100,6 +102,12 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           window.tplex.pty.resize(ptyId, cols, rows)
         })
 
+        // Sync current terminal size to PTY (it was created with default 80x24)
+        const { cols, rows } = entry.term
+        if (cols && rows) {
+          window.tplex.pty.resize(ptyId, cols, rows)
+        }
+
         // Check for pending command
         const pendingCmd = useTerminalStore.getState().popPendingCommand(terminalId)
         if (pendingCmd) {
@@ -140,6 +148,11 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
   useEffect(() => {
     updateTerminalFont(terminalId, settings.fontSize, settings.fontFamily)
   }, [terminalId, settings.fontSize, settings.fontFamily])
+
+  // Apply theme changes to this terminal
+  useEffect(() => {
+    applyThemeToAll(settings.theme)
+  }, [settings.theme])
 
   return { ready }
 }

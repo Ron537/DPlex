@@ -82,9 +82,11 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): JSX.Ele
 
   return (
     <div
-      className={`flex items-center h-8 bg-[#16162a] border-b select-none ${
-        isActiveGroup ? 'border-blue-500/40' : 'border-[#2a2a4a]'
-      }`}
+      className="flex items-center h-8 select-none"
+      style={{
+        backgroundColor: 'var(--tplex-bg-alt)',
+        borderBottom: isActiveGroup ? '1px solid var(--tplex-accent)' : '1px solid var(--tplex-border)'
+      }}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
       onDrop={handleTabBarDrop}
     >
@@ -97,20 +99,22 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): JSX.Ele
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
-            className={`group flex items-center gap-1 px-2.5 h-8 cursor-pointer text-[11px] transition-colors border-r border-[#2a2a4a] ${
-              dragOverIndex === index ? 'border-l-2 border-l-blue-500' : ''
-            } ${
-              tab.id === group.activeTabId
-                ? 'bg-[#1a1a2e] text-white'
-                : 'text-zinc-500 hover:bg-[#1e1e38] hover:text-zinc-300'
+            className={`group flex items-center gap-1 px-2.5 h-8 cursor-pointer text-[11px] transition-colors ${
+              dragOverIndex === index ? 'border-l-2' : ''
             }`}
+            style={{
+              borderRight: '1px solid var(--tplex-border)',
+              borderLeftColor: dragOverIndex === index ? 'var(--tplex-accent)' : 'transparent',
+              backgroundColor: tab.id === group.activeTabId ? 'var(--tplex-bg)' : 'transparent',
+              color: tab.id === group.activeTabId ? 'var(--tplex-text)' : 'var(--tplex-text-muted)'
+            }}
             onClick={() => {
               setActiveGroup(group.id)
               setActiveTerminalInGroup(group.id, tab.id)
             }}
             onDoubleClick={() => handleDoubleClick(tab.id, tab.title)}
           >
-            <TerminalIcon size={11} className="flex-shrink-0 text-zinc-600" />
+            <TerminalIcon size={11} className="flex-shrink-0" style={{ color: 'var(--tplex-text-muted)' }} />
             {editingTabId === tab.id ? (
               <input
                 ref={inputRef}
@@ -144,7 +148,8 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): JSX.Ele
             setActiveGroup(group.id)
             createTerminal(group.id)
           }}
-          className="flex items-center justify-center w-7 h-8 text-zinc-600 hover:text-white hover:bg-[#1e1e38] transition-colors flex-shrink-0"
+          className="flex items-center justify-center w-7 h-8 hover:bg-white/10 transition-colors flex-shrink-0"
+          style={{ color: 'var(--tplex-text-muted)' }}
           title="New terminal"
         >
           <Plus size={12} />
@@ -155,14 +160,16 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): JSX.Ele
       <div className="flex items-center gap-0.5 px-1 flex-shrink-0">
         <button
           onClick={() => splitGroup(group.id, 'horizontal')}
-          className="p-0.5 text-zinc-600 hover:text-white hover:bg-white/10 rounded transition-colors"
+          className="p-0.5 hover:bg-white/10 rounded transition-colors"
+          style={{ color: 'var(--tplex-text-muted)' }}
           title="Split right"
         >
           <SplitSquareHorizontal size={12} />
         </button>
         <button
           onClick={() => splitGroup(group.id, 'vertical')}
-          className="p-0.5 text-zinc-600 hover:text-white hover:bg-white/10 rounded transition-colors"
+          className="p-0.5 hover:bg-white/10 rounded transition-colors"
+          style={{ color: 'var(--tplex-text-muted)' }}
           title="Split down"
         >
           <SplitSquareVertical size={12} />

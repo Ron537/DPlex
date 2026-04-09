@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MoreVertical, Play, Trash2, Edit3 } from 'lucide-react'
+import { MoreVertical, Play, Trash2 } from 'lucide-react'
 import type { AISession } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 
@@ -11,8 +11,6 @@ interface SessionItemProps {
 export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const [showMenu, setShowMenu] = useState(false)
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [renameValue, setRenameValue] = useState(session.displayName)
 
   const handleResume = (): void => {
     const cmd = `copilot --resume=${session.id}`
@@ -33,7 +31,7 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
 
   return (
     <div
-      className="group flex items-center gap-2 px-3 py-1.5 hover:bg-[#1e1e38] cursor-pointer rounded-sm mx-1 relative"
+      className="group flex items-center gap-2 px-3 py-1.5 hover:bg-white/5 cursor-pointer rounded-sm mx-1 relative"
       onClick={handleResume}
     >
       <div
@@ -43,27 +41,10 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
       />
 
       <div className="flex-1 min-w-0">
-        {isRenaming ? (
-          <input
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onBlur={() => setIsRenaming(false)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === 'Escape') setIsRenaming(false)
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-[#2a2a4a] text-xs text-white w-full px-1 py-0.5 rounded outline-none border border-blue-500/50"
-            autoFocus
-          />
-        ) : (
-          <>
-            <div className="text-xs text-zinc-200 truncate">{session.displayName}</div>
-            <div className="text-[10px] text-zinc-500 truncate">
-              {timeAgo(session.updatedAt)}
-              {session.summary && ` · ${session.summary}`}
-            </div>
-          </>
-        )}
+        <div className="text-xs truncate" style={{ color: 'var(--tplex-text)' }}>{session.displayName}</div>
+        <div className="text-[10px] truncate" style={{ color: 'var(--tplex-text-muted)' }}>
+          {timeAgo(session.updatedAt)}
+        </div>
       </div>
 
       <button
@@ -73,31 +54,22 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
         }}
         className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded transition-opacity"
       >
-        <MoreVertical size={12} className="text-zinc-400" />
+        <MoreVertical size={12} style={{ color: 'var(--tplex-text-muted)' }} />
       </button>
 
       {showMenu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-          <div className="absolute right-2 top-8 z-50 bg-[#2a2a4a] border border-[#3a3a5e] rounded shadow-xl py-1 min-w-[140px]">
+          <div className="absolute right-2 top-8 z-50 rounded shadow-xl py-1 min-w-[140px]" style={{ backgroundColor: 'var(--tplex-bg)', border: '1px solid var(--tplex-border)' }}>
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 handleResume()
               }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-zinc-200 hover:bg-[#3a3a5e]"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+              style={{ color: 'var(--tplex-text)' }}
             >
               <Play size={11} /> Resume
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setIsRenaming(true)
-                setShowMenu(false)
-              }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-zinc-200 hover:bg-[#3a3a5e]"
-            >
-              <Edit3 size={11} /> Rename
             </button>
             <button
               onClick={(e) => {
@@ -105,7 +77,7 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
                 onDelete(session.id)
                 setShowMenu(false)
               }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-[#3a3a5e]"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-white/10"
             >
               <Trash2 size={11} /> Delete
             </button>

@@ -32,7 +32,7 @@ export interface AppSettings {
   defaultAITool: string
   fontSize: number
   fontFamily: string
-  theme: 'dark' | 'light'
+  theme: string
   sidebarWidth: number
   sidebarVisible: boolean
   sessionPollIntervalMs: number

@@ -1,16 +1,30 @@
-import { Terminal, FolderOpen, Cpu } from 'lucide-react'
+import { Terminal, FolderOpen, Cpu, PanelLeftOpen, PanelLeftClose, Settings } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 
-export function StatusBar(): JSX.Element {
+interface StatusBarProps {
+  onOpenSettings: () => void
+}
+
+export function StatusBar({ onOpenSettings }: StatusBarProps): JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
   const activeGroupId = useTerminalStore((s) => s.activeGroupId)
   const activeGroup = groups.find((g) => g.id === activeGroupId)
   const activeTab = activeGroup?.tabs.find((t) => t.id === activeGroup.activeTabId)
   const totalTerminals = groups.reduce((sum, g) => sum + g.tabs.length, 0)
+  const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
+  const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
 
   return (
-    <div className="flex items-center justify-between h-6 px-3 bg-[#16162a] border-t border-[#2a2a4a] text-[10px] text-zinc-500 select-none">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between h-6 px-1 text-[10px] select-none" style={{ backgroundColor: 'var(--tplex-bg-alt)', borderTop: '1px solid var(--tplex-border)', color: 'var(--tplex-text-muted)' }}>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={toggleSidebar}
+          className="p-0.5 hover:text-white hover:bg-white/10 rounded transition-colors"
+          title={sidebarVisible ? 'Hide sidebar (⌘B)' : 'Show sidebar (⌘B)'}
+        >
+          {sidebarVisible ? <PanelLeftClose size={12} /> : <PanelLeftOpen size={12} />}
+        </button>
         <span className="flex items-center gap-1">
           <FolderOpen size={10} />
           ~
@@ -20,7 +34,7 @@ export function StatusBar(): JSX.Element {
           Copilot CLI
         </span>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pr-1">
         {activeTab && (
           <span className="flex items-center gap-1">
             <Terminal size={10} />
@@ -28,6 +42,13 @@ export function StatusBar(): JSX.Element {
           </span>
         )}
         <span>{totalTerminals} terminal{totalTerminals !== 1 ? 's' : ''} · {groups.length} group{groups.length !== 1 ? 's' : ''}</span>
+        <button
+          onClick={onOpenSettings}
+          className="p-0.5 hover:text-white hover:bg-white/10 rounded transition-colors"
+          title="Settings (⌘,)"
+        >
+          <Settings size={12} />
+        </button>
       </div>
     </div>
   )

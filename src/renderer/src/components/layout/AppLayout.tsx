@@ -1,30 +1,63 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { SidePanel } from './SidePanel'
 import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
+import { SettingsModal } from '../settings/SettingsModal'
 import { useSessions } from '../../hooks/useSessions'
+import { getTheme } from '../../services/themes'
 
 export function AppLayout(): JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
   const layout = useTerminalStore((s) => s.layout)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
+  const themeId = useSettingsStore((s) => s.settings.theme)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const theme = getTheme(themeId)
+
+  // Apply theme CSS variables
+  useEffect(() => {
+    const root = document.documentElement
+    root.style.setProperty('--tplex-bg', theme.ui.bg)
+    root.style.setProperty('--tplex-bg-alt', theme.ui.bgAlt)
+    root.style.setProperty('--tplex-border', theme.ui.border)
+    root.style.setProperty('--tplex-text', theme.ui.text)
+    root.style.setProperty('--tplex-text-muted', theme.ui.textMuted)
+    root.style.setProperty('--tplex-accent', theme.ui.accent)
+    document.body.style.backgroundColor = theme.ui.bg
+  }, [themeId])
 
   useSessions()
 
-  // Create initial terminal on mount
+  const initialized = useRef(false)
+
   useEffect(() => {
-    if (groups.length === 0) {
+    if (!initialized.current && groups.length === 0) {
+      initialized.current = true
       createTerminal()
     }
   }, [])
 
+  // Listen for settings open event from keyboard shortcut
+  useEffect(() => {
+    const handler = (): void => setSettingsOpen(true)
+    window.addEventListener('tplex:open-settings', handler)
+    return () => window.removeEventListener('tplex:open-settings', handler)
+  }, [])
+
   return (
-    <div className="flex flex-col h-screen bg-[#1a1a2e] text-white overflow-hidden">
-      {/* macOS drag region */}
-      <div className="h-3 bg-[#16162a] drag-region flex-shrink-0" />
+    <div className="flex flex-col h-screen text-white overflow-hidden" style={{ backgroundColor: theme.ui.bg, color: theme.ui.text }}>
+      {/* macOS title bar / drag region */}
+      <div className="h-10 drag-region flex-shrink-0 flex items-center" style={{ backgroundColor: theme.ui.bgAlt, borderBottom: `1px solid ${theme.ui.border}` }}>
+        <div className="w-[76px] flex-shrink-0" />
+        <div className="flex-1 text-center">
+          <span className="text-[11px] text-zinc-600 font-medium select-none">TPlex</span>
+        </div>
+        <div className="w-[76px] flex-shrink-0" />
+      </div>
 
       <div className="flex flex-1 min-h-0">
         {sidebarVisible && <SidePanel />}
@@ -44,9 +77,11 @@ export function AppLayout(): JSX.Element {
             )}
           </div>
 
-          <StatusBar />
+          <StatusBar onOpenSettings={() => setSettingsOpen(true)} />
         </div>
       </div>
+
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
 }

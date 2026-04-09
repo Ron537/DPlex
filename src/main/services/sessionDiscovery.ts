@@ -27,6 +27,62 @@ function parsePlanSummary(planPath: string): string | undefined {
   }
 }
 
+function parseWorkspaceYaml(sessionDir: string): { summary?: string; cwd?: string } {
+  try {
+    const yamlPath = path.join(sessionDir, 'workspace.yaml')
+    if (!fs.existsSync(yamlPath)) return {}
+    const content = fs.readFileSync(yamlPath, 'utf-8')
+    const summaryMatch = content.match(/^summary:\s*(.+)$/m)
+    const cwdMatch = content.match(/^cwd:\s*(.+)$/m)
+    return {
+      summary: summaryMatch?.[1]?.trim() || undefined,
+      cwd: cwdMatch?.[1]?.trim() || undefined
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseFirstUserMessage(sessionDir: string): string | undefined {
+  try {
+    const eventsPath = path.join(sessionDir, 'events.jsonl')
+    if (!fs.existsSync(eventsPath)) return undefined
+    const content = fs.readFileSync(eventsPath, 'utf-8')
+    const lines = content.split('\n')
+    for (const line of lines) {
+      if (!line.trim()) continue
+      try {
+        const event = JSON.parse(line)
+        if (event.type === 'user.message' && event.data?.content) {
+          const msg = event.data.content.trim()
+          // Truncate long messages
+          return msg.length > 80 ? msg.slice(0, 77) + '...' : msg
+        }
+      } catch {
+        continue
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return undefined
+}
+
+function getDisplayName(sessionDir: string, sessionId: string): string {
+  // Priority: plan.md heading > workspace.yaml summary > first user message > folder name
+  const planPath = path.join(sessionDir, 'plan.md')
+  const planName = fs.existsSync(planPath) ? parsePlanSummary(planPath) : undefined
+  if (planName) return planName
+
+  const workspace = parseWorkspaceYaml(sessionDir)
+  if (workspace.summary) return workspace.summary
+
+  const firstMsg = parseFirstUserMessage(sessionDir)
+  if (firstMsg) return firstMsg
+
+  return sessionId.slice(0, 12)
+}
+
 function isSessionActive(sessionDir: string): boolean {
   try {
     const stat = fs.statSync(sessionDir)
@@ -71,17 +127,18 @@ export function discoverCopilotSessions(): DiscoveredSession[] {
 
       try {
         const stat = fs.statSync(fullPath)
-        const planPath = path.join(fullPath, 'plan.md')
-        const summary = fs.existsSync(planPath) ? parsePlanSummary(planPath) : undefined
+        const displayName = getDisplayName(fullPath, entry.name)
+        const workspace = parseWorkspaceYaml(fullPath)
 
         sessions.push({
           id: entry.name,
-          displayName: summary || entry.name.slice(0, 12),
+          displayName,
           status: isSessionActive(fullPath) ? 'active' : 'idle',
           aiTool: 'copilot-cli',
           createdAt: stat.birthtime.toISOString(),
           updatedAt: stat.mtime.toISOString(),
-          summary
+          cwd: workspace.cwd,
+          summary: displayName
         })
       } catch {
         // Skip unreadable sessions
