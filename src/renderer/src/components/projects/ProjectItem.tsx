@@ -76,21 +76,22 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
 
         {/* Project name + branch */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-xs truncate flex-shrink" style={{ color: 'var(--dplex-text)' }}>
               {project.name}
             </span>
             {branch && (
               <span
-                className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[9px] font-medium flex-shrink-0"
+                className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[9px] font-medium truncate max-w-[50%] flex-shrink-0"
                 style={{
                   backgroundColor: 'var(--dplex-accent)',
                   color: 'var(--dplex-bg)',
                   opacity: 0.85
                 }}
+                title={branch}
               >
-                <GitBranch size={8} />
-                {branch}
+                <GitBranch size={8} className="flex-shrink-0" />
+                <span className="truncate">{branch}</span>
               </span>
             )}
           </div>
