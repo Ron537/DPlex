@@ -33,13 +33,14 @@ export function AppLayout(): JSX.Element {
   useSessions()
 
   const initialized = useRef(false)
+  const settingsLoaded = useSettingsStore((s) => s.loaded)
 
   useEffect(() => {
-    if (!initialized.current && groups.length === 0) {
+    if (!initialized.current && settingsLoaded && groups.length === 0) {
       initialized.current = true
       createTerminal()
     }
-  }, [])
+  }, [settingsLoaded])
 
   // Listen for settings open event from keyboard shortcut
   useEffect(() => {
