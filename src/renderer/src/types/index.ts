@@ -2,6 +2,7 @@ export interface TerminalTab {
   id: string
   title: string
   shell?: string
+  cwd?: string
 }
 
 export interface ShellInfo {
@@ -42,6 +43,28 @@ export interface AppSettings {
   sidebarWidth: number
   sidebarVisible: boolean
   sessionPollIntervalMs: number
+}
+
+export interface Project {
+  id: string
+  name: string
+  path: string
+  addedAt: string
+}
+
+export interface AIToolConfig {
+  id: string
+  name: string
+  command: string
+}
+
+export const AI_TOOLS: AIToolConfig[] = [
+  { id: 'copilot-cli', name: 'Copilot CLI', command: 'copilot' },
+  { id: 'claude-code', name: 'Claude Code', command: 'claude' }
+]
+
+export function getAIToolCommand(toolId: string): string {
+  return AI_TOOLS.find((t) => t.id === toolId)?.command ?? 'copilot'
 }
 
 export interface AIToolAdapter {

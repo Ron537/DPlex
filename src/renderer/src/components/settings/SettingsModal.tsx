@@ -211,7 +211,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
                     style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
                   >
                     <option value="copilot-cli">Copilot CLI</option>
-                    <option value="claude-code">Claude Code (coming soon)</option>
+                    <option value="claude-code">Claude Code</option>
                   </select>
                 </SettingItem>
 

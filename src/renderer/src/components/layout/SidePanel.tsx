@@ -1,7 +1,11 @@
-import { Search, PanelLeftClose, PanelLeftOpen, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
+import { Search, PanelLeftClose, RefreshCw, FolderKanban, History } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { SessionList } from '../sessions/SessionList'
+import { ProjectList } from '../projects/ProjectList'
+
+type SidebarTab = 'projects' | 'sessions'
 
 export function SidePanel(): JSX.Element {
   const searchQuery = useSessionStore((s) => s.searchQuery)
@@ -9,6 +13,7 @@ export function SidePanel(): JSX.Element {
   const refreshSessions = useSessionStore((s) => s.refreshSessions)
   const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
+  const [activeTab, setActiveTab] = useState<SidebarTab>('projects')
 
   if (!sidebarVisible) {
     return null
@@ -16,18 +21,43 @@ export function SidePanel(): JSX.Element {
 
   return (
     <div className="flex flex-col h-full w-[260px] flex-shrink-0" style={{ backgroundColor: 'var(--dplex-bg-alt)', borderRight: '1px solid var(--dplex-border)' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 h-9" style={{ borderBottom: '1px solid var(--dplex-border)' }}>
-        <span className="text-xs font-semibold tracking-wide" style={{ color: 'var(--dplex-text)' }}>SESSIONS</span>
-        <div className="flex items-center gap-1">
+      {/* Header with tab toggle */}
+      <div className="flex items-center justify-between px-2 h-9" style={{ borderBottom: '1px solid var(--dplex-border)' }}>
+        <div className="flex items-center gap-0.5">
           <button
-            onClick={() => refreshSessions()}
-            className="p-1 hover:bg-white/10 rounded transition-colors"
-            style={{ color: 'var(--dplex-text-muted)' }}
-            title="Refresh sessions"
+            onClick={() => setActiveTab('projects')}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold tracking-wide transition-colors"
+            style={{
+              color: activeTab === 'projects' ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+              backgroundColor: activeTab === 'projects' ? 'var(--dplex-bg)' : 'transparent'
+            }}
           >
-            <RefreshCw size={12} />
+            <FolderKanban size={11} />
+            PROJECTS
           </button>
+          <button
+            onClick={() => setActiveTab('sessions')}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold tracking-wide transition-colors"
+            style={{
+              color: activeTab === 'sessions' ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+              backgroundColor: activeTab === 'sessions' ? 'var(--dplex-bg)' : 'transparent'
+            }}
+          >
+            <History size={11} />
+            HISTORY
+          </button>
+        </div>
+        <div className="flex items-center gap-0.5">
+          {activeTab === 'sessions' && (
+            <button
+              onClick={() => refreshSessions()}
+              className="p-1 hover:bg-white/10 rounded transition-colors"
+              style={{ color: 'var(--dplex-text-muted)' }}
+              title="Refresh sessions"
+            >
+              <RefreshCw size={12} />
+            </button>
+          )}
           <button
             onClick={toggleSidebar}
             className="p-1 hover:bg-white/10 rounded transition-colors"
@@ -39,24 +69,26 @@ export function SidePanel(): JSX.Element {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="px-2 py-2">
-        <div className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors" style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}>
-          <Search size={12} style={{ color: 'var(--dplex-text-muted)' }} className="flex-shrink-0" />
-          <input
-            type="text"
-            placeholder="Search sessions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent text-xs placeholder-zinc-600 outline-none w-full"
-            style={{ color: 'var(--dplex-text)' }}
-          />
+      {/* Search — only for sessions tab */}
+      {activeTab === 'sessions' && (
+        <div className="px-2 py-2">
+          <div className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors" style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}>
+            <Search size={12} style={{ color: 'var(--dplex-text-muted)' }} className="flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search sessions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent text-xs placeholder-zinc-600 outline-none w-full"
+              style={{ color: 'var(--dplex-text)' }}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Session List */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <SessionList />
+        {activeTab === 'projects' ? <ProjectList /> : <SessionList />}
       </div>
     </div>
   )

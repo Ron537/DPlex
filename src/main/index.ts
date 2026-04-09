@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as fs from 'fs'
@@ -136,6 +136,17 @@ function registerIpcHandlers(): void {
   ipcMain.handle('app:getPlatform', () => process.platform)
   ipcMain.handle('app:getHomedir', () => os.homedir())
   ipcMain.handle('app:getAvailableShells', () => discoverAvailableShells())
+
+  // Folder picker
+  ipcMain.handle('app:selectFolder', async () => {
+    if (!mainWindow) return null
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select Project Folder'
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
 }
 
 // Single instance lock

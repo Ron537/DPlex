@@ -23,6 +23,7 @@ export interface DplexAPI {
     getPlatform: () => Promise<string>
     getHomedir: () => Promise<string>
     getAvailableShells: () => Promise<{ name: string; path: string }[]>
+    selectFolder: () => Promise<string | null>
   }
 }
 
@@ -61,7 +62,8 @@ const dplexAPI: DplexAPI = {
     getDefaultShell: () => ipcRenderer.invoke('app:getDefaultShell'),
     getPlatform: () => ipcRenderer.invoke('app:getPlatform'),
     getHomedir: () => ipcRenderer.invoke('app:getHomedir'),
-    getAvailableShells: () => ipcRenderer.invoke('app:getAvailableShells')
+    getAvailableShells: () => ipcRenderer.invoke('app:getAvailableShells'),
+    selectFolder: () => ipcRenderer.invoke('app:selectFolder')
   }
 }
 

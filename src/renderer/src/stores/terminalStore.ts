@@ -13,9 +13,9 @@ function makeGroupId(): string {
   return `group-${++groupCounter}`
 }
 
-function makeTerminalTab(title?: string, id?: string, shell?: string): TerminalTab {
+function makeTerminalTab(title?: string, id?: string, shell?: string, cwd?: string): TerminalTab {
   tabCounter++
-  return { id: id ?? makeTerminalId(), title: title ?? `Terminal ${tabCounter}`, shell }
+  return { id: id ?? makeTerminalId(), title: title ?? `Terminal ${tabCounter}`, shell, cwd }
 }
 
 function removeGroupFromLayout(node: LayoutNode, groupId: string): LayoutNode | null {
@@ -66,7 +66,7 @@ interface TerminalState {
   layout: LayoutNode
   activeGroupId: string | null
 
-  createTerminal: (groupId?: string, title?: string, initialCommand?: string, shell?: string) => string
+  createTerminal: (groupId?: string, title?: string, initialCommand?: string, shell?: string, cwd?: string) => string
   closeTerminal: (terminalId: string) => void
   setActiveGroup: (groupId: string) => void
   setActiveTerminalInGroup: (groupId: string, terminalId: string) => void
@@ -93,9 +93,9 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   activeGroupId: null,
   pendingCommands: new Map(),
 
-  createTerminal: (groupId?: string, title?: string, initialCommand?: string, shell?: string) => {
+  createTerminal: (groupId?: string, title?: string, initialCommand?: string, shell?: string, cwd?: string) => {
     const state = get()
-    const tab = makeTerminalTab(title, undefined, shell)
+    const tab = makeTerminalTab(title, undefined, shell, cwd)
     const targetGroupId = groupId ?? state.activeGroupId
 
     if (initialCommand) {

@@ -73,7 +73,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const newSettings = { ...get().settings, ...partial }
     set({ settings: newSettings })
     if (partial.theme) cacheTheme(partial.theme)
-    await window.dplex.settings.setAll(newSettings)
+    // Merge with full stored object to preserve non-AppSettings keys (e.g. projects)
+    const current = await window.dplex.settings.getAll()
+    await window.dplex.settings.setAll({ ...current, ...newSettings })
   },
 
   toggleSidebar: () => {
