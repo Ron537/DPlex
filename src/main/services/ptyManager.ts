@@ -29,6 +29,22 @@ export interface ShellInfo {
   path: string
 }
 
+// Shells that are useful as interactive terminals
+const INTERACTIVE_SHELLS = new Set(['zsh', 'bash', 'fish', 'pwsh', 'nu', 'sh', 'tmux'])
+
+function isInteractiveShell(shellPath: string): boolean {
+  const base = (shellPath.split('/').pop() || '').replace(/\.exe$/i, '').toLowerCase()
+  return INTERACTIVE_SHELLS.has(base)
+}
+
+// Get appropriate args for each shell type
+function getShellArgs(shellPath: string): string[] {
+  if (process.platform === 'win32') return []
+  const base = (shellPath.split('/').pop() || '').replace(/\.exe$/i, '').toLowerCase()
+  if (base === 'zsh' || base === 'bash' || base === 'fish') return ['--login']
+  return []
+}
+
 export function discoverAvailableShells(): ShellInfo[] {
   const seen = new Set<string>()
   const shells: ShellInfo[] = []
@@ -36,6 +52,7 @@ export function discoverAvailableShells(): ShellInfo[] {
   function addShell(shellPath: string, name?: string): void {
     const resolved = shellPath.trim()
     if (!resolved || seen.has(resolved)) return
+    if (!isInteractiveShell(resolved)) return
     try {
       fs.accessSync(resolved, fs.constants.X_OK)
       seen.add(resolved)
@@ -46,7 +63,6 @@ export function discoverAvailableShells(): ShellInfo[] {
   }
 
   if (process.platform === 'win32') {
-    // Windows: check known shell locations
     const systemRoot = process.env.SystemRoot || 'C:\\Windows'
     const programFiles = process.env.ProgramFiles || 'C:\\Program Files'
     const localAppData = process.env.LOCALAPPDATA || ''
@@ -58,17 +74,20 @@ export function discoverAvailableShells(): ShellInfo[] {
       ['Git Bash', `${programFiles}\\Git\\bin\\bash.exe`],
       ['WSL', `${systemRoot}\\System32\\wsl.exe`]
     ]
-
-    // Also check user-local pwsh
     if (localAppData) {
       candidates.push(['PowerShell 7', `${localAppData}\\Microsoft\\WindowsApps\\pwsh.exe`])
     }
-
     for (const [name, path] of candidates) {
-      addShell(path, name)
+      const resolved = path.trim()
+      if (!resolved || seen.has(resolved)) continue
+      try {
+        fs.accessSync(resolved, fs.constants.X_OK)
+        seen.add(resolved)
+        shells.push({ name, path: resolved })
+      } catch { /* skip */ }
     }
   } else {
-    // macOS / Linux: read /etc/shells
+    // macOS / Linux: read /etc/shells, filtered to interactive shells only
     try {
       const etcShells = fs.readFileSync('/etc/shells', 'utf-8')
       for (const line of etcShells.split('\n')) {
@@ -77,22 +96,22 @@ export function discoverAvailableShells(): ShellInfo[] {
           addShell(trimmed)
         }
       }
-    } catch {
-      // Fallback: try common paths
-    }
+    } catch { /* fallback below */ }
 
-    // Always check common shells as fallback (some may not be in /etc/shells)
-    const fallbacks = ['/bin/zsh', '/bin/bash', '/bin/sh', '/usr/bin/fish', '/usr/local/bin/fish',
-      '/opt/homebrew/bin/fish', '/usr/local/bin/zsh', '/opt/homebrew/bin/zsh',
-      '/usr/local/bin/bash', '/opt/homebrew/bin/bash', '/bin/tcsh', '/bin/csh',
+    // Check common paths not always in /etc/shells
+    const fallbacks = ['/bin/zsh', '/bin/bash', '/bin/sh',
+      '/usr/bin/fish', '/usr/local/bin/fish', '/opt/homebrew/bin/fish',
+      '/usr/local/bin/zsh', '/opt/homebrew/bin/zsh',
+      '/usr/local/bin/bash', '/opt/homebrew/bin/bash',
       '/usr/bin/tmux', '/usr/local/bin/tmux', '/opt/homebrew/bin/tmux',
-      '/usr/local/bin/nu', '/opt/homebrew/bin/nu']
+      '/usr/local/bin/nu', '/opt/homebrew/bin/nu',
+      '/usr/local/bin/pwsh', '/opt/homebrew/bin/pwsh']
     for (const p of fallbacks) {
       addShell(p)
     }
   }
 
-  // Sort: put the user's default shell first
+  // Sort: default shell first, then alphabetical
   const defaultShell = getDefaultShell()
   shells.sort((a, b) => {
     if (a.path === defaultShell) return -1
@@ -124,7 +143,7 @@ export function createPty(
   const id = generatePtyId()
   const shellPath = shell || getDefaultShell()
   const safeCwd = cwd && validateCwd(cwd) ? cwd : os.homedir()
-  const shellArgs = process.platform === 'win32' ? [] : ['--login']
+  const shellArgs = getShellArgs(shellPath)
 
   const ptyProcess = pty.spawn(shellPath, shellArgs, {
     name: 'xterm-256color',
