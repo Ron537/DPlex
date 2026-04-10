@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, ChevronDown, Play, X, FolderOpen, GitBranch } from 'lucide-react'
+import { ChevronRight, ChevronDown, Play, X, FolderOpen, GitBranch, Monitor, Globe } from 'lucide-react'
 import type { Project } from '../../types'
-import { useProjectStore, type ActiveSession } from '../../stores/projectStore'
+import { useProjectStore } from '../../stores/projectStore'
+import { useTerminalStore } from '../../stores/terminalStore'
+
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/\/+$/, '')
+}
 
 interface ProjectItemProps {
   project: Project
@@ -13,10 +18,36 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
   const removeProject = useProjectStore((s) => s.removeProject)
   const startAISession = useProjectStore((s) => s.startAISession)
   const getActiveSessionsForProject = useProjectStore((s) => s.getActiveSessionsForProject)
+  const groups = useTerminalStore((s) => s.groups)
+  const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
+  const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const [branch, setBranch] = useState<string | null>(null)
 
   const isExpanded = expandedIds.has(project.id)
-  const activeSessions = getActiveSessionsForProject(project.path)
+  const externalSessions = getActiveSessionsForProject(project.path)
+
+  // Get DPlex-managed AI terminals for this project
+  const normProject = normalizePath(project.path)
+  const dplexTabs = groups.flatMap((g) =>
+    g.tabs
+      .filter((t) => {
+        if (!t.command || !t.cwd) return false
+        const normCwd = normalizePath(t.cwd)
+        return normCwd === normProject || normCwd.startsWith(normProject + '/')
+      })
+      .map((t) => ({ ...t, groupId: g.id }))
+  )
+
+  // Deduplicate: exclude external sessions that match a DPlex tab's sessionId
+  const dplexSessionIds = new Set(dplexTabs.map((t) => t.sessionId).filter(Boolean))
+  const filteredExternal = externalSessions.filter((s) => !dplexSessionIds.has(s.id))
+
+  const totalActive = dplexTabs.length + filteredExternal.length
+
+  const handleFocusTab = (tabId: string, groupId: string): void => {
+    setActiveGroup(groupId)
+    setActiveTerminalInGroup(groupId, tabId)
+  }
 
   useEffect(() => {
     window.dplex.app.getGitBranch(project.path).then(setBranch)
@@ -47,7 +78,7 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
             <span className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
               {project.name}
             </span>
-            {activeSessions.length > 0 && (
+            {totalActive > 0 && (
               <span
                 className="inline-flex items-center justify-center min-w-[18px] h-[16px] px-1 rounded-full text-[10px] font-bold flex-shrink-0"
                 style={{
@@ -55,7 +86,7 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
                   color: '#fff'
                 }}
               >
-                {activeSessions.length}
+                {totalActive}
               </span>
             )}
           </div>
@@ -100,27 +131,62 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
         </div>
       </div>
 
-      {/* Expanded: active sessions only */}
+      {/* Expanded: DPlex terminals + external sessions */}
       {isExpanded && (
         <div className="ml-5 border-l" style={{ borderColor: 'var(--dplex-border)' }}>
-          {activeSessions.length === 0 ? (
+          {totalActive === 0 ? (
             <div className="px-3 py-2 text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>
               No active sessions.
             </div>
           ) : (
-            activeSessions.map((session) => (
-              <div
-                key={session.id}
-                className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded-sm mx-1"
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] truncate" style={{ color: 'var(--dplex-text)' }}>
-                    {session.displayName}
+            <>
+              {/* DPlex-managed terminals */}
+              {dplexTabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded-sm mx-1 cursor-pointer"
+                  onClick={() => handleFocusTab(tab.id, tab.groupId)}
+                >
+                  <Monitor size={10} style={{ color: '#22c55e' }} className="flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[11px] truncate" style={{ color: 'var(--dplex-text)' }}>
+                      {tab.title}
+                    </div>
                   </div>
+                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)' }}>
+                    DPlex
+                  </span>
                 </div>
-              </div>
-            ))
+              ))}
+
+              {/* External AI sessions */}
+              {filteredExternal.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded-sm mx-1 cursor-pointer"
+                  onClick={() => {
+                    const cmd = `copilot --resume=${session.id}`
+                    useTerminalStore.getState().createTerminal(
+                      undefined,
+                      `↻ ${session.displayName}`,
+                      cmd,
+                      undefined,
+                      session.cwd
+                    )
+                  }}
+                >
+                  <Globe size={10} style={{ color: '#3b82f6' }} className="flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[11px] truncate" style={{ color: 'var(--dplex-text)' }}>
+                      {session.displayName}
+                    </div>
+                  </div>
+                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)' }}>
+                    External
+                  </span>
+                </div>
+              ))}
+            </>
           )}
         </div>
       )}

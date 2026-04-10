@@ -3,11 +3,36 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { useTerminalStore } from '../stores/terminalStore'
 import {
   getOrCreateTerminal,
-  getTerminalEntry,
   updateTerminalFont,
   applyThemeToAll,
   type TerminalEntry
 } from '../services/terminalRegistry'
+
+const SESSION_RESOLVE_RETRY_MS = 5000
+const SESSION_RESOLVE_MAX_RETRIES = 6
+
+function tabExists(terminalId: string): boolean {
+  return useTerminalStore.getState().groups.some((g) => g.tabs.some((t) => t.id === terminalId))
+}
+
+async function resolveSessionIdForTab(terminalId: string, pid: number, attempt = 0): Promise<void> {
+  if (!tabExists(terminalId)) return
+  try {
+    const sessionId = await window.dplex.sessions.resolveSessionId(pid)
+    if (sessionId) {
+      if (tabExists(terminalId)) {
+        useTerminalStore.getState().associateSessionId(terminalId, sessionId)
+      }
+      return
+    }
+  } catch {
+    // ignore
+  }
+  // Retry if not resolved yet (copilot may still be initializing)
+  if (attempt < SESSION_RESOLVE_MAX_RETRIES) {
+    setTimeout(() => resolveSessionIdForTab(terminalId, pid, attempt + 1), SESSION_RESOLVE_RETRY_MS)
+  }
+}
 
 interface UseTerminalOptions {
   terminalId: string
@@ -84,9 +109,14 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       const tabCommand = tab?.command
       const defaultShell = useSettingsStore.getState().settings.defaultShell
       const shellToUse = tabShell || defaultShell || undefined
-      window.dplex.pty.create(shellToUse, tabCwd, tabCommand).then((ptyId) => {
+      window.dplex.pty.create(shellToUse, tabCwd, tabCommand).then(({ id: ptyId, pid }) => {
         entry.ptyId = ptyId
         ptyIdResolved = ptyId
+
+        // Store PID on the tab for session ID resolution
+        if (tabCommand && pid) {
+          useTerminalStore.getState().setPid(terminalId, pid)
+        }
 
         // Flush buffered output
         let hadData = false
@@ -115,6 +145,13 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         const { cols, rows } = entry.term
         if (cols && rows) {
           window.dplex.pty.resize(ptyId, cols, rows)
+        }
+
+        // For AI sessions, resolve the session ID after a delay
+        if (tabCommand && pid) {
+          setTimeout(() => {
+            resolveSessionIdForTab(terminalId, pid)
+          }, 3000)
         }
 
         entry.cleanupIpc = () => {

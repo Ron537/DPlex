@@ -140,7 +140,7 @@ export function createPty(
   shell?: string,
   cwd?: string,
   command?: string
-): string {
+): { id: string; pid: number } {
   const id = generatePtyId()
   const shellPath = shell || getDefaultShell()
   const safeCwd = cwd && validateCwd(cwd) ? cwd : os.homedir()
@@ -179,7 +179,7 @@ export function createPty(
 
   ptys.set(id, { process: ptyProcess, windowId: window.id })
 
-  return id
+  return { id, pid: ptyProcess.pid }
 }
 
 export function writePty(id: string, data: string): void {

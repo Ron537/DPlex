@@ -15,6 +15,7 @@ import {
   discoverAvailableShells
 } from './services/ptyManager'
 import { discoverCopilotSessions, deleteSessionDir, getActiveProjectSessions } from './services/sessionDiscovery'
+import { loadWorkspace, saveWorkspace, resolveSessionIdByPid, type PersistedWorkspace } from './services/sessionPersistence'
 
 const SETTINGS_PATH = join(app.getPath('userData'), 'settings.json')
 
@@ -101,7 +102,7 @@ function createWindow(): void {
 }
 
 function registerIpcHandlers(): void {
-  // PTY management — create returns the generated ID
+  // PTY management — create returns { id, pid }
   ipcMain.handle('pty:create', (_event, shell?: string, cwd?: string, command?: string) => {
     if (!mainWindow) throw new Error('No window')
     return createPty(mainWindow, shell, cwd, command)
@@ -130,6 +131,20 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('sessions:getActiveForProjects', (_event, projectPaths: string[]) => {
     return getActiveProjectSessions(projectPaths)
+  })
+
+  // Workspace persistence
+  ipcMain.handle('sessions:loadWorkspace', () => loadWorkspace())
+  ipcMain.handle('sessions:saveWorkspace', (_event, data: PersistedWorkspace) => {
+    saveWorkspace(data)
+  })
+  // Sync version for reliable save on quit (blocks until written)
+  ipcMain.on('sessions:saveWorkspaceSync', (event, data: PersistedWorkspace) => {
+    saveWorkspace(data)
+    event.returnValue = true
+  })
+  ipcMain.handle('sessions:resolveSessionId', (_event, pid: number) => {
+    return resolveSessionIdByPid(pid)
   })
 
   // Settings

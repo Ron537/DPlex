@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { persistWorkspaceNow } from '../../stores/terminalStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { SidePanel } from './SidePanel'
 import { StatusBar } from './StatusBar'
@@ -7,6 +8,77 @@ import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
 import { useSessions } from '../../hooks/useSessions'
 import { getTheme } from '../../services/themes'
+import type { TerminalTab, EditorGroup, LayoutNode } from '../../types'
+
+// Prune layout tree to only include groups that exist in the restored set
+function pruneLayout(node: LayoutNode, validGroupIds: Set<string>): LayoutNode | null {
+  if (node.type === 'group') {
+    return node.groupId && validGroupIds.has(node.groupId) ? node : null
+  }
+  if (!node.children) return null
+  const filtered = node.children
+    .map((c) => pruneLayout(c, validGroupIds))
+    .filter(Boolean) as LayoutNode[]
+  if (filtered.length === 0) return null
+  if (filtered.length === 1) return filtered[0]
+  return { ...node, children: filtered }
+}
+
+async function loadPersistedWorkspace(): Promise<{
+  groups: EditorGroup[]
+  layout: LayoutNode
+  activeGroupId: string | null
+} | null> {
+  try {
+    const data = await window.dplex.sessions.loadWorkspace() as {
+      groups: Array<{ id: string; tabs: TerminalTab[]; activeTabId: string }>
+      layout: LayoutNode
+      activeGroupId: string | null
+    } | null
+    if (!data || !data.groups || !data.layout) return null
+
+    // Filter to only AI tabs (have command) and rebuild groups
+    const restoredGroups: EditorGroup[] = []
+    for (const g of data.groups) {
+      const aiTabs = (g.tabs || []).filter((t) => t.command)
+      if (aiTabs.length === 0) continue
+
+      // For tabs with sessionId, rewrite command to --resume
+      const preparedTabs: TerminalTab[] = aiTabs.map((t) => {
+        if (t.sessionId && t.command && !t.command.includes('--resume')) {
+          return { ...t, command: `${t.command} --resume=${t.sessionId}` }
+        }
+        return { ...t }
+      })
+
+      restoredGroups.push({
+        id: g.id,
+        tabs: preparedTabs,
+        activeTabId: preparedTabs.find((t) => t.id === g.activeTabId)?.id ?? preparedTabs[0].id
+      })
+    }
+
+    if (restoredGroups.length === 0) return null
+
+    // Prune layout to only include valid (non-empty) groups
+    const validIds = new Set(restoredGroups.map((g) => g.id))
+    const prunedLayout = pruneLayout(data.layout, validIds)
+    if (!prunedLayout) return null
+
+    // Ensure activeGroupId references a valid group
+    const activeGroupId = validIds.has(data.activeGroupId ?? '')
+      ? data.activeGroupId
+      : restoredGroups[0].id
+
+    return {
+      groups: restoredGroups,
+      layout: prunedLayout,
+      activeGroupId
+    }
+  } catch {
+    return null
+  }
+}
 
 export function AppLayout(): JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
@@ -37,13 +109,34 @@ export function AppLayout(): JSX.Element {
 
   const initialized = useRef(false)
   const settingsLoaded = useSettingsStore((s) => s.loaded)
+  const restored = useTerminalStore((s) => s.restored)
 
   useEffect(() => {
-    if (!initialized.current && settingsLoaded && groups.length === 0) {
+    if (!initialized.current && settingsLoaded && groups.length === 0 && !restored) {
       initialized.current = true
-      createTerminal()
+      // Try to restore persisted workspace, fall back to fresh terminal
+      loadPersistedWorkspace().then((workspace) => {
+        if (workspace) {
+          useTerminalStore.getState().restoreWorkspace(
+            workspace.groups,
+            workspace.layout,
+            workspace.activeGroupId
+          )
+        } else {
+          createTerminal()
+        }
+      })
     }
   }, [settingsLoaded])
+
+  // Save workspace before the window unloads
+  useEffect(() => {
+    const handleBeforeUnload = (): void => {
+      persistWorkspaceNow()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
 
   // Listen for settings open event from keyboard shortcut
   useEffect(() => {

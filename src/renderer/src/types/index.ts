@@ -4,6 +4,8 @@ export interface TerminalTab {
   shell?: string
   cwd?: string
   command?: string // Direct command to exec (e.g. 'copilot'). Bypasses shell — no shell to fall back to.
+  sessionId?: string // AI tool session ID (e.g. copilot session dir name) for --resume on restore
+  pid?: number // PTY process PID, used for PID→session mapping
 }
 
 export interface ShellInfo {

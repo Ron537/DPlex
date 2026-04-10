@@ -3,7 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 export interface DplexAPI {
   pty: {
-    create: (shell?: string, cwd?: string, command?: string) => Promise<string>
+    create: (shell?: string, cwd?: string, command?: string) => Promise<{ id: string; pid: number }>
     write: (id: string, data: string) => void
     resize: (id: string, cols: number, rows: number) => void
     destroy: (id: string) => void
@@ -14,6 +14,10 @@ export interface DplexAPI {
     discover: () => Promise<unknown[]>
     delete: (sessionId: string) => Promise<void>
     getActiveForProjects: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string }[]>
+    loadWorkspace: () => Promise<unknown | null>
+    saveWorkspace: (data: unknown) => Promise<void>
+    saveWorkspaceSync: (data: unknown) => void
+    resolveSessionId: (pid: number) => Promise<string | null>
   }
   settings: {
     getAll: () => Promise<Record<string, unknown>>
@@ -55,7 +59,11 @@ const dplexAPI: DplexAPI = {
   sessions: {
     discover: () => ipcRenderer.invoke('sessions:discover'),
     delete: (sessionId) => ipcRenderer.invoke('sessions:delete', sessionId),
-    checkStatuses: (projectPaths) => ipcRenderer.invoke('sessions:getActiveForProjects', projectPaths)
+    checkStatuses: (projectPaths) => ipcRenderer.invoke('sessions:getActiveForProjects', projectPaths),
+    loadWorkspace: () => ipcRenderer.invoke('sessions:loadWorkspace'),
+    saveWorkspace: (data) => ipcRenderer.invoke('sessions:saveWorkspace', data),
+    saveWorkspaceSync: (data) => ipcRenderer.sendSync('sessions:saveWorkspaceSync', data),
+    resolveSessionId: (pid) => ipcRenderer.invoke('sessions:resolveSessionId', pid)
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),

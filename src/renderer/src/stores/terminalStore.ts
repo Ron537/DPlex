@@ -65,6 +65,7 @@ interface TerminalState {
   groups: EditorGroup[]
   layout: LayoutNode
   activeGroupId: string | null
+  restored: boolean
 
   createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string) => string
   closeTerminal: (terminalId: string) => void
@@ -82,12 +83,16 @@ interface TerminalState {
   reorderTab: (groupId: string, fromIndex: number, toIndex: number) => void
   getActiveGroup: () => EditorGroup | undefined
   getAllTerminalIds: () => string[]
+  restoreWorkspace: (groups: EditorGroup[], layout: LayoutNode, activeGroupId: string | null) => void
+  setPid: (terminalId: string, pid: number) => void
+  associateSessionId: (terminalId: string, sessionId: string) => void
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
   groups: [],
   layout: { type: 'group', groupId: 'group-0' },
   activeGroupId: null,
+  restored: false,
   createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string) => {
     const state = get()
     const tab = makeTerminalTab(title, undefined, shell, cwd, command)
@@ -319,8 +324,85 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   getAllTerminalIds: () => {
     return get().groups.flatMap((g) => g.tabs.map((t) => t.id))
+  },
+
+  restoreWorkspace: (groups, layout, activeGroupId) => {
+    // Don't overwrite if terminals were already created during async load
+    if (get().groups.length > 0) return
+    // Sync counters so new tabs/groups don't collide with restored IDs
+    for (const g of groups) {
+      const num = parseInt(g.id.replace('group-', ''), 10)
+      if (!isNaN(num) && num >= groupCounter) groupCounter = num + 1
+    }
+    set({ groups, layout, activeGroupId, restored: true })
+  },
+
+  setPid: (terminalId, pid) => {
+    set((state) => ({
+      groups: state.groups.map((g) => ({
+        ...g,
+        tabs: g.tabs.map((t) => (t.id === terminalId ? { ...t, pid } : t))
+      }))
+    }))
+  },
+
+  associateSessionId: (terminalId, sessionId) => {
+    set((state) => ({
+      groups: state.groups.map((g) => ({
+        ...g,
+        tabs: g.tabs.map((t) => (t.id === terminalId ? { ...t, sessionId } : t))
+      }))
+    }))
   }
 }))
+
+// Debounced auto-save: persist workspace state 2s after last change
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+function serializeWorkspace(): unknown {
+  const { groups, layout, activeGroupId } = useTerminalStore.getState()
+  return {
+    layout,
+    groups: groups.map((g) => ({
+      id: g.id,
+      tabs: g.tabs
+        .filter((t) => t.command) // Only persist AI session tabs
+        .map((t) => ({
+          id: t.id,
+          title: t.title,
+          cwd: t.cwd,
+          command: t.command,
+          sessionId: t.sessionId
+        })),
+      activeTabId: g.activeTabId
+    })),
+    activeGroupId,
+    savedAt: new Date().toISOString()
+  }
+}
+
+/** Sync save — blocks until written. Use on beforeunload for reliable quit. */
+export function persistWorkspaceNow(): void {
+  const data = serializeWorkspace()
+  window.dplex.sessions.saveWorkspaceSync(data)
+}
+
+function debouncedPersist(): void {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    const data = serializeWorkspace()
+    window.dplex.sessions.saveWorkspace(data)
+  }, 2000)
+}
+
+// Subscribe to state changes and auto-persist
+useTerminalStore.subscribe((state, prevState) => {
+  // Don't auto-save during restore or before any groups exist
+  if (!state.restored && state.groups.length === 0) return
+  if (state.groups !== prevState.groups || state.layout !== prevState.layout) {
+    debouncedPersist()
+  }
+})
 
 function insertSplitAtPosition(
   node: LayoutNode,
