@@ -44,6 +44,21 @@ function parseWorkspaceYaml(sessionDir: string): { summary?: string; cwd?: strin
   }
 }
 
+async function parseWorkspaceYamlAsync(sessionDir: string): Promise<{ summary?: string; cwd?: string }> {
+  try {
+    const yamlPath = path.join(sessionDir, 'workspace.yaml')
+    const content = await fsp.readFile(yamlPath, 'utf-8')
+    const summaryMatch = content.match(/^summary:\s*(.+)$/m)
+    const cwdMatch = content.match(/^cwd:\s*(.+)$/m)
+    return {
+      summary: summaryMatch?.[1]?.trim() || undefined,
+      cwd: cwdMatch?.[1]?.trim() || undefined
+    }
+  } catch {
+    return {}
+  }
+}
+
 function parseFirstUserMessage(sessionDir: string): string | undefined {
   try {
     const eventsPath = path.join(sessionDir, 'events.jsonl')
@@ -84,20 +99,18 @@ function getDisplayName(sessionDir: string, sessionId: string): string {
   return sessionId.slice(0, 12)
 }
 
-function isSessionActive(sessionDir: string): boolean {
+async function isSessionActive(sessionDir: string): Promise<boolean> {
   try {
-    const files = fs.readdirSync(sessionDir)
+    const files = await fsp.readdir(sessionDir)
     const lockFile = files.find((f) => f.startsWith('inuse.') && f.endsWith('.lock'))
     if (!lockFile) return false
 
-    // Extract PID from filename: inuse.<PID>.lock
     const pidStr = lockFile.replace('inuse.', '').replace('.lock', '')
     const pid = parseInt(pidStr, 10)
     if (isNaN(pid)) return false
 
-    // Check if PID is still running
     try {
-      process.kill(pid, 0) // signal 0 = just check if process exists
+      process.kill(pid, 0)
       return true
     } catch {
       return false
@@ -146,12 +159,12 @@ export async function discoverCopilotSessions(): Promise<DiscoveredSession[]> {
       try {
         const stat = await fsp.stat(fullPath)
         const displayName = getDisplayName(fullPath, entry.name)
-        const workspace = parseWorkspaceYaml(fullPath)
+        const workspace = await parseWorkspaceYamlAsync(fullPath)
 
         sessions.push({
           id: entry.name,
           displayName,
-          status: isSessionActive(fullPath) ? 'active' : 'idle',
+          status: (await isSessionActive(fullPath)) ? 'active' : 'idle',
           aiTool: 'copilot-cli',
           createdAt: stat.birthtime.toISOString(),
           updatedAt: stat.mtime.toISOString(),
@@ -206,7 +219,7 @@ export async function checkSessionStatuses(projectPaths: string[]): Promise<Reco
       const fullPath = path.join(sessionDir, entry.name)
 
       try {
-        const workspace = parseWorkspaceYaml(fullPath)
+        const workspace = await parseWorkspaceYamlAsync(fullPath)
         if (!workspace.cwd) continue
 
         const normalizedCwd = workspace.cwd.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -215,7 +228,7 @@ export async function checkSessionStatuses(projectPaths: string[]): Promise<Reco
         )
         if (!matches) continue
 
-        result[entry.name] = isSessionActive(fullPath) ? 'active' : 'idle'
+        result[entry.name] = (await isSessionActive(fullPath)) ? 'active' : 'idle'
       } catch {
         // skip
       }
