@@ -11,6 +11,9 @@ export interface AppTheme {
     text: string
     textMuted: string
     accent: string
+    hover?: string
+    scrollbar?: string
+    scrollbarHover?: string
   }
 }
 
@@ -182,6 +185,90 @@ export const THEMES: Record<string, AppTheme> = {
       brightWhite: '#f0f6fc'
     },
     ui: { bg: '#0d1117', bgAlt: '#010409', border: '#21262d', text: '#c9d1d9', textMuted: '#484f58', accent: '#79c0ff' }
+  },
+  'github-light': {
+    id: 'github-light',
+    name: 'GitHub Light',
+    terminal: {
+      background: '#ffffff',
+      foreground: '#24292f',
+      cursor: '#24292f',
+      cursorAccent: '#ffffff',
+      selectionBackground: '#b6d7ff',
+      black: '#24292f',
+      red: '#cf222e',
+      green: '#116329',
+      yellow: '#4d2d00',
+      blue: '#0969da',
+      magenta: '#8250df',
+      cyan: '#1b7c83',
+      white: '#6e7781',
+      brightBlack: '#57606a',
+      brightRed: '#a40e26',
+      brightGreen: '#1a7f37',
+      brightYellow: '#633c01',
+      brightBlue: '#218bff',
+      brightMagenta: '#a475f9',
+      brightCyan: '#3192aa',
+      brightWhite: '#8c959f'
+    },
+    ui: { bg: '#ffffff', bgAlt: '#f6f8fa', border: '#d0d7de', text: '#24292f', textMuted: '#57606a', accent: '#0969da', hover: 'rgba(0,0,0,0.06)', scrollbar: 'rgba(0,0,0,0.15)', scrollbarHover: 'rgba(0,0,0,0.25)' }
+  },
+  'solarized-light': {
+    id: 'solarized-light',
+    name: 'Solarized Light',
+    terminal: {
+      background: '#fdf6e3',
+      foreground: '#657b83',
+      cursor: '#657b83',
+      cursorAccent: '#fdf6e3',
+      selectionBackground: '#eee8d5',
+      black: '#073642',
+      red: '#dc322f',
+      green: '#859900',
+      yellow: '#b58900',
+      blue: '#268bd2',
+      magenta: '#d33682',
+      cyan: '#2aa198',
+      white: '#eee8d5',
+      brightBlack: '#002b36',
+      brightRed: '#cb4b16',
+      brightGreen: '#586e75',
+      brightYellow: '#657b83',
+      brightBlue: '#839496',
+      brightMagenta: '#6c71c4',
+      brightCyan: '#93a1a1',
+      brightWhite: '#fdf6e3'
+    },
+    ui: { bg: '#fdf6e3', bgAlt: '#eee8d5', border: '#d3cbb7', text: '#657b83', textMuted: '#93a1a1', accent: '#268bd2', hover: 'rgba(0,0,0,0.06)', scrollbar: 'rgba(0,0,0,0.15)', scrollbarHover: 'rgba(0,0,0,0.25)' }
+  },
+  'quiet-light': {
+    id: 'quiet-light',
+    name: 'Quiet Light',
+    terminal: {
+      background: '#f5f5f5',
+      foreground: '#333333',
+      cursor: '#333333',
+      cursorAccent: '#f5f5f5',
+      selectionBackground: '#c9d0d9',
+      black: '#333333',
+      red: '#aa3731',
+      green: '#448c27',
+      yellow: '#cb9000',
+      blue: '#325cc0',
+      magenta: '#7a3e9d',
+      cyan: '#0083b2',
+      white: '#f5f5f5',
+      brightBlack: '#777777',
+      brightRed: '#aa3731',
+      brightGreen: '#448c27',
+      brightYellow: '#cb9000',
+      brightBlue: '#325cc0',
+      brightMagenta: '#7a3e9d',
+      brightCyan: '#0083b2',
+      brightWhite: '#ffffff'
+    },
+    ui: { bg: '#f5f5f5', bgAlt: '#e8e8e8', border: '#d1d1d1', text: '#333333', textMuted: '#777777', accent: '#325cc0', hover: 'rgba(0,0,0,0.06)', scrollbar: 'rgba(0,0,0,0.15)', scrollbarHover: 'rgba(0,0,0,0.25)' }
   }
 }
 

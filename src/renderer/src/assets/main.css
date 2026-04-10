@@ -61,14 +61,19 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--dplex-scrollbar, rgba(255, 255, 255, 0.15));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--dplex-scrollbar-hover, rgba(255, 255, 255, 0.25));
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Theme-aware hover — works on both dark and light themes */
+.hover-bg:hover {
+  background-color: var(--dplex-hover, rgba(255,255,255,0.1));
 }

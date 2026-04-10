@@ -27,6 +27,9 @@ export function AppLayout(): JSX.Element {
     root.style.setProperty('--dplex-text', theme.ui.text)
     root.style.setProperty('--dplex-text-muted', theme.ui.textMuted)
     root.style.setProperty('--dplex-accent', theme.ui.accent)
+    root.style.setProperty('--dplex-hover', theme.ui.hover || 'rgba(255,255,255,0.1)')
+    root.style.setProperty('--dplex-scrollbar', theme.ui.scrollbar || 'rgba(255,255,255,0.15)')
+    root.style.setProperty('--dplex-scrollbar-hover', theme.ui.scrollbarHover || 'rgba(255,255,255,0.25)')
     document.body.style.backgroundColor = theme.ui.bg
   }, [themeId])
 

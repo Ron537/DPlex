@@ -46,7 +46,10 @@ function createWindow(): void {
     'monokai': '#272822',
     'nord': '#2e3440',
     'solarized-dark': '#002b36',
-    'github-dark': '#0d1117'
+    'github-dark': '#0d1117',
+    'github-light': '#ffffff',
+    'solarized-light': '#fdf6e3',
+    'quiet-light': '#f5f5f5'
   }
   const windowBg = themeBgMap[savedTheme] || '#1a1a2e'
 
