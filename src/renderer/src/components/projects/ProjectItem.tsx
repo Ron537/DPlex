@@ -49,9 +49,14 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
             </span>
             {activeSessions.length > 0 && (
               <span
-                className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"
-                title={`${activeSessions.length} active session${activeSessions.length > 1 ? 's' : ''}`}
-              />
+                className="inline-flex items-center justify-center min-w-[16px] h-[14px] px-1 rounded-full text-[8px] font-bold flex-shrink-0"
+                style={{
+                  backgroundColor: '#22c55e',
+                  color: '#fff'
+                }}
+              >
+                {activeSessions.length}
+              </span>
             )}
           </div>
           {branch ? (
