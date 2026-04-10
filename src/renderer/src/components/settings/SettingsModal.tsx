@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Settings, Palette, Terminal, Bot, Keyboard } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { getThemeList, getTheme } from '../../services/themes'
+import { getThemesByVariant, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
 import type { ShellInfo, AppSettings } from '../../types'
 
@@ -70,7 +70,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
   const updateSettings = useSettingsStore((s) => s.updateSettings)
   const [shells, setShells] = useState<ShellInfo[]>([])
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
-  const themes = getThemeList()
+  const { dark: darkThemes, light: lightThemes } = getThemesByVariant()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -152,8 +152,36 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
           <div className="flex-1 p-5 overflow-y-auto">
             {activeTab === 'appearance' && (
               <SettingItem label="Theme" description="Controls the color theme for the terminal and UI.">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--dplex-text-muted)' }}>Dark</h4>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {darkThemes.map((t) => {
+                    const theme = getTheme(t.id)
+                    const isSelected = settings.theme === t.id
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => applyNow({ theme: t.id })}
+                        className={`flex flex-col items-center gap-1.5 p-2 rounded border transition-colors ${
+                          isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-transparent hover:border-zinc-500'
+                        }`}
+                        style={{ borderColor: isSelected ? undefined : 'var(--dplex-border)' }}
+                      >
+                        <div
+                          className="w-full h-6 rounded flex items-center gap-0.5 px-1"
+                          style={{ backgroundColor: theme.terminal.background as string }}
+                        >
+                          <span style={{ color: theme.terminal.green as string, fontSize: 8 }}>$</span>
+                          <span style={{ color: theme.terminal.foreground as string, fontSize: 8 }}>hello</span>
+                          <span style={{ color: theme.terminal.blue as string, fontSize: 8 }}>~</span>
+                        </div>
+                        <span className="text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>{t.name}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--dplex-text-muted)' }}>Light</h4>
                 <div className="grid grid-cols-3 gap-2">
-                  {themes.map((t) => {
+                  {lightThemes.map((t) => {
                     const theme = getTheme(t.id)
                     const isSelected = settings.theme === t.id
                     return (

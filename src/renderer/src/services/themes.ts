@@ -3,6 +3,7 @@ import type { ITheme } from '@xterm/xterm'
 export interface AppTheme {
   id: string
   name: string
+  variant: 'dark' | 'light'
   terminal: ITheme
   ui: {
     bg: string
@@ -21,6 +22,7 @@ export const THEMES: Record<string, AppTheme> = {
   'midnight': {
     id: 'midnight',
     name: 'Midnight',
+    variant: 'dark',
     terminal: {
       background: '#1a1a2e',
       foreground: '#e0e0e0',
@@ -49,6 +51,7 @@ export const THEMES: Record<string, AppTheme> = {
   'dracula': {
     id: 'dracula',
     name: 'Dracula',
+    variant: 'dark',
     terminal: {
       background: '#282a36',
       foreground: '#f8f8f2',
@@ -77,6 +80,7 @@ export const THEMES: Record<string, AppTheme> = {
   'monokai': {
     id: 'monokai',
     name: 'Monokai',
+    variant: 'dark',
     terminal: {
       background: '#272822',
       foreground: '#f8f8f2',
@@ -105,6 +109,7 @@ export const THEMES: Record<string, AppTheme> = {
   'nord': {
     id: 'nord',
     name: 'Nord',
+    variant: 'dark',
     terminal: {
       background: '#2e3440',
       foreground: '#d8dee9',
@@ -133,6 +138,7 @@ export const THEMES: Record<string, AppTheme> = {
   'solarized-dark': {
     id: 'solarized-dark',
     name: 'Solarized Dark',
+    variant: 'dark',
     terminal: {
       background: '#002b36',
       foreground: '#839496',
@@ -161,6 +167,7 @@ export const THEMES: Record<string, AppTheme> = {
   'github-dark': {
     id: 'github-dark',
     name: 'GitHub Dark',
+    variant: 'dark',
     terminal: {
       background: '#0d1117',
       foreground: '#c9d1d9',
@@ -189,6 +196,7 @@ export const THEMES: Record<string, AppTheme> = {
   'github-light': {
     id: 'github-light',
     name: 'GitHub Light',
+    variant: 'light',
     terminal: {
       background: '#ffffff',
       foreground: '#24292f',
@@ -217,6 +225,7 @@ export const THEMES: Record<string, AppTheme> = {
   'solarized-light': {
     id: 'solarized-light',
     name: 'Solarized Light',
+    variant: 'light',
     terminal: {
       background: '#fdf6e3',
       foreground: '#657b83',
@@ -245,6 +254,7 @@ export const THEMES: Record<string, AppTheme> = {
   'quiet-light': {
     id: 'quiet-light',
     name: 'Quiet Light',
+    variant: 'light',
     terminal: {
       background: '#f5f5f5',
       foreground: '#333333',
@@ -278,4 +288,12 @@ export function getTheme(id: string): AppTheme {
 
 export function getThemeList(): { id: string; name: string }[] {
   return Object.values(THEMES).map((t) => ({ id: t.id, name: t.name }))
+}
+
+export function getThemesByVariant(): { dark: AppTheme[]; light: AppTheme[] } {
+  const all = Object.values(THEMES)
+  return {
+    dark: all.filter((t) => t.variant === 'dark'),
+    light: all.filter((t) => t.variant === 'light')
+  }
 }
