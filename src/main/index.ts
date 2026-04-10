@@ -14,7 +14,7 @@ import {
   getDefaultShellPath,
   discoverAvailableShells
 } from './services/ptyManager'
-import { discoverCopilotSessions, deleteSessionDir } from './services/sessionDiscovery'
+import { discoverCopilotSessions, deleteSessionDir, checkSessionStatuses } from './services/sessionDiscovery'
 
 const SETTINGS_PATH = join(app.getPath('userData'), 'settings.json')
 
@@ -123,6 +123,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('sessions:delete', (_event, sessionId: string) => {
     return deleteSessionDir(sessionId)
+  })
+
+  ipcMain.handle('sessions:checkStatuses', (_event, projectPaths: string[]) => {
+    return checkSessionStatuses(projectPaths)
   })
 
   // Settings

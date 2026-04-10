@@ -86,9 +86,22 @@ function getDisplayName(sessionDir: string, sessionId: string): string {
 
 function isSessionActive(sessionDir: string): boolean {
   try {
-    const stat = fs.statSync(sessionDir)
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
-    return stat.mtimeMs > fiveMinutesAgo
+    const files = fs.readdirSync(sessionDir)
+    const lockFile = files.find((f) => f.startsWith('inuse.') && f.endsWith('.lock'))
+    if (!lockFile) return false
+
+    // Extract PID from filename: inuse.<PID>.lock
+    const pidStr = lockFile.replace('inuse.', '').replace('.lock', '')
+    const pid = parseInt(pidStr, 10)
+    if (isNaN(pid)) return false
+
+    // Check if PID is still running
+    try {
+      process.kill(pid, 0) // signal 0 = just check if process exists
+      return true
+    } catch {
+      return false
+    }
   } catch {
     return false
   }
@@ -166,4 +179,50 @@ export async function deleteSessionDir(sessionId: string): Promise<void> {
   if (fs.existsSync(fullPath)) {
     fs.rmSync(fullPath, { recursive: true, force: true })
   }
+}
+
+/**
+ * Lightweight check: returns a map of sessionId → active status
+ * for sessions whose cwd matches any of the given project paths.
+ * Used by the Projects panel for near-real-time status.
+ */
+export async function checkSessionStatuses(projectPaths: string[]): Promise<Record<string, 'active' | 'idle'>> {
+  const sessionDir = getCopilotSessionDir()
+  const result: Record<string, 'active' | 'idle'> = {}
+
+  try {
+    await fsp.access(sessionDir)
+  } catch {
+    return result
+  }
+
+  const normalizedPaths = projectPaths.map((p) => p.replace(/\\/g, '/').replace(/\/+$/, ''))
+
+  try {
+    const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const fullPath = path.join(sessionDir, entry.name)
+
+      try {
+        const workspace = parseWorkspaceYaml(fullPath)
+        if (!workspace.cwd) continue
+
+        const normalizedCwd = workspace.cwd.replace(/\\/g, '/').replace(/\/+$/, '')
+        const matches = normalizedPaths.some(
+          (pp) => normalizedCwd === pp || normalizedCwd.startsWith(pp + '/')
+        )
+        if (!matches) continue
+
+        result[entry.name] = isSessionActive(fullPath) ? 'active' : 'idle'
+      } catch {
+        // skip
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return result
 }

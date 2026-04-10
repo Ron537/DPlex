@@ -8,12 +8,19 @@ export function ProjectList(): JSX.Element {
   const loaded = useProjectStore((s) => s.loaded)
   const loadProjects = useProjectStore((s) => s.loadProjects)
   const addProject = useProjectStore((s) => s.addProject)
+  const startStatusPolling = useProjectStore((s) => s.startStatusPolling)
 
   useEffect(() => {
     if (!loaded) {
       loadProjects()
     }
   }, [loaded])
+
+  // Poll session statuses for projects
+  useEffect(() => {
+    if (projects.length === 0) return
+    return startStatusPolling()
+  }, [projects.length])
 
   return (
     <div className="flex flex-col gap-0.5">

@@ -27,6 +27,7 @@ function isInsideProject(sessionCwd: string, projectPath: string): boolean {
 interface ProjectState {
   projects: Project[]
   expandedProjectIds: Set<string>
+  sessionStatuses: Record<string, 'active' | 'idle'>
   loaded: boolean
 
   loadProjects: () => Promise<void>
@@ -36,11 +37,14 @@ interface ProjectState {
   startAISession: (project: Project) => void
   getProjectSessions: (projectPath: string) => AISession[]
   persistProjects: () => void
+  refreshSessionStatuses: () => Promise<void>
+  startStatusPolling: () => () => void
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   expandedProjectIds: new Set(),
+  sessionStatuses: {},
   loaded: false,
 
   loadProjects: async () => {
@@ -117,5 +121,26 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   getProjectSessions: (projectPath) => {
     const sessions = useSessionStore.getState().sessions
     return sessions.filter((s) => s.cwd && isInsideProject(s.cwd, projectPath))
+  },
+
+  refreshSessionStatuses: async () => {
+    const { projects } = get()
+    if (projects.length === 0) return
+    try {
+      const paths = projects.map((p) => p.path)
+      const statuses = await window.dplex.sessions.checkStatuses(paths)
+      set({ sessionStatuses: statuses })
+    } catch {
+      // ignore
+    }
+  },
+
+  startStatusPolling: () => {
+    // Initial fetch
+    get().refreshSessionStatuses()
+    const interval = setInterval(() => {
+      get().refreshSessionStatuses()
+    }, 5000)
+    return () => clearInterval(interval)
   }
 }))

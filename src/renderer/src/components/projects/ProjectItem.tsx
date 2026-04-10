@@ -35,6 +35,7 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
   const removeProject = useProjectStore((s) => s.removeProject)
   const startAISession = useProjectStore((s) => s.startAISession)
+  const sessionStatuses = useProjectStore((s) => s.sessionStatuses)
   const sessions = useSessionStore((s) => s.sessions)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const [branch, setBranch] = useState<string | null>(null)
@@ -43,7 +44,6 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
 
   useEffect(() => {
     window.dplex.app.getGitBranch(project.path).then(setBranch)
-    // Poll branch every 10 seconds
     const interval = setInterval(() => {
       window.dplex.app.getGitBranch(project.path).then(setBranch)
     }, 10000)
@@ -53,6 +53,11 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
   const projectSessions = sessions.filter(
     (s) => s.cwd && isInsideProject(s.cwd, project.path)
   )
+
+  // Override session status with real-time lock-file status
+  const getSessionStatus = (session: AISession): 'active' | 'idle' => {
+    return sessionStatuses[session.id] ?? session.status
+  }
 
   const handleResumeSession = (session: AISession): void => {
     const cmd = `copilot --resume=${session.id}`
@@ -137,7 +142,7 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
               >
                 <div
                   className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    session.status === 'active' ? 'bg-green-400' : 'bg-zinc-500'
+                    getSessionStatus(session) === 'active' ? 'bg-green-400' : 'bg-zinc-500'
                   }`}
                 />
                 <div className="flex-1 min-w-0">
