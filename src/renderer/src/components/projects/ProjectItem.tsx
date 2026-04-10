@@ -1,33 +1,10 @@
 import { useEffect, useState } from 'react'
 import { ChevronRight, ChevronDown, Play, X, FolderOpen, GitBranch } from 'lucide-react'
-import type { Project, AISession } from '../../types'
-import { useProjectStore } from '../../stores/projectStore'
-import { useSessionStore } from '../../stores/sessionStore'
-import { useTerminalStore } from '../../stores/terminalStore'
+import type { Project } from '../../types'
+import { useProjectStore, type ActiveSession } from '../../stores/projectStore'
 
 interface ProjectItemProps {
   project: Project
-}
-
-function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '')
-}
-
-function isInsideProject(sessionCwd: string, projectPath: string): boolean {
-  const normSession = normalizePath(sessionCwd)
-  const normProject = normalizePath(projectPath)
-  return normSession === normProject || normSession.startsWith(normProject + '/')
-}
-
-function timeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
-  if (seconds < 60) return 'just now'
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
 }
 
 export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
@@ -35,12 +12,11 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
   const removeProject = useProjectStore((s) => s.removeProject)
   const startAISession = useProjectStore((s) => s.startAISession)
-  const sessionStatuses = useProjectStore((s) => s.sessionStatuses)
-  const sessions = useSessionStore((s) => s.sessions)
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
+  const getActiveSessionsForProject = useProjectStore((s) => s.getActiveSessionsForProject)
   const [branch, setBranch] = useState<string | null>(null)
 
   const isExpanded = expandedIds.has(project.id)
+  const activeSessions = getActiveSessionsForProject(project.path)
 
   useEffect(() => {
     window.dplex.app.getGitBranch(project.path).then(setBranch)
@@ -49,20 +25,6 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
     }, 10000)
     return () => clearInterval(interval)
   }, [project.path])
-
-  const projectSessions = sessions.filter(
-    (s) => s.cwd && isInsideProject(s.cwd, project.path)
-  )
-
-  // Override session status with real-time lock-file status
-  const getSessionStatus = (session: AISession): 'active' | 'idle' => {
-    return sessionStatuses[session.id] ?? session.status
-  }
-
-  const handleResumeSession = (session: AISession): void => {
-    const cmd = `copilot --resume=${session.id}`
-    createTerminal(undefined, `↻ ${session.displayName}`, cmd, undefined, project.path)
-  }
 
   return (
     <div>
@@ -81,8 +43,16 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
 
         {/* Project name + branch */}
         <div className="flex-1 min-w-0">
-          <div className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
-            {project.name}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
+              {project.name}
+            </span>
+            {activeSessions.length > 0 && (
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"
+                title={`${activeSessions.length} active session${activeSessions.length > 1 ? 's' : ''}`}
+              />
+            )}
           </div>
           {branch ? (
             <div className="flex items-center gap-1 mt-0.5">
@@ -125,32 +95,23 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
         </div>
       </div>
 
-      {/* Expanded sessions */}
+      {/* Expanded: active sessions only */}
       {isExpanded && (
         <div className="ml-5 border-l" style={{ borderColor: 'var(--dplex-border)' }}>
-          {projectSessions.length === 0 ? (
+          {activeSessions.length === 0 ? (
             <div className="px-3 py-2 text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>
-              No sessions found for this project.
+              No active sessions.
             </div>
           ) : (
-            projectSessions.map((session) => (
+            activeSessions.map((session) => (
               <div
                 key={session.id}
-                className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 cursor-pointer rounded-sm mx-1"
-                onClick={() => handleResumeSession(session)}
-                title={`Resume: ${session.displayName}`}
+                className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded-sm mx-1"
               >
-                <div
-                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    getSessionStatus(session) === 'active' ? 'bg-green-400' : 'bg-zinc-500'
-                  }`}
-                />
+                <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-[11px] truncate" style={{ color: 'var(--dplex-text)' }}>
                     {session.displayName}
-                  </div>
-                  <div className="text-[9px]" style={{ color: 'var(--dplex-text-muted)' }}>
-                    {timeAgo(session.updatedAt)}
                   </div>
                 </div>
               </div>

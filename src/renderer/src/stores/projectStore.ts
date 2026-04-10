@@ -1,8 +1,7 @@
 import { create } from 'zustand'
-import type { Project, AISession } from '../types'
+import type { Project } from '../types'
 import { getAIToolCommand } from '../types'
 import { useSettingsStore } from './settingsStore'
-import { useSessionStore } from './sessionStore'
 import { useTerminalStore } from './terminalStore'
 
 function generateId(): string {
@@ -18,16 +17,16 @@ function normalizePath(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+$/, '')
 }
 
-function isInsideProject(sessionCwd: string, projectPath: string): boolean {
-  const normSession = normalizePath(sessionCwd)
-  const normProject = normalizePath(projectPath)
-  return normSession === normProject || normSession.startsWith(normProject + '/')
+export interface ActiveSession {
+  id: string
+  displayName: string
+  cwd: string
 }
 
 interface ProjectState {
   projects: Project[]
   expandedProjectIds: Set<string>
-  sessionStatuses: Record<string, 'active' | 'idle'>
+  activeSessions: ActiveSession[]
   loaded: boolean
 
   loadProjects: () => Promise<void>
@@ -35,16 +34,16 @@ interface ProjectState {
   removeProject: (id: string) => void
   toggleExpanded: (id: string) => void
   startAISession: (project: Project) => void
-  getProjectSessions: (projectPath: string) => AISession[]
+  getActiveSessionsForProject: (projectPath: string) => ActiveSession[]
   persistProjects: () => void
-  refreshSessionStatuses: () => Promise<void>
+  refreshActiveSessions: () => Promise<void>
   startStatusPolling: () => () => void
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   expandedProjectIds: new Set(),
-  sessionStatuses: {},
+  activeSessions: [],
   loaded: false,
 
   loadProjects: async () => {
@@ -118,28 +117,31 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     )
   },
 
-  getProjectSessions: (projectPath) => {
-    const sessions = useSessionStore.getState().sessions
-    return sessions.filter((s) => s.cwd && isInsideProject(s.cwd, projectPath))
+  getActiveSessionsForProject: (projectPath) => {
+    const { activeSessions } = get()
+    const normProject = normalizePath(projectPath)
+    return activeSessions.filter((s) => {
+      const normCwd = normalizePath(s.cwd)
+      return normCwd === normProject || normCwd.startsWith(normProject + '/')
+    })
   },
 
-  refreshSessionStatuses: async () => {
+  refreshActiveSessions: async () => {
     const { projects } = get()
     if (projects.length === 0) return
     try {
       const paths = projects.map((p) => p.path)
-      const statuses = await window.dplex.sessions.checkStatuses(paths)
-      set({ sessionStatuses: statuses })
+      const sessions = await window.dplex.sessions.checkStatuses(paths)
+      set({ activeSessions: sessions as unknown as ActiveSession[] })
     } catch {
       // ignore
     }
   },
 
   startStatusPolling: () => {
-    // Initial fetch
-    get().refreshSessionStatuses()
+    get().refreshActiveSessions()
     const interval = setInterval(() => {
-      get().refreshSessionStatuses()
+      get().refreshActiveSessions()
     }, 5000)
     return () => clearInterval(interval)
   }

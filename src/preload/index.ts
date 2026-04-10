@@ -13,7 +13,7 @@ export interface DplexAPI {
   sessions: {
     discover: () => Promise<unknown[]>
     delete: (sessionId: string) => Promise<void>
-    checkStatuses: (projectPaths: string[]) => Promise<Record<string, 'active' | 'idle'>>
+    getActiveForProjects: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string }[]>
   }
   settings: {
     getAll: () => Promise<Record<string, unknown>>
@@ -55,7 +55,7 @@ const dplexAPI: DplexAPI = {
   sessions: {
     discover: () => ipcRenderer.invoke('sessions:discover'),
     delete: (sessionId) => ipcRenderer.invoke('sessions:delete', sessionId),
-    checkStatuses: (projectPaths) => ipcRenderer.invoke('sessions:checkStatuses', projectPaths)
+    checkStatuses: (projectPaths) => ipcRenderer.invoke('sessions:getActiveForProjects', projectPaths)
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),

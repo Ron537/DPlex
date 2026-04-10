@@ -195,18 +195,25 @@ export async function deleteSessionDir(sessionId: string): Promise<void> {
 }
 
 /**
- * Lightweight check: returns a map of sessionId → active status
- * for sessions whose cwd matches any of the given project paths.
- * Used by the Projects panel for near-real-time status.
+ * Returns active sessions matching any of the given project paths.
+ * Optimized: first finds sessions with lock files (few), then reads
+ * workspace.yaml only for those to check cwd match. Avoids reading
+ * all 2000+ session yamls every poll.
  */
-export async function checkSessionStatuses(projectPaths: string[]): Promise<Record<string, 'active' | 'idle'>> {
+export interface ActiveProjectSession {
+  id: string
+  displayName: string
+  cwd: string
+}
+
+export async function getActiveProjectSessions(projectPaths: string[]): Promise<ActiveProjectSession[]> {
   const sessionDir = getCopilotSessionDir()
-  const result: Record<string, 'active' | 'idle'> = {}
+  const results: ActiveProjectSession[] = []
 
   try {
     await fsp.access(sessionDir)
   } catch {
-    return result
+    return results
   }
 
   const normalizedPaths = projectPaths.map((p) => p.replace(/\\/g, '/').replace(/\/+$/, ''))
@@ -218,7 +225,18 @@ export async function checkSessionStatuses(projectPaths: string[]): Promise<Reco
       if (!entry.isDirectory()) continue
       const fullPath = path.join(sessionDir, entry.name)
 
+      // Step 1: Quick check — does this session have a lock file?
       try {
+        const files = await fsp.readdir(fullPath)
+        const lockFile = files.find((f) => f.startsWith('inuse.') && f.endsWith('.lock'))
+        if (!lockFile) continue
+
+        // Verify PID is running
+        const pid = parseInt(lockFile.replace('inuse.', '').replace('.lock', ''), 10)
+        if (isNaN(pid)) continue
+        try { process.kill(pid, 0) } catch { continue }
+
+        // Step 2: Only now read workspace.yaml for this active session
         const workspace = await parseWorkspaceYamlAsync(fullPath)
         if (!workspace.cwd) continue
 
@@ -228,7 +246,8 @@ export async function checkSessionStatuses(projectPaths: string[]): Promise<Reco
         )
         if (!matches) continue
 
-        result[entry.name] = (await isSessionActive(fullPath)) ? 'active' : 'idle'
+        const displayName = getDisplayName(fullPath, entry.name)
+        results.push({ id: entry.name, displayName, cwd: workspace.cwd })
       } catch {
         // skip
       }
@@ -237,5 +256,5 @@ export async function checkSessionStatuses(projectPaths: string[]): Promise<Reco
     // ignore
   }
 
-  return result
+  return results
 }
