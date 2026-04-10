@@ -3,6 +3,7 @@ export interface TerminalTab {
   title: string
   shell?: string
   cwd?: string
+  command?: string // Direct command to exec (e.g. 'copilot'). Bypasses shell — no shell to fall back to.
 }
 
 export interface ShellInfo {

@@ -14,7 +14,7 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
 
   const handleResume = (): void => {
     const cmd = `copilot --resume=${session.id}`
-    createTerminal(undefined, `↻ ${session.displayName}`, cmd)
+    createTerminal(undefined, `↻ ${session.displayName}`, cmd, undefined, session.cwd)
     setShowMenu(false)
   }
 

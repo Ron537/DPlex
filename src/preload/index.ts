@@ -3,7 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 export interface DplexAPI {
   pty: {
-    create: (shell?: string, cwd?: string) => Promise<string>
+    create: (shell?: string, cwd?: string, command?: string) => Promise<string>
     write: (id: string, data: string) => void
     resize: (id: string, cols: number, rows: number) => void
     destroy: (id: string) => void
@@ -31,7 +31,7 @@ export interface DplexAPI {
 
 const dplexAPI: DplexAPI = {
   pty: {
-    create: (shell?, cwd?) => ipcRenderer.invoke('pty:create', shell, cwd),
+    create: (shell?, cwd?, command?) => ipcRenderer.invoke('pty:create', shell, cwd, command),
     write: (id, data) => ipcRenderer.send('pty:write', id, data),
     resize: (id, cols, rows) => ipcRenderer.send('pty:resize', id, cols, rows),
     destroy: (id) => ipcRenderer.send('pty:destroy', id),

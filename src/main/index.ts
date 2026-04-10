@@ -102,9 +102,9 @@ function createWindow(): void {
 
 function registerIpcHandlers(): void {
   // PTY management — create returns the generated ID
-  ipcMain.handle('pty:create', (_event, shell?: string, cwd?: string) => {
+  ipcMain.handle('pty:create', (_event, shell?: string, cwd?: string, command?: string) => {
     if (!mainWindow) throw new Error('No window')
-    return createPty(mainWindow, shell, cwd)
+    return createPty(mainWindow, shell, cwd, command)
   })
 
   ipcMain.on('pty:write', (_event, id: string, data: string) => {

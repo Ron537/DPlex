@@ -138,12 +138,18 @@ function validateCwd(cwd: string): boolean {
 export function createPty(
   window: BrowserWindow,
   shell?: string,
-  cwd?: string
+  cwd?: string,
+  command?: string
 ): string {
   const id = generatePtyId()
   const shellPath = shell || getDefaultShell()
   const safeCwd = cwd && validateCwd(cwd) ? cwd : os.homedir()
-  const shellArgs = getShellArgs(shellPath)
+
+  // When a command is provided, exec it through the login shell so PATH is set up
+  // but the shell process is replaced — no shell to fall back to on Ctrl+C
+  const shellArgs = command
+    ? ['-l', '-c', `exec ${command}`]
+    : getShellArgs(shellPath)
 
   const ptyProcess = pty.spawn(shellPath, shellArgs, {
     name: 'xterm-256color',

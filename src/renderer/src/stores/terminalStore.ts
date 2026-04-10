@@ -13,9 +13,9 @@ function makeGroupId(): string {
   return `group-${++groupCounter}`
 }
 
-function makeTerminalTab(title?: string, id?: string, shell?: string, cwd?: string): TerminalTab {
+function makeTerminalTab(title?: string, id?: string, shell?: string, cwd?: string, command?: string): TerminalTab {
   tabCounter++
-  return { id: id ?? makeTerminalId(), title: title ?? `Terminal ${tabCounter}`, shell, cwd }
+  return { id: id ?? makeTerminalId(), title: title ?? `Terminal ${tabCounter}`, shell, cwd, command }
 }
 
 function removeGroupFromLayout(node: LayoutNode, groupId: string): LayoutNode | null {
@@ -66,7 +66,7 @@ interface TerminalState {
   layout: LayoutNode
   activeGroupId: string | null
 
-  createTerminal: (groupId?: string, title?: string, initialCommand?: string, shell?: string, cwd?: string) => string
+  createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string) => string
   closeTerminal: (terminalId: string) => void
   setActiveGroup: (groupId: string) => void
   setActiveTerminalInGroup: (groupId: string, terminalId: string) => void
@@ -82,25 +82,16 @@ interface TerminalState {
   reorderTab: (groupId: string, fromIndex: number, toIndex: number) => void
   getActiveGroup: () => EditorGroup | undefined
   getAllTerminalIds: () => string[]
-
-  pendingCommands: Map<string, string>
-  popPendingCommand: (terminalId: string) => string | undefined
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
   groups: [],
   layout: { type: 'group', groupId: 'group-0' },
   activeGroupId: null,
-  pendingCommands: new Map(),
-
-  createTerminal: (groupId?: string, title?: string, initialCommand?: string, shell?: string, cwd?: string) => {
+  createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string) => {
     const state = get()
-    const tab = makeTerminalTab(title, undefined, shell, cwd)
+    const tab = makeTerminalTab(title, undefined, shell, cwd, command)
     const targetGroupId = groupId ?? state.activeGroupId
-
-    if (initialCommand) {
-      state.pendingCommands.set(tab.id, initialCommand)
-    }
 
     // If no groups exist or target group not found, create initial group
     if (state.groups.length === 0 || !targetGroupId) {
@@ -328,14 +319,6 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   getAllTerminalIds: () => {
     return get().groups.flatMap((g) => g.tabs.map((t) => t.id))
-  },
-
-  popPendingCommand: (terminalId) => {
-    const cmd = get().pendingCommands.get(terminalId)
-    if (cmd) {
-      get().pendingCommands.delete(terminalId)
-    }
-    return cmd
   }
 }))
 

@@ -81,9 +81,10 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         .find((t) => t.id === terminalId)
       const tabShell = tab?.shell
       const tabCwd = tab?.cwd
+      const tabCommand = tab?.command
       const defaultShell = useSettingsStore.getState().settings.defaultShell
       const shellToUse = tabShell || defaultShell || undefined
-      window.dplex.pty.create(shellToUse, tabCwd).then((ptyId) => {
+      window.dplex.pty.create(shellToUse, tabCwd, tabCommand).then((ptyId) => {
         entry.ptyId = ptyId
         ptyIdResolved = ptyId
 
@@ -114,14 +115,6 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         const { cols, rows } = entry.term
         if (cols && rows) {
           window.dplex.pty.resize(ptyId, cols, rows)
-        }
-
-        // Check for pending command
-        const pendingCmd = useTerminalStore.getState().popPendingCommand(terminalId)
-        if (pendingCmd) {
-          setTimeout(() => {
-            window.dplex.pty.write(ptyId, pendingCmd + '\n')
-          }, 500)
         }
 
         entry.cleanupIpc = () => {
