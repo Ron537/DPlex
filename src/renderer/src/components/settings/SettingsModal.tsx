@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Settings, Palette, Terminal, Bot, Keyboard } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { getThemeList, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
-import type { ShellInfo } from '../../types'
+import type { ShellInfo, AppSettings } from '../../types'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -68,24 +68,32 @@ function SettingItem({ label, description, children }: {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Element | null {
   const settings = useSettingsStore((s) => s.settings)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
-  const [localSettings, setLocalSettings] = useState(settings)
   const [shells, setShells] = useState<ShellInfo[]>([])
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
   const themes = getThemeList()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (isOpen) {
-      setLocalSettings(settings)
       window.dplex.app.getAvailableShells().then(setShells)
     }
-  }, [isOpen, settings])
+  }, [isOpen])
 
   if (!isOpen) return null
 
-  const handleSave = (): void => {
-    updateSettings(localSettings)
-    applyThemeToAll(localSettings.theme)
-    onClose()
+  const applyNow = (partial: Partial<AppSettings>): void => {
+    updateSettings(partial)
+    if (partial.theme) applyThemeToAll(partial.theme)
+  }
+
+  const applyDebounced = (partial: Partial<AppSettings>): void => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    // Apply to UI immediately via store
+    useSettingsStore.setState((s) => ({ settings: { ...s.settings, ...partial } }))
+    // Debounce the persist
+    debounceRef.current = setTimeout(() => {
+      updateSettings(partial)
+    }, 400)
   }
 
   return (
@@ -138,11 +146,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
                 <div className="grid grid-cols-3 gap-2">
                   {themes.map((t) => {
                     const theme = getTheme(t.id)
-                    const isSelected = localSettings.theme === t.id
+                    const isSelected = settings.theme === t.id
                     return (
                       <button
                         key={t.id}
-                        onClick={() => setLocalSettings({ ...localSettings, theme: t.id })}
+                        onClick={() => applyNow({ theme: t.id })}
                         className={`flex flex-col items-center gap-1.5 p-2 rounded border transition-colors ${
                           isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-transparent hover:border-zinc-500'
                         }`}
@@ -168,8 +176,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
               <>
                 <SettingItem label="Default Shell" description="The shell used when opening new terminals. Override per-tab with the dropdown next to the + button.">
                   <select
-                    value={localSettings.defaultShell}
-                    onChange={(e) => setLocalSettings({ ...localSettings, defaultShell: e.target.value })}
+                    value={settings.defaultShell}
+                    onChange={(e) => applyNow({ defaultShell: e.target.value })}
                     className="w-full rounded px-3 py-1.5 text-xs outline-none"
                     style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
                   >
@@ -180,11 +188,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
                   </select>
                 </SettingItem>
 
-                <SettingItem label="Font Size" description={`Controls the terminal font size in pixels. Currently ${localSettings.fontSize}px.`}>
+                <SettingItem label="Font Size" description={`Controls the terminal font size in pixels. Currently ${settings.fontSize}px.`}>
                   <input
                     type="range" min={10} max={24}
-                    value={localSettings.fontSize}
-                    onChange={(e) => setLocalSettings({ ...localSettings, fontSize: Number(e.target.value) })}
+                    value={settings.fontSize}
+                    onChange={(e) => applyDebounced({ fontSize: Number(e.target.value) })}
                     className="w-full accent-blue-500"
                   />
                 </SettingItem>
@@ -192,8 +200,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
                 <SettingItem label="Font Family" description="Controls the terminal font family. Use a monospace font for best results.">
                   <input
                     type="text"
-                    value={localSettings.fontFamily}
-                    onChange={(e) => setLocalSettings({ ...localSettings, fontFamily: e.target.value })}
+                    value={settings.fontFamily}
+                    onChange={(e) => applyDebounced({ fontFamily: e.target.value })}
                     className="w-full rounded px-3 py-1.5 text-xs outline-none"
                     style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
                   />
@@ -205,8 +213,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
               <>
                 <SettingItem label="Default AI Tool" description="The AI CLI tool used for session discovery and integration.">
                   <select
-                    value={localSettings.defaultAITool}
-                    onChange={(e) => setLocalSettings({ ...localSettings, defaultAITool: e.target.value })}
+                    value={settings.defaultAITool}
+                    onChange={(e) => applyNow({ defaultAITool: e.target.value })}
                     className="w-full rounded px-3 py-1.5 text-xs outline-none"
                     style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
                   >
@@ -246,23 +254,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
               </div>
             )}
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 flex-shrink-0" style={{ borderTop: '1px solid var(--dplex-border)' }}>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 text-xs hover:bg-white/10 rounded transition-colors"
-            style={{ color: 'var(--dplex-text-muted)' }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-500 rounded transition-colors"
-          >
-            Save
-          </button>
         </div>
       </div>
     </div>
