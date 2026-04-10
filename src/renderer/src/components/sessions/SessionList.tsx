@@ -77,7 +77,8 @@ export function SessionList({ groupMode }: SessionListProps): JSX.Element {
           (s) =>
             s.displayName.toLowerCase().includes(q) ||
             s.id.toLowerCase().includes(q) ||
-            (s.summary && s.summary.toLowerCase().includes(q))
+            (s.summary && s.summary.toLowerCase().includes(q)) ||
+            (s.cwd && s.cwd.toLowerCase().includes(q))
         )
       : sessions
 
