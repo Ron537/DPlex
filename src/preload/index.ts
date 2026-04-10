@@ -17,7 +17,7 @@ export interface DplexAPI {
     loadWorkspace: () => Promise<unknown | null>
     saveWorkspace: (data: unknown) => Promise<void>
     saveWorkspaceSync: (data: unknown) => void
-    resolveSessionId: (pid: number, cwd?: string) => Promise<string | null>
+    resolveSessionId: (pid: number, cwd?: string) => Promise<{ sessionId: string; displayName: string } | null>
   }
   settings: {
     getAll: () => Promise<Record<string, unknown>>

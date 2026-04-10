@@ -145,6 +145,7 @@ function registerIpcHandlers(): void {
   })
   ipcMain.handle('sessions:resolveSessionId', async (_event, pid: number, cwd?: string) => {
     // Try PID match first (most reliable), then CWD fallback
+    // Returns { sessionId, displayName } or null
     const pidResult = await resolveSessionIdByPid(pid)
     if (pidResult) return pidResult
     if (cwd) return resolveSessionIdByCwd(cwd)

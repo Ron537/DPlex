@@ -18,10 +18,12 @@ function tabExists(terminalId: string): boolean {
 async function resolveSessionIdForTab(terminalId: string, pid: number, cwd: string | undefined, attempt = 0): Promise<void> {
   if (!tabExists(terminalId)) return
   try {
-    const sessionId = await window.dplex.sessions.resolveSessionId(pid, cwd)
-    if (sessionId) {
+    const result = await window.dplex.sessions.resolveSessionId(pid, cwd)
+    if (result) {
       if (tabExists(terminalId)) {
-        useTerminalStore.getState().associateSessionId(terminalId, sessionId)
+        const store = useTerminalStore.getState()
+        store.associateSessionId(terminalId, result.sessionId)
+        store.renameTerminal(terminalId, result.displayName)
       }
       return
     }

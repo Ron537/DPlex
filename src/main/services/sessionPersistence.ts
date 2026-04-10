@@ -3,6 +3,7 @@ import * as fsp from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import { app } from 'electron'
+import { getDisplayName } from './sessionDiscovery'
 
 const SESSIONS_PATH = path.join(app.getPath('userData'), 'sessions.json')
 
@@ -54,12 +55,17 @@ export function saveWorkspace(data: PersistedWorkspace): void {
   }
 }
 
+export interface ResolvedSession {
+  sessionId: string
+  displayName: string
+}
+
 /**
  * Find the copilot session ID associated with a given PID.
  * Scans copilot session dirs for lock files matching the PID.
- * Returns the session directory name (= session ID) or null.
+ * Returns session ID and display name, or null.
  */
-export async function resolveSessionIdByPid(pid: number): Promise<string | null> {
+export async function resolveSessionIdByPid(pid: number): Promise<ResolvedSession | null> {
   const sessionDir = path.join(os.homedir(), '.copilot', 'session-state')
   const lockFileName = `inuse.${pid}.lock`
 
@@ -80,7 +86,8 @@ export async function resolveSessionIdByPid(pid: number): Promise<string | null>
       try {
         const files = await fsp.readdir(fullPath)
         if (files.includes(lockFileName)) {
-          return entry.name
+          const displayName = getDisplayName(fullPath, entry.name)
+          return { sessionId: entry.name, displayName }
         }
       } catch {
         // Skip unreadable dirs
@@ -96,9 +103,9 @@ export async function resolveSessionIdByPid(pid: number): Promise<string | null>
 /**
  * Resolve session ID by CWD match. Finds the most recently modified active
  * copilot session whose workspace CWD matches the given path.
- * Used as fallback when PID matching fails (e.g., copilot spawns a child process).
+ * Used as fallback when PID matching fails.
  */
-export async function resolveSessionIdByCwd(cwd: string): Promise<string | null> {
+export async function resolveSessionIdByCwd(cwd: string): Promise<ResolvedSession | null> {
   const sessionDir = path.join(os.homedir(), '.copilot', 'session-state')
   const normalizedCwd = cwd.replace(/\\/g, '/').replace(/\/+$/, '')
 
@@ -108,7 +115,7 @@ export async function resolveSessionIdByCwd(cwd: string): Promise<string | null>
     return null
   }
 
-  let bestMatch: { id: string; mtime: number } | null = null
+  let bestMatch: { id: string; mtime: number; fullPath: string } | null = null
 
   try {
     const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
@@ -149,7 +156,7 @@ export async function resolveSessionIdByCwd(cwd: string): Promise<string | null>
         const stat = await fsp.stat(fullPath)
         const mtime = stat.mtimeMs
         if (!bestMatch || mtime > bestMatch.mtime) {
-          bestMatch = { id: entry.name, mtime }
+          bestMatch = { id: entry.name, mtime, fullPath }
         }
       } catch {
         // Skip
@@ -159,5 +166,7 @@ export async function resolveSessionIdByCwd(cwd: string): Promise<string | null>
     // ignore
   }
 
-  return bestMatch?.id ?? null
+  if (!bestMatch) return null
+  const displayName = getDisplayName(bestMatch.fullPath, bestMatch.id)
+  return { sessionId: bestMatch.id, displayName }
 }

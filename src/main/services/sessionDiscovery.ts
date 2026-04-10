@@ -84,7 +84,7 @@ function parseFirstUserMessage(sessionDir: string): string | undefined {
   return undefined
 }
 
-function getDisplayName(sessionDir: string, sessionId: string): string {
+export function getDisplayName(sessionDir: string, sessionId: string): string {
   // Priority: plan.md heading > workspace.yaml summary > first user message > folder name
   const planPath = path.join(sessionDir, 'plan.md')
   const planName = fs.existsSync(planPath) ? parsePlanSummary(planPath) : undefined
