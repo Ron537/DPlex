@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Search, PanelLeftClose, RefreshCw, FolderKanban, History } from 'lucide-react'
+import { Search, PanelLeftClose, RefreshCw, FolderKanban, History, Clock, FolderOpen } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
 
 type SidebarTab = 'projects' | 'sessions'
+export type SessionGroupMode = 'time' | 'workspace'
 
 export function SidePanel(): JSX.Element {
   const searchQuery = useSessionStore((s) => s.searchQuery)
@@ -15,6 +16,7 @@ export function SidePanel(): JSX.Element {
   const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const [activeTab, setActiveTab] = useState<SidebarTab>('projects')
+  const [groupMode, setGroupMode] = useState<SessionGroupMode>('time')
 
   if (!sidebarVisible) {
     return null
@@ -50,15 +52,25 @@ export function SidePanel(): JSX.Element {
         </div>
         <div className="flex items-center gap-0.5">
           {activeTab === 'sessions' && (
-            <button
-              onClick={() => refreshSessions()}
-              disabled={loading}
-              className="p-1 hover:bg-white/10 rounded transition-colors"
-              style={{ color: 'var(--dplex-text-muted)' }}
-              title="Refresh sessions"
-            >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-            </button>
+            <>
+              <button
+                onClick={() => setGroupMode(groupMode === 'time' ? 'workspace' : 'time')}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+                style={{ color: 'var(--dplex-text-muted)' }}
+                title={groupMode === 'time' ? 'Group by workspace' : 'Group by time'}
+              >
+                {groupMode === 'time' ? <FolderOpen size={12} /> : <Clock size={12} />}
+              </button>
+              <button
+                onClick={() => refreshSessions()}
+                disabled={loading}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+                style={{ color: 'var(--dplex-text-muted)' }}
+                title="Refresh sessions"
+              >
+                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </>
           )}
           <button
             onClick={toggleSidebar}
@@ -90,7 +102,7 @@ export function SidePanel(): JSX.Element {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'projects' ? <ProjectList /> : <SessionList />}
+        {activeTab === 'projects' ? <ProjectList /> : <SessionList groupMode={groupMode} />}
       </div>
     </div>
   )

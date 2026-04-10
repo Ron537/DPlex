@@ -3,8 +3,13 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { SessionItem } from './SessionItem'
 import { Loader2, ChevronRight, ChevronDown } from 'lucide-react'
 import type { AISession } from '../../types'
+import type { SessionGroupMode } from '../layout/SidePanel'
 
-interface TimeGroup {
+interface SessionListProps {
+  groupMode: SessionGroupMode
+}
+
+interface SessionGroup {
   label: string
   sessions: AISession[]
 }
@@ -24,7 +29,7 @@ function getTimeGroupLabel(date: Date): string {
   return 'Older'
 }
 
-function groupByTime(sessions: AISession[]): TimeGroup[] {
+function groupByTime(sessions: AISession[]): SessionGroup[] {
   const order = ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'Older']
   const map = new Map<string, AISession[]>()
 
@@ -39,14 +44,33 @@ function groupByTime(sessions: AISession[]): TimeGroup[] {
     .map((label) => ({ label, sessions: map.get(label)! }))
 }
 
-export function SessionList(): JSX.Element {
+function folderName(p: string): string {
+  const parts = p.replace(/\\/g, '/').split('/')
+  return parts[parts.length - 1] || p
+}
+
+function groupByWorkspace(sessions: AISession[]): SessionGroup[] {
+  const map = new Map<string, AISession[]>()
+
+  for (const session of sessions) {
+    const label = session.cwd ? folderName(session.cwd) : 'Unknown'
+    if (!map.has(label)) map.set(label, [])
+    map.get(label)!.push(session)
+  }
+
+  return Array.from(map.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([label, sessions]) => ({ label, sessions }))
+}
+
+export function SessionList({ groupMode }: SessionListProps): JSX.Element {
   const sessions = useSessionStore((s) => s.sessions)
   const searchQuery = useSessionStore((s) => s.searchQuery)
   const loading = useSessionStore((s) => s.loading)
   const error = useSessionStore((s) => s.error)
   const deleteSession = useSessionStore((s) => s.deleteSession)
 
-  const { active, timeGroups } = useMemo(() => {
+  const { active, groups } = useMemo(() => {
     const q = searchQuery.toLowerCase()
     const filtered = q
       ? sessions.filter(
@@ -57,13 +81,14 @@ export function SessionList(): JSX.Element {
         )
       : sessions
 
+    const idle = filtered.filter((s) => s.status === 'idle')
     return {
       active: filtered.filter((s) => s.status === 'active'),
-      timeGroups: groupByTime(filtered.filter((s) => s.status === 'idle'))
+      groups: groupMode === 'time' ? groupByTime(idle) : groupByWorkspace(idle)
     }
-  }, [sessions, searchQuery])
+  }, [sessions, searchQuery, groupMode])
 
-  if (loading && active.length === 0 && timeGroups.length === 0) {
+  if (loading && active.length === 0 && groups.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-zinc-500">
         <Loader2 size={16} className="animate-spin" />
@@ -79,7 +104,7 @@ export function SessionList(): JSX.Element {
     )
   }
 
-  if (active.length === 0 && timeGroups.length === 0) {
+  if (active.length === 0 && groups.length === 0) {
     return (
       <div className="px-3 py-8 text-xs text-zinc-500 text-center">
         No sessions found.
@@ -101,7 +126,7 @@ export function SessionList(): JSX.Element {
         </CollapsibleGroup>
       )}
 
-      {timeGroups.map((group) => (
+      {groups.map((group) => (
         <CollapsibleGroup key={group.label} label={group.label}>
           {group.sessions.map((session) => (
             <SessionItem key={session.id} session={session} onDelete={deleteSession} />
