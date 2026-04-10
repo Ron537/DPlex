@@ -15,10 +15,10 @@ function tabExists(terminalId: string): boolean {
   return useTerminalStore.getState().groups.some((g) => g.tabs.some((t) => t.id === terminalId))
 }
 
-async function resolveSessionIdForTab(terminalId: string, pid: number, attempt = 0): Promise<void> {
+async function resolveSessionIdForTab(terminalId: string, pid: number, cwd: string | undefined, attempt = 0): Promise<void> {
   if (!tabExists(terminalId)) return
   try {
-    const sessionId = await window.dplex.sessions.resolveSessionId(pid)
+    const sessionId = await window.dplex.sessions.resolveSessionId(pid, cwd)
     if (sessionId) {
       if (tabExists(terminalId)) {
         useTerminalStore.getState().associateSessionId(terminalId, sessionId)
@@ -30,7 +30,7 @@ async function resolveSessionIdForTab(terminalId: string, pid: number, attempt =
   }
   // Retry if not resolved yet (copilot may still be initializing)
   if (attempt < SESSION_RESOLVE_MAX_RETRIES) {
-    setTimeout(() => resolveSessionIdForTab(terminalId, pid, attempt + 1), SESSION_RESOLVE_RETRY_MS)
+    setTimeout(() => resolveSessionIdForTab(terminalId, pid, cwd, attempt + 1), SESSION_RESOLVE_RETRY_MS)
   }
 }
 
@@ -150,7 +150,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         // For AI sessions, resolve the session ID after a delay
         if (tabCommand && pid) {
           setTimeout(() => {
-            resolveSessionIdForTab(terminalId, pid)
+            resolveSessionIdForTab(terminalId, pid, tabCwd)
           }, 3000)
         }
 

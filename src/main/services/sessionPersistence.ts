@@ -92,3 +92,72 @@ export async function resolveSessionIdByPid(pid: number): Promise<string | null>
 
   return null
 }
+
+/**
+ * Resolve session ID by CWD match. Finds the most recently modified active
+ * copilot session whose workspace CWD matches the given path.
+ * Used as fallback when PID matching fails (e.g., copilot spawns a child process).
+ */
+export async function resolveSessionIdByCwd(cwd: string): Promise<string | null> {
+  const sessionDir = path.join(os.homedir(), '.copilot', 'session-state')
+  const normalizedCwd = cwd.replace(/\\/g, '/').replace(/\/+$/, '')
+
+  try {
+    await fsp.access(sessionDir)
+  } catch {
+    return null
+  }
+
+  let bestMatch: { id: string; mtime: number } | null = null
+
+  try {
+    const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const fullPath = path.join(sessionDir, entry.name)
+
+      try {
+        const files = await fsp.readdir(fullPath)
+
+        // Must have an active lock file with a living process
+        const lockFile = files.find((f) => f.startsWith('inuse.') && f.endsWith('.lock'))
+        if (!lockFile) continue
+        const lockPid = parseInt(lockFile.replace('inuse.', '').replace('.lock', ''), 10)
+        if (isNaN(lockPid)) continue
+        try {
+          process.kill(lockPid, 0)
+        } catch {
+          continue
+        }
+
+        // Check CWD match from workspace.yaml
+        const yamlPath = path.join(fullPath, 'workspace.yaml')
+        let yamlContent: string
+        try {
+          yamlContent = await fsp.readFile(yamlPath, 'utf-8')
+        } catch {
+          continue
+        }
+        const cwdMatch = yamlContent.match(/^cwd:\s*(.+)$/m)
+        if (!cwdMatch) continue
+        const sessionCwd = cwdMatch[1].trim().replace(/\\/g, '/').replace(/\/+$/, '')
+
+        if (sessionCwd !== normalizedCwd) continue
+
+        // Track the most recently modified match
+        const stat = await fsp.stat(fullPath)
+        const mtime = stat.mtimeMs
+        if (!bestMatch || mtime > bestMatch.mtime) {
+          bestMatch = { id: entry.name, mtime }
+        }
+      } catch {
+        // Skip
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return bestMatch?.id ?? null
+}

@@ -15,7 +15,7 @@ import {
   discoverAvailableShells
 } from './services/ptyManager'
 import { discoverCopilotSessions, deleteSessionDir, getActiveProjectSessions } from './services/sessionDiscovery'
-import { loadWorkspace, saveWorkspace, resolveSessionIdByPid, type PersistedWorkspace } from './services/sessionPersistence'
+import { loadWorkspace, saveWorkspace, resolveSessionIdByPid, resolveSessionIdByCwd, type PersistedWorkspace } from './services/sessionPersistence'
 
 const SETTINGS_PATH = join(app.getPath('userData'), 'settings.json')
 
@@ -143,8 +143,12 @@ function registerIpcHandlers(): void {
     saveWorkspace(data)
     event.returnValue = true
   })
-  ipcMain.handle('sessions:resolveSessionId', (_event, pid: number) => {
-    return resolveSessionIdByPid(pid)
+  ipcMain.handle('sessions:resolveSessionId', async (_event, pid: number, cwd?: string) => {
+    // Try PID match first (most reliable), then CWD fallback
+    const pidResult = await resolveSessionIdByPid(pid)
+    if (pidResult) return pidResult
+    if (cwd) return resolveSessionIdByCwd(cwd)
+    return null
   })
 
   // Settings
