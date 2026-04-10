@@ -1,4 +1,4 @@
-import { Terminal, Cpu, PanelLeftOpen, PanelLeftClose, Settings } from 'lucide-react'
+import { Terminal, PanelLeftOpen, PanelLeftClose, Settings } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 
@@ -25,10 +25,6 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): JSX.Element {
         >
           {sidebarVisible ? <PanelLeftClose size={12} /> : <PanelLeftOpen size={12} />}
         </button>
-        <span className="flex items-center gap-1">
-          <Cpu size={10} />
-          Copilot CLI
-        </span>
       </div>
       <div className="flex items-center gap-3 pr-1">
         {activeTab && (
