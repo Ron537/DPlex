@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Search, PanelLeftClose, RefreshCw, FolderKanban, History, Clock, FolderOpen } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -7,6 +7,10 @@ import { ProjectList } from '../projects/ProjectList'
 
 type SidebarTab = 'projects' | 'sessions'
 export type SessionGroupMode = 'time' | 'workspace'
+
+const MIN_WIDTH = 200
+const MAX_WIDTH = 500
+const DEFAULT_WIDTH = 260
 
 export function SidePanel(): JSX.Element {
   const searchQuery = useSessionStore((s) => s.searchQuery)
@@ -17,13 +21,41 @@ export function SidePanel(): JSX.Element {
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const [activeTab, setActiveTab] = useState<SidebarTab>('projects')
   const [groupMode, setGroupMode] = useState<SessionGroupMode>('time')
+  const [width, setWidth] = useState(DEFAULT_WIDTH)
+  const resizing = useRef(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    resizing.current = true
+    const startX = e.clientX
+    const startWidth = width
+
+    const onMouseMove = (e: MouseEvent): void => {
+      if (!resizing.current) return
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (e.clientX - startX)))
+      setWidth(newWidth)
+    }
+
+    const onMouseUp = (): void => {
+      resizing.current = false
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [width])
 
   if (!sidebarVisible) {
     return null
   }
 
   return (
-    <div className="flex flex-col h-full w-[260px] flex-shrink-0" style={{ backgroundColor: 'var(--dplex-bg-alt)', borderRight: '1px solid var(--dplex-border)' }}>
+    <div className="flex flex-col h-full flex-shrink-0 relative" style={{ width: `${width}px`, backgroundColor: 'var(--dplex-bg-alt)', borderRight: '1px solid var(--dplex-border)' }}>
       {/* Header with tab toggle */}
       <div className="flex items-center justify-between px-2 h-9" style={{ borderBottom: '1px solid var(--dplex-border)' }}>
         <div className="flex items-center gap-0.5">
@@ -104,6 +136,13 @@ export function SidePanel(): JSX.Element {
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'projects' ? <ProjectList /> : <SessionList groupMode={groupMode} />}
       </div>
+
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-[var(--dplex-accent)] transition-colors z-10"
+        style={{ opacity: 0.5 }}
+      />
     </div>
   )
 }
