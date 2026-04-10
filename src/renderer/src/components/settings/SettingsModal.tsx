@@ -79,6 +79,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   const applyNow = (partial: Partial<AppSettings>): void => {
