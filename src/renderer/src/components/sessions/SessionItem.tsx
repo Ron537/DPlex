@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { MoreVertical, Play, Trash2 } from 'lucide-react'
+import { MoreVertical, Play, Square, Trash2 } from 'lucide-react'
 import type { AISession } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { useSessionStore } from '../../stores/sessionStore'
 
 interface SessionItemProps {
   session: AISession
@@ -10,6 +11,7 @@ interface SessionItemProps {
 
 export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
+  const closeSession = useSessionStore((s) => s.closeSession)
   const [showMenu, setShowMenu] = useState(false)
 
   const handleResume = (): void => {
@@ -71,6 +73,19 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
             >
               <Play size={11} /> Resume
             </button>
+            {session.status === 'active' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  closeSession(session.id)
+                  setShowMenu(false)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                <Square size={11} /> Close
+              </button>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation()

@@ -14,7 +14,7 @@ import {
   getDefaultShellPath,
   discoverAvailableShells
 } from './services/ptyManager'
-import { discoverCopilotSessions, deleteSessionDir, getActiveProjectSessions } from './services/sessionDiscovery'
+import { discoverCopilotSessions, deleteSessionDir, closeSession, getActiveProjectSessions } from './services/sessionDiscovery'
 import { loadWorkspace, saveWorkspace, resolveSessionIdByPid, resolveSessionIdByCwd, type PersistedWorkspace } from './services/sessionPersistence'
 
 const SETTINGS_PATH = join(app.getPath('userData'), 'settings.json')
@@ -127,6 +127,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('sessions:delete', (_event, sessionId: string) => {
     return deleteSessionDir(sessionId)
+  })
+
+  ipcMain.handle('sessions:close', (_event, sessionId: string) => {
+    return closeSession(sessionId)
   })
 
   ipcMain.handle('sessions:getActiveForProjects', (_event, projectPaths: string[]) => {

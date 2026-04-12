@@ -184,6 +184,34 @@ export async function discoverCopilotSessions(): Promise<DiscoveredSession[]> {
   }
 }
 
+export async function closeSession(sessionId: string): Promise<boolean> {
+  const fullPath = resolveAndValidateSessionPath(sessionId)
+  if (!fullPath) return false
+
+  try {
+    const files = await fsp.readdir(fullPath)
+    const lockFiles = files.filter((f) => /^inuse\.\d+\.lock$/.test(f))
+    if (lockFiles.length === 0) return false
+
+    let killed = false
+    for (const lockFile of lockFiles) {
+      const match = lockFile.match(/^inuse\.(\d+)\.lock$/)
+      if (!match) continue
+      const pid = parseInt(match[1], 10)
+      if (isNaN(pid) || pid <= 0) continue
+      try {
+        process.kill(pid, 'SIGTERM')
+        killed = true
+      } catch {
+        // Process already gone — ignore
+      }
+    }
+    return killed
+  } catch {
+    return false
+  }
+}
+
 export async function deleteSessionDir(sessionId: string): Promise<void> {
   const fullPath = resolveAndValidateSessionPath(sessionId)
   if (!fullPath) {

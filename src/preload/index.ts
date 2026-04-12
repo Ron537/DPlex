@@ -13,7 +13,8 @@ export interface DplexAPI {
   sessions: {
     discover: () => Promise<unknown[]>
     delete: (sessionId: string) => Promise<void>
-    getActiveForProjects: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string }[]>
+    close: (sessionId: string) => Promise<boolean>
+    checkStatuses: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string }[]>
     loadWorkspace: () => Promise<unknown | null>
     saveWorkspace: (data: unknown) => Promise<void>
     saveWorkspaceSync: (data: unknown) => void
@@ -59,6 +60,7 @@ const dplexAPI: DplexAPI = {
   sessions: {
     discover: () => ipcRenderer.invoke('sessions:discover'),
     delete: (sessionId) => ipcRenderer.invoke('sessions:delete', sessionId),
+    close: (sessionId) => ipcRenderer.invoke('sessions:close', sessionId),
     checkStatuses: (projectPaths) => ipcRenderer.invoke('sessions:getActiveForProjects', projectPaths),
     loadWorkspace: () => ipcRenderer.invoke('sessions:loadWorkspace'),
     saveWorkspace: (data) => ipcRenderer.invoke('sessions:saveWorkspace', data),

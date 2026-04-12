@@ -9,6 +9,7 @@ interface SessionState {
 
   refreshSessions: () => Promise<void>
   setSearchQuery: (query: string) => void
+  closeSession: (sessionId: string) => Promise<void>
   deleteSession: (sessionId: string) => Promise<void>
 
   getActiveSessions: () => AISession[]
@@ -34,6 +35,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setSearchQuery: (query) => {
     set({ searchQuery: query })
+  },
+
+  closeSession: async (sessionId) => {
+    try {
+      await window.dplex.sessions.close(sessionId)
+      set((state) => ({
+        sessions: state.sessions.map((s) =>
+          s.id === sessionId ? { ...s, status: 'idle' as const } : s
+        )
+      }))
+    } catch (err) {
+      // Revert optimistic update by refreshing actual state
+      get().refreshSessions()
+      set({ error: String(err) })
+    }
   },
 
   deleteSession: async (sessionId) => {
