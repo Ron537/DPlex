@@ -34,7 +34,7 @@ interface ProjectState {
   removeProject: (id: string) => void
   reorderProject: (draggedId: string, targetId: string, position: 'above' | 'below') => void
   toggleExpanded: (id: string) => void
-  startAISession: (project: Project) => Promise<void>
+  startAISession: (project: Project) => void
   getActiveSessionsForProject: (projectPath: string) => ActiveSession[]
   persistProjects: () => void
   refreshActiveSessions: () => Promise<void>
@@ -119,38 +119,26 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
   },
 
-  startAISession: async (project) => {
-    try {
-      const settings = useSettingsStore.getState().settings
-      const providerId = settings.defaultAITool
-      const [cmd, providers] = await Promise.all([
-        window.dplex.sessions.getNewSessionCommand(providerId),
-        window.dplex.sessions.getProviders()
-      ])
-      if (!cmd) return
+  startAISession: (project) => {
+    const settings = useSettingsStore.getState().settings
+    const providerId = settings.defaultAITool
 
-      const providerName = providers.find((p) => p.id === providerId)?.name ?? providerId
-      const title = `${providerName} · ${folderName(project.path)}`
+    // Get command and display name synchronously from IPC cache
+    window.dplex.sessions.getNewSessionCommand(providerId).then((cmd) => {
+      window.dplex.sessions.getProviders().then((providers) => {
+        const command = cmd || (providerId === 'copilot-cli' ? 'copilot' : providerId)
+        const providerName = providers?.find((p) => p.id === providerId)?.name ?? 'AI'
+        const title = `${providerName} · ${folderName(project.path)}`
 
-      useTerminalStore.getState().createTerminal(
-        undefined,
-        title,
-        cmd,
-        undefined,
-        project.path
-      )
-    } catch {
-      // Fallback: use settings to build command directly
-      const settings = useSettingsStore.getState().settings
-      const title = `AI · ${folderName(project.path)}`
-      useTerminalStore.getState().createTerminal(
-        undefined,
-        title,
-        settings.defaultAITool === 'copilot-cli' ? 'copilot' : settings.defaultAITool,
-        undefined,
-        project.path
-      )
-    }
+        useTerminalStore.getState().createTerminal(
+          undefined,
+          title,
+          command,
+          undefined,
+          project.path
+        )
+      })
+    })
   },
 
   getActiveSessionsForProject: (projectPath) => {
