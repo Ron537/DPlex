@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { ChevronRight, ChevronDown, Play, X, FolderOpen, GitBranch, Monitor, Globe, GripVertical } from 'lucide-react'
+import { ChevronRight, ChevronDown, Play, FolderOpen, GitBranch, Monitor, Globe, GripVertical, MoreVertical, Terminal, Copy, Trash2 } from 'lucide-react'
 import type { Project } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
 import { useTerminalStore } from '../../stores/terminalStore'
@@ -30,6 +30,8 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
   const [branch, setBranch] = useState<string | null>(null)
   const dragHandleRef = useRef<HTMLSpanElement>(null)
   const [canDrag, setCanDrag] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const createTerminal = useTerminalStore((s) => s.createTerminal)
 
   const isExpanded = expandedIds.has(project.id)
   const externalSessions = getActiveSessionsForProject(project.path)
@@ -76,7 +78,7 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
       {/* Project header row */}
       <div
         data-project-id={project.id}
-        className="group flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/5 cursor-pointer rounded-sm mx-1"
+        className="group flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/5 cursor-pointer rounded-sm mx-1 relative"
         draggable={canDrag}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'move'
@@ -166,15 +168,57 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
           <button
             onClick={(e) => {
               e.stopPropagation()
-              removeProject(project.id)
+              setShowMenu(!showMenu)
             }}
             className="p-1 hover:bg-white/10 rounded transition-colors"
             style={{ color: 'var(--dplex-text-muted)' }}
-            title="Close project"
+            title="More actions"
           >
-            <X size={11} />
+            <MoreVertical size={11} />
           </button>
         </div>
+
+        {/* Context menu */}
+        {showMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowMenu(false) }} />
+            <div className="absolute right-2 top-8 z-50 rounded shadow-xl py-1 min-w-[150px]" style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  createTerminal(undefined, project.name, undefined, undefined, project.path)
+                  setShowMenu(false)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                <Terminal size={11} /> Open Terminal
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigator.clipboard.writeText(project.path)
+                  setShowMenu(false)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                <Copy size={11} /> Copy Path
+              </button>
+              <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeProject(project.id)
+                  setShowMenu(false)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-white/10"
+              >
+                <Trash2 size={11} /> Remove Project
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Expanded: DPlex terminals + external sessions */}
