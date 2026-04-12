@@ -32,6 +32,7 @@ interface ProjectState {
   loadProjects: () => Promise<void>
   addProject: () => Promise<void>
   removeProject: (id: string) => void
+  reorderProject: (draggedId: string, targetId: string, position: 'above' | 'below') => void
   toggleExpanded: (id: string) => void
   startAISession: (project: Project) => void
   getActiveSessionsForProject: (projectPath: string) => ActiveSession[]
@@ -87,6 +88,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== id)
     }))
+    get().persistProjects()
+  },
+
+  reorderProject: (draggedId, targetId, position) => {
+    if (draggedId === targetId) return
+    const { projects } = get()
+    const fromIndex = projects.findIndex((p) => p.id === draggedId)
+    const toIndex = projects.findIndex((p) => p.id === targetId)
+    if (fromIndex === -1 || toIndex === -1) return
+
+    const reordered = [...projects]
+    const [moved] = reordered.splice(fromIndex, 1)
+    // After removing, recalculate insert index
+    const insertIndex = reordered.findIndex((p) => p.id === targetId)
+    reordered.splice(position === 'below' ? insertIndex + 1 : insertIndex, 0, moved)
+    set({ projects: reordered })
     get().persistProjects()
   },
 

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { ChevronRight, ChevronDown, Play, X, FolderOpen, GitBranch, Monitor, Globe } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { ChevronRight, ChevronDown, Play, X, FolderOpen, GitBranch, Monitor, Globe, GripVertical } from 'lucide-react'
 import type { Project } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
 import { useTerminalStore } from '../../stores/terminalStore'
@@ -10,9 +10,15 @@ function normalizePath(p: string): string {
 
 interface ProjectItemProps {
   project: Project
+  isDragging: boolean
+  dragOverPosition: 'above' | 'below' | null
+  onDragStart: (id: string) => void
+  onDragOver: (id: string, position: 'above' | 'below') => void
+  onDrop: (id: string) => void
+  onDragEnd: () => void
 }
 
-export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
+export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart, onDragOver, onDrop, onDragEnd }: ProjectItemProps): JSX.Element {
   const expandedIds = useProjectStore((s) => s.expandedProjectIds)
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
   const removeProject = useProjectStore((s) => s.removeProject)
@@ -22,6 +28,8 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const [branch, setBranch] = useState<string | null>(null)
+  const dragHandleRef = useRef<HTMLSpanElement>(null)
+  const [canDrag, setCanDrag] = useState(false)
 
   const isExpanded = expandedIds.has(project.id)
   const externalSessions = getActiveSessionsForProject(project.path)
@@ -58,12 +66,50 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
   }, [project.path])
 
   return (
-    <div>
+    <div
+      style={{ opacity: isDragging ? 0.4 : 1 }}
+    >
+      {/* Drop indicator above */}
+      {dragOverPosition === 'above' && (
+        <div className="mx-2 h-0.5 rounded" style={{ backgroundColor: 'var(--dplex-accent)' }} />
+      )}
       {/* Project header row */}
       <div
+        data-project-id={project.id}
         className="group flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/5 cursor-pointer rounded-sm mx-1"
+        draggable={canDrag}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move'
+          onDragStart(project.id)
+        }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          const rect = e.currentTarget.getBoundingClientRect()
+          const midY = rect.top + rect.height / 2
+          onDragOver(project.id, e.clientY < midY ? 'above' : 'below')
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          onDrop(project.id)
+        }}
+        onDragEnd={() => {
+          setCanDrag(false)
+          onDragEnd()
+        }}
         onClick={() => toggleExpanded(project.id)}
       >
+        {/* Drag handle */}
+        <span
+          ref={dragHandleRef}
+          className="flex-shrink-0 cursor-grab opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+          style={{ color: 'var(--dplex-text-muted)' }}
+          onMouseDown={() => setCanDrag(true)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={12} />
+        </span>
+
         {/* Expand chevron */}
         <span style={{ color: 'var(--dplex-text-muted)' }} className="flex-shrink-0">
           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -189,6 +235,10 @@ export function ProjectItem({ project }: ProjectItemProps): JSX.Element {
             </>
           )}
         </div>
+      )}
+      {/* Drop indicator below */}
+      {dragOverPosition === 'below' && (
+        <div className="mx-2 h-0.5 rounded" style={{ backgroundColor: 'var(--dplex-accent)' }} />
       )}
     </div>
   )
