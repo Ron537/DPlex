@@ -55,26 +55,3 @@ export interface Project {
   addedAt: string
 }
 
-export interface AIToolConfig {
-  id: string
-  name: string
-  command: string
-}
-
-export const AI_TOOLS: AIToolConfig[] = [
-  { id: 'copilot-cli', name: 'Copilot CLI', command: 'copilot' },
-  { id: 'claude-code', name: 'Claude Code', command: 'claude' }
-]
-
-export function getAIToolCommand(toolId: string): string {
-  return AI_TOOLS.find((t) => t.id === toolId)?.command ?? 'copilot'
-}
-
-export interface AIToolAdapter {
-  name: string
-  icon: string
-  discoverSessions(): Promise<AISession[]>
-  getResumeCommand(sessionId: string): string
-  getNewSessionCommand(): string
-  deleteSession?(sessionId: string): Promise<void>
-}

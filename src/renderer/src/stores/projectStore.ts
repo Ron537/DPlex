@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import type { Project } from '../types'
-import { getAIToolCommand } from '../types'
 import { useSettingsStore } from './settingsStore'
 import { useTerminalStore } from './terminalStore'
 
@@ -21,6 +20,7 @@ export interface ActiveSession {
   id: string
   displayName: string
   cwd: string
+  aiTool: string
 }
 
 interface ProjectState {
@@ -34,7 +34,7 @@ interface ProjectState {
   removeProject: (id: string) => void
   reorderProject: (draggedId: string, targetId: string, position: 'above' | 'below') => void
   toggleExpanded: (id: string) => void
-  startAISession: (project: Project) => void
+  startAISession: (project: Project) => Promise<void>
   getActiveSessionsForProject: (projectPath: string) => ActiveSession[]
   persistProjects: () => void
   refreshActiveSessions: () => Promise<void>
@@ -119,16 +119,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
   },
 
-  startAISession: (project) => {
+  startAISession: async (project) => {
     const settings = useSettingsStore.getState().settings
-    const aiCommand = getAIToolCommand(settings.defaultAITool)
-    const toolName = settings.defaultAITool === 'claude-code' ? 'Claude' : 'Copilot'
-    const title = `${toolName} · ${folderName(project.path)}`
+    const providerId = settings.defaultAITool
+    const cmd = await window.dplex.sessions.getNewSessionCommand(providerId)
+    if (!cmd) return
+
+    // Get provider name for tab title
+    const providers = await window.dplex.sessions.getProviders()
+    const providerName = providers.find((p) => p.id === providerId)?.name ?? providerId
+    const title = `${providerName} · ${folderName(project.path)}`
 
     useTerminalStore.getState().createTerminal(
       undefined,
       title,
-      aiCommand,
+      cmd,
       undefined,
       project.path
     )

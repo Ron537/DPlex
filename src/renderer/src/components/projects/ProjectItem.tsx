@@ -254,8 +254,9 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
                 <div
                   key={session.id}
                   className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded-sm mx-1 cursor-pointer"
-                  onClick={() => {
-                    const cmd = `copilot --resume=${session.id}`
+                  onClick={async () => {
+                    const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
+                    if (!cmd) return
                     useTerminalStore.getState().createTerminal(
                       undefined,
                       `↻ ${session.displayName}`,

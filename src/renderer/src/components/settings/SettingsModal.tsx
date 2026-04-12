@@ -69,6 +69,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
   const settings = useSettingsStore((s) => s.settings)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
   const [shells, setShells] = useState<ShellInfo[]>([])
+  const [providers, setProviders] = useState<{ id: string; name: string; command: string }[]>([])
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
   const { dark: darkThemes, light: lightThemes } = getThemesByVariant()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -76,6 +77,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
   useEffect(() => {
     if (isOpen) {
       window.dplex.app.getAvailableShells().then(setShells)
+      window.dplex.sessions.getProviders().then(setProviders)
     }
   }, [isOpen])
 
@@ -255,8 +257,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
                     className="w-full rounded px-3 py-1.5 text-xs outline-none"
                     style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
                   >
-                    <option value="copilot-cli">Copilot CLI</option>
-                    <option value="claude-code">Claude Code</option>
+                    {providers.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
                   </select>
                 </SettingItem>
               </>

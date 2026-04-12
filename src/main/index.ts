@@ -14,8 +14,10 @@ import {
   getDefaultShellPath,
   discoverAvailableShells
 } from './services/ptyManager'
-import { discoverCopilotSessions, deleteSessionDir, closeSession, getActiveProjectSessions } from './services/sessionDiscovery'
-import { loadWorkspace, saveWorkspace, resolveSessionIdByPid, resolveSessionIdByCwd, type PersistedWorkspace } from './services/sessionPersistence'
+import { createDefaultRegistry } from './services/providers'
+import { loadWorkspace, saveWorkspace, type PersistedWorkspace } from './services/sessionPersistence'
+
+const providerRegistry = createDefaultRegistry()
 
 const SETTINGS_PATH = join(app.getPath('userData'), 'settings.json')
 
@@ -120,21 +122,34 @@ function registerIpcHandlers(): void {
     destroyPty(id)
   })
 
-  // Session discovery
-  ipcMain.handle('sessions:discover', () => {
-    return discoverCopilotSessions()
+  // Session discovery — routes through provider registry
+  ipcMain.handle('sessions:discover', (_event, providerId?: string) => {
+    return providerRegistry.discoverSessions(providerId)
   })
 
-  ipcMain.handle('sessions:delete', (_event, sessionId: string) => {
-    return deleteSessionDir(sessionId)
+  ipcMain.handle('sessions:delete', (_event, sessionId: string, providerId?: string) => {
+    return providerRegistry.deleteSession(sessionId, providerId)
   })
 
-  ipcMain.handle('sessions:close', (_event, sessionId: string) => {
-    return closeSession(sessionId)
+  ipcMain.handle('sessions:close', (_event, sessionId: string, providerId?: string) => {
+    return providerRegistry.closeSession(sessionId, providerId)
   })
 
   ipcMain.handle('sessions:getActiveForProjects', (_event, projectPaths: string[]) => {
-    return getActiveProjectSessions(projectPaths)
+    return providerRegistry.getActiveProjectSessions(projectPaths)
+  })
+
+  // Provider-aware commands
+  ipcMain.handle('sessions:getResumeCommand', (_event, providerId: string, sessionId: string) => {
+    return providerRegistry.getResumeCommand(providerId, sessionId)
+  })
+
+  ipcMain.handle('sessions:getNewSessionCommand', (_event, providerId: string) => {
+    return providerRegistry.getNewSessionCommand(providerId)
+  })
+
+  ipcMain.handle('sessions:getProviders', () => {
+    return providerRegistry.getProviderInfoList()
   })
 
   // Workspace persistence
@@ -148,11 +163,10 @@ function registerIpcHandlers(): void {
     event.returnValue = true
   })
   ipcMain.handle('sessions:resolveSessionId', async (_event, pid: number, cwd?: string) => {
-    // Try PID match first (most reliable), then CWD fallback
-    // Returns { sessionId, displayName } or null
-    const pidResult = await resolveSessionIdByPid(pid)
+    // Try PID match first (most reliable), then CWD fallback — across all providers
+    const pidResult = await providerRegistry.resolveSessionByPid(pid)
     if (pidResult) return pidResult
-    if (cwd) return resolveSessionIdByCwd(cwd)
+    if (cwd) return providerRegistry.resolveSessionByCwd(cwd)
     return null
   })
 

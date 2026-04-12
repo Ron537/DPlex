@@ -14,8 +14,9 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
   const closeSession = useSessionStore((s) => s.closeSession)
   const [showMenu, setShowMenu] = useState(false)
 
-  const handleResume = (): void => {
-    const cmd = `copilot --resume=${session.id}`
+  const handleResume = async (): Promise<void> => {
+    const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
+    if (!cmd) return
     createTerminal(undefined, `↻ ${session.displayName}`, cmd, undefined, session.cwd)
     setShowMenu(false)
   }

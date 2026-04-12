@@ -30,7 +30,7 @@ async function resolveSessionIdForTab(terminalId: string, pid: number, cwd: stri
   } catch {
     // ignore
   }
-  // Retry if not resolved yet (copilot may still be initializing)
+  // Retry if not resolved yet (AI tool may still be initializing)
   if (attempt < SESSION_RESOLVE_MAX_RETRIES) {
     setTimeout(() => resolveSessionIdForTab(terminalId, pid, cwd, attempt + 1), SESSION_RESOLVE_RETRY_MS)
   }

@@ -11,14 +11,17 @@ export interface DplexAPI {
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }
   sessions: {
-    discover: () => Promise<unknown[]>
-    delete: (sessionId: string) => Promise<void>
-    close: (sessionId: string) => Promise<boolean>
-    checkStatuses: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string }[]>
+    discover: (providerId?: string) => Promise<unknown[]>
+    delete: (sessionId: string, providerId?: string) => Promise<void>
+    close: (sessionId: string, providerId?: string) => Promise<boolean>
+    checkStatuses: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string; aiTool: string }[]>
     loadWorkspace: () => Promise<unknown | null>
     saveWorkspace: (data: unknown) => Promise<void>
     saveWorkspaceSync: (data: unknown) => void
     resolveSessionId: (pid: number, cwd?: string) => Promise<{ sessionId: string; displayName: string } | null>
+    getResumeCommand: (providerId: string, sessionId: string) => Promise<string | null>
+    getNewSessionCommand: (providerId: string) => Promise<string | null>
+    getProviders: () => Promise<{ id: string; name: string; command: string }[]>
   }
   settings: {
     getAll: () => Promise<Record<string, unknown>>
@@ -58,14 +61,17 @@ const dplexAPI: DplexAPI = {
     }
   },
   sessions: {
-    discover: () => ipcRenderer.invoke('sessions:discover'),
-    delete: (sessionId) => ipcRenderer.invoke('sessions:delete', sessionId),
-    close: (sessionId) => ipcRenderer.invoke('sessions:close', sessionId),
+    discover: (providerId?) => ipcRenderer.invoke('sessions:discover', providerId),
+    delete: (sessionId, providerId?) => ipcRenderer.invoke('sessions:delete', sessionId, providerId),
+    close: (sessionId, providerId?) => ipcRenderer.invoke('sessions:close', sessionId, providerId),
     checkStatuses: (projectPaths) => ipcRenderer.invoke('sessions:getActiveForProjects', projectPaths),
     loadWorkspace: () => ipcRenderer.invoke('sessions:loadWorkspace'),
     saveWorkspace: (data) => ipcRenderer.invoke('sessions:saveWorkspace', data),
     saveWorkspaceSync: (data) => ipcRenderer.sendSync('sessions:saveWorkspaceSync', data),
-    resolveSessionId: (pid, cwd?) => ipcRenderer.invoke('sessions:resolveSessionId', pid, cwd)
+    resolveSessionId: (pid, cwd?) => ipcRenderer.invoke('sessions:resolveSessionId', pid, cwd),
+    getResumeCommand: (providerId, sessionId) => ipcRenderer.invoke('sessions:getResumeCommand', providerId, sessionId),
+    getNewSessionCommand: (providerId) => ipcRenderer.invoke('sessions:getNewSessionCommand', providerId),
+    getProviders: () => ipcRenderer.invoke('sessions:getProviders')
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),
