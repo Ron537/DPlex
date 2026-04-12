@@ -120,23 +120,37 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   startAISession: async (project) => {
-    const settings = useSettingsStore.getState().settings
-    const providerId = settings.defaultAITool
-    const cmd = await window.dplex.sessions.getNewSessionCommand(providerId)
-    if (!cmd) return
+    try {
+      const settings = useSettingsStore.getState().settings
+      const providerId = settings.defaultAITool
+      const [cmd, providers] = await Promise.all([
+        window.dplex.sessions.getNewSessionCommand(providerId),
+        window.dplex.sessions.getProviders()
+      ])
+      if (!cmd) return
 
-    // Get provider name for tab title
-    const providers = await window.dplex.sessions.getProviders()
-    const providerName = providers.find((p) => p.id === providerId)?.name ?? providerId
-    const title = `${providerName} · ${folderName(project.path)}`
+      const providerName = providers.find((p) => p.id === providerId)?.name ?? providerId
+      const title = `${providerName} · ${folderName(project.path)}`
 
-    useTerminalStore.getState().createTerminal(
-      undefined,
-      title,
-      cmd,
-      undefined,
-      project.path
-    )
+      useTerminalStore.getState().createTerminal(
+        undefined,
+        title,
+        cmd,
+        undefined,
+        project.path
+      )
+    } catch {
+      // Fallback: use settings to build command directly
+      const settings = useSettingsStore.getState().settings
+      const title = `AI · ${folderName(project.path)}`
+      useTerminalStore.getState().createTerminal(
+        undefined,
+        title,
+        settings.defaultAITool === 'copilot-cli' ? 'copilot' : settings.defaultAITool,
+        undefined,
+        project.path
+      )
+    }
   },
 
   getActiveSessionsForProject: (projectPath) => {
