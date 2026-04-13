@@ -143,6 +143,13 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           window.dplex.pty.resize(ptyId, cols, rows)
         })
 
+        // Sync terminal title changes (OSC escape sequences) to the tab title
+        const onTitleDisposable = entry.term.onTitleChange((title) => {
+          if (title && tabExists(terminalId)) {
+            useTerminalStore.getState().renameTerminal(terminalId, title)
+          }
+        })
+
         // Sync current terminal size to PTY (it was created with default 80x24)
         const { cols, rows } = entry.term
         if (cols && rows) {
@@ -159,6 +166,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         entry.cleanupIpc = () => {
           onDataDisposable.dispose()
           onResizeDisposable.dispose()
+          onTitleDisposable.dispose()
           removeDataListener()
           removeExitListener()
         }
