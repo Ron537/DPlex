@@ -26,7 +26,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   refreshSessions: async () => {
     set({ loading: true, error: null })
     try {
-      const sessions = await window.dplex.sessions.discover()
+      const raw = await window.dplex.sessions.discover()
+      const sessions: AISession[] = raw.map((s) => ({
+        id: s.id,
+        displayName: s.displayName,
+        status: s.status === 'active' ? 'active' as const : 'idle' as const,
+        aiTool: s.aiTool,
+        createdAt: new Date(s.createdAt),
+        updatedAt: new Date(s.updatedAt),
+        cwd: s.cwd,
+        summary: s.summary
+      }))
       set({ sessions, loading: false })
     } catch (err) {
       set({ error: String(err), loading: false })

@@ -5,7 +5,7 @@ import { FolderPlus } from 'lucide-react'
 
 type DropPosition = 'above' | 'below'
 
-export function ProjectList(): JSX.Element {
+export function ProjectList(): React.JSX.Element {
   const projects = useProjectStore((s) => s.projects)
   const loaded = useProjectStore((s) => s.loaded)
   const loadProjects = useProjectStore((s) => s.loadProjects)

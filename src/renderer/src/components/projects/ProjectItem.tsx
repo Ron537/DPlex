@@ -18,7 +18,7 @@ interface ProjectItemProps {
   onDragEnd: () => void
 }
 
-export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart, onDragOver, onDrop, onDragEnd }: ProjectItemProps): JSX.Element {
+export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart, onDragOver, onDrop, onDragEnd }: ProjectItemProps): React.JSX.Element {
   const expandedIds = useProjectStore((s) => s.expandedProjectIds)
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
   const removeProject = useProjectStore((s) => s.removeProject)

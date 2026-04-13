@@ -9,7 +9,7 @@ interface GroupTabBarProps {
   isActiveGroup: boolean
 }
 
-export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): JSX.Element {
+export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.JSX.Element {
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const closeTerminal = useTerminalStore((s) => s.closeTerminal)

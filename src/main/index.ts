@@ -35,7 +35,14 @@ function loadSettings(): Record<string, unknown> {
 }
 
 function saveSettings(data: Record<string, unknown>): void {
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2))
+  const tmpPath = SETTINGS_PATH + '.tmp'
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2))
+  fs.renameSync(tmpPath, SETTINGS_PATH)
+}
+
+function mergeSettings(patch: Record<string, unknown>): void {
+  const current = loadSettings()
+  saveSettings({ ...current, ...patch })
 }
 
 function createWindow(): void {
@@ -69,7 +76,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
@@ -174,6 +183,9 @@ function registerIpcHandlers(): void {
   ipcMain.handle('settings:getAll', () => loadSettings())
   ipcMain.handle('settings:setAll', (_event, data: Record<string, unknown>) => {
     saveSettings(data)
+  })
+  ipcMain.handle('settings:merge', (_event, patch: Record<string, unknown>) => {
+    mergeSettings(patch)
   })
 
   // App info

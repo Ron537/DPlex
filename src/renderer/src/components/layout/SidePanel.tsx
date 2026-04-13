@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Search, PanelLeftClose, RefreshCw, FolderKanban, History, Clock, FolderOpen } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -10,30 +10,30 @@ export type SessionGroupMode = 'time' | 'workspace'
 
 const MIN_WIDTH = 200
 const MAX_WIDTH = 500
-const DEFAULT_WIDTH = 260
 
-export function SidePanel(): JSX.Element {
+export function SidePanel(): React.JSX.Element | null {
   const searchQuery = useSessionStore((s) => s.searchQuery)
   const setSearchQuery = useSessionStore((s) => s.setSearchQuery)
   const refreshSessions = useSessionStore((s) => s.refreshSessions)
   const loading = useSessionStore((s) => s.loading)
   const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
+  const sidebarWidth = useSettingsStore((s) => s.settings.sidebarWidth)
+  const setSidebarWidth = useSettingsStore((s) => s.setSidebarWidth)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const [activeTab, setActiveTab] = useState<SidebarTab>('projects')
   const [groupMode, setGroupMode] = useState<SessionGroupMode>('time')
-  const [width, setWidth] = useState(DEFAULT_WIDTH)
   const resizing = useRef(false)
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     resizing.current = true
     const startX = e.clientX
-    const startWidth = width
+    const startWidth = sidebarWidth
 
     const onMouseMove = (e: MouseEvent): void => {
       if (!resizing.current) return
       const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (e.clientX - startX)))
-      setWidth(newWidth)
+      setSidebarWidth(newWidth)
     }
 
     const onMouseUp = (): void => {
@@ -48,14 +48,14 @@ export function SidePanel(): JSX.Element {
     document.body.style.userSelect = 'none'
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('mouseup', onMouseUp)
-  }, [width])
+  }, [sidebarWidth, setSidebarWidth])
 
   if (!sidebarVisible) {
     return null
   }
 
   return (
-    <div className="flex flex-col h-full flex-shrink-0 relative" style={{ width: `${width}px`, backgroundColor: 'var(--dplex-bg-alt)', borderRight: '1px solid var(--dplex-border)' }}>
+    <div className="flex flex-col h-full flex-shrink-0 relative" style={{ width: `${sidebarWidth}px`, backgroundColor: 'var(--dplex-bg-alt)', borderRight: '1px solid var(--dplex-border)' }}>
       {/* Header with tab toggle */}
       <div className="flex items-center justify-between px-2 h-9" style={{ borderBottom: '1px solid var(--dplex-border)' }}>
         <div className="flex items-center gap-0.5">

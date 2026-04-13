@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Settings, Palette, Terminal, Bot, Keyboard } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
@@ -53,7 +53,7 @@ function SettingItem({ label, description, children }: {
   label: string
   description?: string
   children: React.ReactNode
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <div className="mb-5 last:mb-0">
       <span className="block text-[11px] font-medium mb-0.5" style={{ color: 'var(--dplex-text)' }}>{label}</span>
@@ -65,7 +65,7 @@ function SettingItem({ label, description, children }: {
   )
 }
 
-export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Element | null {
+export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JSX.Element | null {
   const settings = useSettingsStore((s) => s.settings)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
   const [shells, setShells] = useState<ShellInfo[]>([])
@@ -89,6 +89,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): JSX.Elem
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [isOpen, onClose])
+
+  // Clear debounce timer on unmount to prevent stale writes
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   if (!isOpen) return null
 

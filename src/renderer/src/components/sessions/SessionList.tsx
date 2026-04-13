@@ -63,7 +63,7 @@ function groupByWorkspace(sessions: AISession[]): SessionGroup[] {
     .map(([label, sessions]) => ({ label, sessions }))
 }
 
-export function SessionList({ groupMode }: SessionListProps): JSX.Element {
+export function SessionList({ groupMode }: SessionListProps): React.JSX.Element {
   const sessions = useSessionStore((s) => s.sessions)
   const searchQuery = useSessionStore((s) => s.searchQuery)
   const loading = useSessionStore((s) => s.loading)
@@ -142,7 +142,7 @@ function CollapsibleGroup({ label, accent, children }: {
   label: string
   accent?: boolean
   children: React.ReactNode
-}): JSX.Element {
+}): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
 
   return (

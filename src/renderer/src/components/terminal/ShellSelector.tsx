@@ -8,7 +8,7 @@ interface ShellSelectorProps {
 
 let cachedShells: ShellInfo[] | null = null
 
-export function ShellSelector({ onSelect }: ShellSelectorProps): JSX.Element {
+export function ShellSelector({ onSelect }: ShellSelectorProps): React.JSX.Element {
   const [shells, setShells] = useState<ShellInfo[]>(cachedShells || [])
   const [open, setOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)

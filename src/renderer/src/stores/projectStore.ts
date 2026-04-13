@@ -59,9 +59,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   persistProjects: () => {
     const { projects } = get()
-    window.dplex.settings.getAll().then((current) => {
-      window.dplex.settings.setAll({ ...current, projects })
-    })
+    // Use atomic merge IPC to avoid read-modify-write race with settingsStore
+    window.dplex.settings.merge({ projects })
   },
 
   addProject: async () => {
@@ -152,7 +151,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   refreshActiveSessions: async () => {
     const { projects } = get()
-    if (projects.length === 0) return
+    if (projects.length === 0) {
+      set({ activeSessions: [] })
+      return
+    }
     try {
       const paths = projects.map((p) => p.path)
       const sessions = await window.dplex.sessions.checkStatuses(paths)

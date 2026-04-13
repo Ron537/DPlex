@@ -11,7 +11,7 @@ export interface DplexAPI {
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }
   sessions: {
-    discover: (providerId?: string) => Promise<unknown[]>
+    discover: (providerId?: string) => Promise<{ id: string; displayName: string; status: string; aiTool: string; createdAt: string; updatedAt: string; cwd?: string; summary?: string }[]>
     delete: (sessionId: string, providerId?: string) => Promise<void>
     close: (sessionId: string, providerId?: string) => Promise<boolean>
     checkStatuses: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string; aiTool: string }[]>
@@ -26,6 +26,7 @@ export interface DplexAPI {
   settings: {
     getAll: () => Promise<Record<string, unknown>>
     setAll: (data: Record<string, unknown>) => Promise<void>
+    merge: (patch: Record<string, unknown>) => Promise<void>
   }
   app: {
     getDefaultShell: () => Promise<string>
@@ -75,7 +76,8 @@ const dplexAPI: DplexAPI = {
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),
-    setAll: (data) => ipcRenderer.invoke('settings:setAll', data)
+    setAll: (data) => ipcRenderer.invoke('settings:setAll', data),
+    merge: (patch) => ipcRenderer.invoke('settings:merge', patch)
   },
   app: {
     getDefaultShell: () => ipcRenderer.invoke('app:getDefaultShell'),

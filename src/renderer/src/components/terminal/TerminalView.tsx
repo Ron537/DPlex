@@ -9,7 +9,7 @@ interface TerminalViewProps {
   onFocus: () => void
 }
 
-export function TerminalView({ terminalId, isActive, onFocus }: TerminalViewProps): JSX.Element {
+export function TerminalView({ terminalId, isActive, onFocus }: TerminalViewProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const { ready } = useTerminal({ terminalId, containerRef })
 

@@ -10,11 +10,10 @@ interface EditorGroupProps {
 
 type DropZone = 'left' | 'right' | 'top' | 'bottom' | null
 
-export function EditorGroup({ group }: EditorGroupProps): JSX.Element {
+export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
   const activeGroupId = useTerminalStore((s) => s.activeGroupId)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const moveTerminalToNewSplit = useTerminalStore((s) => s.moveTerminalToNewSplit)
-  const moveTerminalToGroup = useTerminalStore((s) => s.moveTerminalToGroup)
   const isActiveGroup = group.id === activeGroupId
   const [dropZone, setDropZone] = useState<DropZone>(null)
 

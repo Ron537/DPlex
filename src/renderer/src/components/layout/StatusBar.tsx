@@ -6,7 +6,7 @@ interface StatusBarProps {
   onOpenSettings: () => void
 }
 
-export function StatusBar({ onOpenSettings }: StatusBarProps): JSX.Element {
+export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
   const activeGroupId = useTerminalStore((s) => s.activeGroupId)
   const activeGroup = groups.find((g) => g.id === activeGroupId)

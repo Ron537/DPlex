@@ -25,7 +25,7 @@ function focusExistingTab(sessionId: string, resumeCommand?: string): boolean {
   return false
 }
 
-export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Element {
+export function SessionItem({ session, onDelete }: SessionItemProps): React.JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeSession = useSessionStore((s) => s.closeSession)
   const [showMenu, setShowMenu] = useState(false)

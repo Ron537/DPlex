@@ -112,6 +112,15 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       const defaultShell = useSettingsStore.getState().settings.defaultShell
       const shellToUse = tabShell || defaultShell || undefined
       window.dplex.pty.create(shellToUse, tabCwd, tabCommand).then(({ id: ptyId, pid }) => {
+        // Guard: if tab was removed from store before PTY resolved, clean up
+        if (!tabExists(terminalId)) {
+          window.dplex.pty.destroy(ptyId)
+          removeDataListener()
+          removeExitListener()
+          entry.creating = false
+          return
+        }
+
         entry.ptyId = ptyId
         ptyIdResolved = ptyId
 
@@ -163,6 +172,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           }, 3000)
         }
 
+        entry.creating = false
         entry.cleanupIpc = () => {
           onDataDisposable.dispose()
           onResizeDisposable.dispose()
@@ -170,6 +180,13 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           removeDataListener()
           removeExitListener()
         }
+      }).catch(() => {
+        removeDataListener()
+        removeExitListener()
+        entry.creating = false
+        entry.term.write('\r\n\x1b[31m[Failed to start terminal]\x1b[0m\r\n')
+        entry.ready = true
+        setReady(true)
       })
     }
 

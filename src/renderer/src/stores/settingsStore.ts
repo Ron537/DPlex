@@ -37,6 +37,8 @@ export function applyCssVarsSync(themeId: string): void {
 
 const cachedTheme = getCachedTheme()
 
+let sidebarWidthPersistTimer: ReturnType<typeof setTimeout> | null = null
+
 const DEFAULT_SETTINGS: AppSettings = {
   defaultShell: '',
   defaultAITool: 'copilot-cli',
@@ -76,18 +78,24 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const newSettings = { ...get().settings, ...partial }
     set({ settings: newSettings })
     if (partial.theme) cacheTheme(partial.theme)
-    // Merge with full stored object to preserve non-AppSettings keys (e.g. projects)
-    const current = await window.dplex.settings.getAll()
-    await window.dplex.settings.setAll({ ...current, ...newSettings })
+    // Atomic merge — avoids read-modify-write race with projectStore
+    await window.dplex.settings.merge(partial)
   },
 
   toggleSidebar: () => {
     const current = get().settings
-    set({ settings: { ...current, sidebarVisible: !current.sidebarVisible } })
+    const next = !current.sidebarVisible
+    set({ settings: { ...current, sidebarVisible: next } })
+    get().updateSettings({ sidebarVisible: next })
   },
 
   setSidebarWidth: (width) => {
     const current = get().settings
     set({ settings: { ...current, sidebarWidth: width } })
+    // Debounced persist — called on every pixel during resize
+    if (sidebarWidthPersistTimer) clearTimeout(sidebarWidthPersistTimer)
+    sidebarWidthPersistTimer = setTimeout(() => {
+      get().updateSettings({ sidebarWidth: width })
+    }, 500)
   }
 }))

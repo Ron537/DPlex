@@ -80,7 +80,7 @@ async function loadPersistedWorkspace(): Promise<{
   }
 }
 
-export function AppLayout(): JSX.Element {
+export function AppLayout(): React.JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
   const layout = useTerminalStore((s) => s.layout)
   const createTerminal = useTerminalStore((s) => s.createTerminal)

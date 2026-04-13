@@ -18,7 +18,7 @@ function layoutKey(node: LayoutNode): string {
   return 'empty'
 }
 
-export function GroupLayout({ node }: GroupLayoutProps): JSX.Element {
+export function GroupLayout({ node }: GroupLayoutProps): React.JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
 
   if (node.type === 'group' && node.groupId) {

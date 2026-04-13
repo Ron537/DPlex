@@ -34,7 +34,7 @@ export class CopilotProvider implements SessionProvider {
 
         try {
           const stat = await fsp.stat(fullPath)
-          const displayName = this.getDisplayName(fullPath, entry.name)
+          const displayName = await this.getDisplayName(fullPath, entry.name)
           const workspace = await this.parseWorkspaceYamlAsync(fullPath)
 
           sessions.push({
@@ -96,7 +96,7 @@ export class CopilotProvider implements SessionProvider {
           )
           if (!matches) continue
 
-          const displayName = this.getDisplayName(fullPath, entry.name)
+          const displayName = await this.getDisplayName(fullPath, entry.name)
           results.push({ id: entry.name, displayName, cwd: workspace.cwd, aiTool: this.id })
         } catch {
           // skip
@@ -167,7 +167,7 @@ export class CopilotProvider implements SessionProvider {
         try {
           const files = await fsp.readdir(fullPath)
           if (files.includes(lockFileName)) {
-            const displayName = this.getDisplayName(fullPath, entry.name)
+            const displayName = await this.getDisplayName(fullPath, entry.name)
             return { sessionId: entry.name, displayName }
           }
         } catch {
@@ -232,7 +232,7 @@ export class CopilotProvider implements SessionProvider {
     }
 
     if (!bestMatch) return null
-    const displayName = this.getDisplayName(bestMatch.fullPath, bestMatch.id)
+    const displayName = await this.getDisplayName(bestMatch.fullPath, bestMatch.id)
     return { sessionId: bestMatch.id, displayName }
   }
 
@@ -293,43 +293,27 @@ export class CopilotProvider implements SessionProvider {
     }
   }
 
-  private getDisplayName(sessionDir: string, sessionId: string): string {
+  private async getDisplayName(sessionDir: string, sessionId: string): Promise<string> {
     const planPath = path.join(sessionDir, 'plan.md')
-    const planName = fs.existsSync(planPath) ? this.parsePlanSummary(planPath) : undefined
+    const planName = await this.parsePlanSummaryAsync(planPath)
     if (planName) return planName
 
-    const workspace = this.parseWorkspaceYaml(sessionDir)
+    const workspace = await this.parseWorkspaceYamlAsync(sessionDir)
     if (workspace.summary) return workspace.summary
 
-    const firstMsg = this.parseFirstUserMessage(sessionDir)
+    const firstMsg = await this.parseFirstUserMessageAsync(sessionDir)
     if (firstMsg) return firstMsg
 
     return sessionId.slice(0, 12)
   }
 
-  private parsePlanSummary(planPath: string): string | undefined {
+  private async parsePlanSummaryAsync(planPath: string): Promise<string | undefined> {
     try {
-      const content = fs.readFileSync(planPath, 'utf-8')
+      const content = await fsp.readFile(planPath, 'utf-8')
       const firstHeading = content.match(/^#\s+(.+)$/m)
       return firstHeading?.[1]?.trim()
     } catch {
       return undefined
-    }
-  }
-
-  private parseWorkspaceYaml(sessionDir: string): { summary?: string; cwd?: string } {
-    try {
-      const yamlPath = path.join(sessionDir, 'workspace.yaml')
-      if (!fs.existsSync(yamlPath)) return {}
-      const content = fs.readFileSync(yamlPath, 'utf-8')
-      const summaryMatch = content.match(/^summary:\s*(.+)$/m)
-      const cwdMatch = content.match(/^cwd:\s*(.+)$/m)
-      return {
-        summary: summaryMatch?.[1]?.trim() || undefined,
-        cwd: cwdMatch?.[1]?.trim() || undefined
-      }
-    } catch {
-      return {}
     }
   }
 
@@ -348,23 +332,30 @@ export class CopilotProvider implements SessionProvider {
     }
   }
 
-  private parseFirstUserMessage(sessionDir: string): string | undefined {
+  private async parseFirstUserMessageAsync(sessionDir: string): Promise<string | undefined> {
     try {
       const eventsPath = path.join(sessionDir, 'events.jsonl')
-      if (!fs.existsSync(eventsPath)) return undefined
-      const content = fs.readFileSync(eventsPath, 'utf-8')
-      const lines = content.split('\n')
-      for (const line of lines) {
-        if (!line.trim()) continue
-        try {
-          const event = JSON.parse(line)
-          if (event.type === 'user.message' && event.data?.content) {
-            const msg = event.data.content.trim()
-            return msg.length > 80 ? msg.slice(0, 77) + '...' : msg
+      // Read only first 8KB to avoid loading huge files
+      const fd = await fsp.open(eventsPath, 'r')
+      try {
+        const buffer = Buffer.alloc(8192)
+        const { bytesRead } = await fd.read(buffer, 0, 8192, 0)
+        const content = buffer.toString('utf-8', 0, bytesRead)
+        const lines = content.split('\n')
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const event = JSON.parse(line)
+            if (event.type === 'user.message' && event.data?.content) {
+              const msg = event.data.content.trim()
+              return msg.length > 80 ? msg.slice(0, 77) + '...' : msg
+            }
+          } catch {
+            continue
           }
-        } catch {
-          continue
         }
+      } finally {
+        await fd.close()
       }
     } catch {
       // ignore

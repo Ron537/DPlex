@@ -55,12 +55,6 @@ function insertSplitInLayout(
   return node
 }
 
-function collectGroupIds(node: LayoutNode): string[] {
-  if (node.type === 'group' && node.groupId) return [node.groupId]
-  if (node.children) return node.children.flatMap(collectGroupIds)
-  return []
-}
-
 interface TerminalState {
   groups: EditorGroup[]
   layout: LayoutNode
