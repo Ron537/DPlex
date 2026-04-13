@@ -9,6 +9,22 @@ interface SessionItemProps {
   onDelete: (sessionId: string) => void
 }
 
+/** Find an open tab matching this session and focus it. Checks sessionId first, then command. */
+function focusExistingTab(sessionId: string, resumeCommand?: string): boolean {
+  const { groups, setActiveGroup, setActiveTerminalInGroup } = useTerminalStore.getState()
+  for (const group of groups) {
+    const tab = group.tabs.find(
+      (t) => t.sessionId === sessionId || (resumeCommand && t.command === resumeCommand)
+    )
+    if (tab) {
+      setActiveGroup(group.id)
+      setActiveTerminalInGroup(group.id, tab.id)
+      return true
+    }
+  }
+  return false
+}
+
 export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeSession = useSessionStore((s) => s.closeSession)
@@ -16,6 +32,11 @@ export function SessionItem({ session, onDelete }: SessionItemProps): JSX.Elemen
 
   const handleResume = async (): Promise<void> => {
     const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
+    // Focus existing tab if already open (match by sessionId or resume command)
+    if (focusExistingTab(session.id, cmd ?? undefined)) {
+      setShowMenu(false)
+      return
+    }
     if (!cmd) return
     createTerminal(undefined, `↻ ${session.displayName}`, cmd, undefined, session.cwd)
     setShowMenu(false)
