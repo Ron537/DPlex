@@ -128,13 +128,10 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
             </span>
             {totalActive > 0 && (
               <span
-                className="inline-flex items-center justify-center min-w-[18px] h-[16px] px-1 rounded-full text-[10px] font-bold flex-shrink-0"
-                style={{
-                  backgroundColor: '#22c55e',
-                  color: '#fff'
-                }}
+                className="text-[10px] font-medium flex-shrink-0"
+                style={{ color: '#22c55e' }}
               >
-                {totalActive}
+                ({totalActive})
               </span>
             )}
           </div>
