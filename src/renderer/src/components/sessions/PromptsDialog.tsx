@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { X, Search, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react'
+import { X, Search, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface SessionPrompt {
   text: string
@@ -12,15 +12,13 @@ interface PromptsDialogProps {
   sessionName: string
   providerId?: string
   onClose: () => void
-  onJumpToPrompt?: (promptText: string) => void
 }
 
 export function PromptsDialog({
   sessionId,
   sessionName,
   providerId,
-  onClose,
-  onJumpToPrompt
+  onClose
 }: PromptsDialogProps): React.JSX.Element {
   const [prompts, setPrompts] = useState<SessionPrompt[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,15 +64,12 @@ export function PromptsDialog({
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         setSelectedIndex((prev) => Math.max(prev - 1, 0))
-      } else if (e.key === 'Enter' && filtered[selectedIndex]) {
-        e.preventDefault()
-        onJumpToPrompt?.(filtered[selectedIndex].text)
       } else if (e.key === 'Escape') {
         e.preventDefault()
         onClose()
       }
     },
-    [filtered, selectedIndex, onClose, onJumpToPrompt]
+    [filtered, selectedIndex, onClose]
   )
 
   // Scroll selected into view
@@ -113,7 +108,7 @@ export function PromptsDialog({
         >
           <div>
             <div className="text-sm font-medium" style={{ color: 'var(--dplex-text)' }}>
-              Prompts
+              Prompts{!loading && ` (${prompts.length})`}
             </div>
             <div className="text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>
               {sessionName}
@@ -151,8 +146,6 @@ export function PromptsDialog({
           <div className="flex items-center gap-2 mt-1 text-[9px]" style={{ color: 'var(--dplex-text-muted)' }}>
             <ArrowUp size={8} /><ArrowDown size={8} /> navigate
             <span className="mx-1">·</span>
-            Enter to jump
-            <span className="mx-1">·</span>
             Esc to close
           </div>
         </div>
@@ -171,14 +164,10 @@ export function PromptsDialog({
             filtered.map((prompt, i) => (
               <div
                 key={prompt.index}
-                className="flex items-start gap-2 px-3 py-2 rounded cursor-pointer transition-colors"
+                className="flex items-start gap-2 px-3 py-2 rounded transition-colors"
                 style={{
                   backgroundColor:
                     i === selectedIndex ? 'var(--dplex-bg-alt)' : 'transparent'
-                }}
-                onClick={() => {
-                  setSelectedIndex(i)
-                  onJumpToPrompt?.(prompt.text)
                 }}
                 onMouseEnter={() => setSelectedIndex(i)}
               >
@@ -204,28 +193,11 @@ export function PromptsDialog({
                     </div>
                   )}
                 </div>
-                {onJumpToPrompt && (
-                  <ExternalLink
-                    size={10}
-                    className="flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100"
-                    style={{ color: 'var(--dplex-text-muted)' }}
-                  />
-                )}
               </div>
             ))
           )}
         </div>
 
-        {/* Footer */}
-        <div
-          className="px-4 py-2 text-[10px] text-right"
-          style={{
-            color: 'var(--dplex-text-muted)',
-            borderTop: '1px solid var(--dplex-border)'
-          }}
-        >
-          {filtered.length} of {prompts.length} prompts
-        </div>
       </div>
     </div>
   )
