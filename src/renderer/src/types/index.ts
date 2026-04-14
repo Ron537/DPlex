@@ -26,6 +26,13 @@ export interface LayoutNode {
   children?: LayoutNode[]
 }
 
+export type SessionStatus =
+  | 'idle'
+  | 'thinking'
+  | 'executingTool'
+  | 'awaitingApproval'
+  | 'waitingForUser'
+
 export interface AISession {
   id: string
   displayName: string
@@ -35,6 +42,11 @@ export interface AISession {
   updatedAt: Date
   cwd?: string
   summary?: string
+  detailedStatus?: SessionStatus
+  branch?: string
+  messageCount?: number
+  toolCallCount?: number
+  lastActivityTime?: number
 }
 
 export interface AppSettings {

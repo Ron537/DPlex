@@ -11,7 +11,12 @@ export interface DplexAPI {
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }
   sessions: {
-    discover: (providerId?: string) => Promise<{ id: string; displayName: string; status: string; aiTool: string; createdAt: string; updatedAt: string; cwd?: string; summary?: string }[]>
+    discover: (providerId?: string) => Promise<{
+      id: string; displayName: string; status: string; aiTool: string;
+      createdAt: string; updatedAt: string; cwd?: string; summary?: string;
+      detailedStatus?: string; branch?: string;
+      messageCount?: number; toolCallCount?: number; lastActivityTime?: number
+    }[]>
     delete: (sessionId: string, providerId?: string) => Promise<void>
     close: (sessionId: string, providerId?: string) => Promise<boolean>
     checkStatuses: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string; aiTool: string }[]>
@@ -22,6 +27,22 @@ export interface DplexAPI {
     getResumeCommand: (providerId: string, sessionId: string) => Promise<string | null>
     getNewSessionCommand: (providerId: string) => Promise<string | null>
     getProviders: () => Promise<{ id: string; name: string; command: string }[]>
+    getPrompts: (sessionId: string, providerId?: string, limit?: number) => Promise<{ text: string; timestamp?: number; index: number }[]>
+    startWatching: () => Promise<void>
+    stopWatching: () => Promise<void>
+    onSessionUpdated: (callback: (session: {
+      id: string; displayName: string; status: string; aiTool: string;
+      createdAt: string; updatedAt: string; cwd?: string; summary?: string;
+      detailedStatus?: string; branch?: string;
+      messageCount?: number; toolCallCount?: number; lastActivityTime?: number
+    }) => void) => () => void
+    onSessionAdded: (callback: (session: {
+      id: string; displayName: string; status: string; aiTool: string;
+      createdAt: string; updatedAt: string; cwd?: string; summary?: string;
+      detailedStatus?: string; branch?: string;
+      messageCount?: number; toolCallCount?: number; lastActivityTime?: number
+    }) => void) => () => void
+    onSessionRemoved: (callback: (sessionId: string, providerId: string) => void) => () => void
   }
   settings: {
     getAll: () => Promise<Record<string, unknown>>
@@ -72,7 +93,31 @@ const dplexAPI: DplexAPI = {
     resolveSessionId: (pid, cwd?) => ipcRenderer.invoke('sessions:resolveSessionId', pid, cwd),
     getResumeCommand: (providerId, sessionId) => ipcRenderer.invoke('sessions:getResumeCommand', providerId, sessionId),
     getNewSessionCommand: (providerId) => ipcRenderer.invoke('sessions:getNewSessionCommand', providerId),
-    getProviders: () => ipcRenderer.invoke('sessions:getProviders')
+    getProviders: () => ipcRenderer.invoke('sessions:getProviders'),
+    getPrompts: (sessionId, providerId?, limit?) => ipcRenderer.invoke('sessions:getPrompts', sessionId, providerId, limit),
+    startWatching: () => ipcRenderer.invoke('sessions:startWatching'),
+    stopWatching: () => ipcRenderer.invoke('sessions:stopWatching'),
+    onSessionUpdated: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, session: unknown): void =>
+        callback(session as Parameters<typeof callback>[0])
+      ipcRenderer.on('sessions:updated', handler)
+      return () => ipcRenderer.removeListener('sessions:updated', handler)
+    },
+    onSessionAdded: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, session: unknown): void =>
+        callback(session as Parameters<typeof callback>[0])
+      ipcRenderer.on('sessions:added', handler)
+      return () => ipcRenderer.removeListener('sessions:added', handler)
+    },
+    onSessionRemoved: (callback) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        sessionId: string,
+        providerId: string
+      ): void => callback(sessionId, providerId)
+      ipcRenderer.on('sessions:removed', handler)
+      return () => ipcRenderer.removeListener('sessions:removed', handler)
+    }
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),

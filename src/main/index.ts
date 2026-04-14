@@ -16,6 +16,7 @@ import {
 } from './services/ptyManager'
 import { createDefaultRegistry } from './services/providers'
 import { loadWorkspace, saveWorkspace, type PersistedWorkspace } from './services/sessionPersistence'
+import { handleSessionNotification, clearNotificationState, seedNotificationState } from './services/notifications'
 
 const providerRegistry = createDefaultRegistry()
 
@@ -87,6 +88,10 @@ function createWindow(): void {
   })
 
   mainWindow.on('closed', () => {
+    // Stop all provider watchers — on macOS the app stays alive after window close
+    for (const provider of providerRegistry.getAllProviders()) {
+      provider.stopWatching()
+    }
     if (mainWindow) {
       destroyPtysForWindow(mainWindow.id)
     }
@@ -136,8 +141,9 @@ function registerIpcHandlers(): void {
     return providerRegistry.discoverSessions(providerId)
   })
 
-  ipcMain.handle('sessions:delete', (_event, sessionId: string, providerId?: string) => {
-    return providerRegistry.deleteSession(sessionId, providerId)
+  ipcMain.handle('sessions:delete', async (_event, sessionId: string, providerId?: string) => {
+    await providerRegistry.deleteSession(sessionId, providerId)
+    clearNotificationState(sessionId)
   })
 
   ipcMain.handle('sessions:close', (_event, sessionId: string, providerId?: string) => {
@@ -160,6 +166,55 @@ function registerIpcHandlers(): void {
   ipcMain.handle('sessions:getProviders', () => {
     return providerRegistry.getProviderInfoList()
   })
+
+  // Session watching — start/stop watchers, push events to renderer
+  ipcMain.handle('sessions:startWatching', async () => {
+    const sendToRenderer = (channel: string, ...args: unknown[]): void => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(channel, ...args)
+      }
+    }
+
+    for (const provider of providerRegistry.getAllProviders()) {
+      await provider.startWatching({
+        onUpdated: (session) => {
+          handleSessionNotification(session)
+          sendToRenderer('sessions:updated', session)
+        },
+        onAdded: (session) => {
+          seedNotificationState(session)
+          sendToRenderer('sessions:added', session)
+        },
+        onRemoved: (sessionId, providerId) => {
+          sendToRenderer('sessions:removed', sessionId, providerId)
+        }
+      })
+    }
+  })
+
+  ipcMain.handle('sessions:stopWatching', () => {
+    for (const provider of providerRegistry.getAllProviders()) {
+      provider.stopWatching()
+    }
+  })
+
+  // Prompt extraction
+  ipcMain.handle(
+    'sessions:getPrompts',
+    async (_event, sessionId: string, providerId?: string, limit?: number) => {
+      if (providerId) {
+        const provider = providerRegistry.getProvider(providerId)
+        if (provider) return provider.getPrompts(sessionId, limit)
+        return []
+      }
+      // Try all providers
+      for (const provider of providerRegistry.getAllProviders()) {
+        const prompts = await provider.getPrompts(sessionId, limit)
+        if (prompts.length > 0) return prompts
+      }
+      return []
+    }
+  )
 
   // Workspace persistence
   ipcMain.handle('sessions:loadWorkspace', () => loadWorkspace())
@@ -259,5 +314,8 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  for (const provider of providerRegistry.getAllProviders()) {
+    provider.stopWatching()
+  }
   destroyAllPtys()
 })

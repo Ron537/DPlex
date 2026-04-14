@@ -1,242 +1,76 @@
-import * as fs from 'fs'
 import * as fsp from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
-import type {
-  SessionProvider,
-  DiscoveredSession,
-  ActiveProjectSession,
-  ResolvedSession
-} from './types'
+import type { DiscoveredSession, ParsedSessionData, SessionPrompt } from './types'
+import { BaseSessionProvider } from './baseProvider'
+import { parseCopilotEvents, extractCopilotPrompts, clearCopilotParseCache } from './copilotEventsParser'
 
-export class CopilotProvider implements SessionProvider {
+export class CopilotProvider extends BaseSessionProvider {
   readonly id = 'copilot-cli'
   readonly name = 'Copilot CLI'
   readonly command = 'copilot'
 
-  private get sessionDir(): string {
+  // ── Abstract method implementations ──────────────────────────────
+
+  protected getSessionDir(): string {
     return path.join(os.homedir(), '.copilot', 'session-state')
   }
 
-  // ── Discovery ────────────────────────────────────────────────────
-
-  async discoverSessions(): Promise<DiscoveredSession[]> {
-    const sessionDir = this.sessionDir
-    if (!(await this.dirExists(sessionDir))) return []
-
+  protected async parseSessionDir(
+    dirPath: string,
+    dirName: string
+  ): Promise<DiscoveredSession | null> {
     try {
-      const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
-      const sessions: DiscoveredSession[] = []
+      const stat = await fsp.stat(dirPath)
+      const workspace = await this.parseWorkspaceYaml(dirPath)
+      const displayName = await this.getDisplayName(dirPath, dirName)
+      const isActive = (await this.getActivePid(dirPath)) !== null
 
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const fullPath = path.join(sessionDir, entry.name)
-
-        try {
-          const stat = await fsp.stat(fullPath)
-          const displayName = await this.getDisplayName(fullPath, entry.name)
-          const workspace = await this.parseWorkspaceYamlAsync(fullPath)
-
-          sessions.push({
-            id: entry.name,
-            displayName,
-            status: (await this.isSessionActive(fullPath)) ? 'active' : 'idle',
-            aiTool: this.id,
-            createdAt: stat.birthtime.toISOString(),
-            updatedAt: stat.mtime.toISOString(),
-            cwd: workspace.cwd,
-            summary: displayName
-          })
-        } catch {
-          // Skip unreadable sessions
-        }
+      // Parse events for enriched data
+      const eventsPath = path.join(dirPath, 'events.jsonl')
+      let parsed: ParsedSessionData | null = null
+      let eventsMtimeMs = stat.mtimeMs
+      try {
+        const eventsStat = await fsp.stat(eventsPath)
+        eventsMtimeMs = eventsStat.mtimeMs
+        parsed = await this.parseEventsIncremental(eventsPath)
+      } catch {
+        // events.jsonl may not exist yet
       }
 
-      return sessions.sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      )
-    } catch {
-      return []
-    }
-  }
+      // Use events.jsonl mtime for updatedAt (more accurate than dir mtime)
+      const updatedAt = new Date(eventsMtimeMs).toISOString()
 
-  async getActiveProjectSessions(projectPaths: string[]): Promise<ActiveProjectSession[]> {
-    const sessionDir = this.sessionDir
-    const results: ActiveProjectSession[] = []
-    if (!(await this.dirExists(sessionDir))) return results
-
-    const normalizedPaths = projectPaths.map((p) => p.replace(/\\/g, '/').replace(/\/+$/, ''))
-
-    try {
-      const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
-
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const fullPath = path.join(sessionDir, entry.name)
-
-        try {
-          const files = await fsp.readdir(fullPath)
-          const lockFile = files.find((f) => f.startsWith('inuse.') && f.endsWith('.lock'))
-          if (!lockFile) continue
-
-          const pid = parseInt(lockFile.replace('inuse.', '').replace('.lock', ''), 10)
-          if (isNaN(pid)) continue
-          try {
-            process.kill(pid, 0)
-          } catch {
-            continue
-          }
-
-          const workspace = await this.parseWorkspaceYamlAsync(fullPath)
-          if (!workspace.cwd) continue
-
-          const normalizedCwd = workspace.cwd.replace(/\\/g, '/').replace(/\/+$/, '')
-          const matches = normalizedPaths.some(
-            (pp) => normalizedCwd === pp || normalizedCwd.startsWith(pp + '/')
-          )
-          if (!matches) continue
-
-          const displayName = await this.getDisplayName(fullPath, entry.name)
-          results.push({ id: entry.name, displayName, cwd: workspace.cwd, aiTool: this.id })
-        } catch {
-          // skip
-        }
+      return {
+        id: dirName,
+        displayName,
+        status: isActive ? 'active' : 'idle',
+        aiTool: this.id,
+        createdAt: stat.birthtime.toISOString(),
+        updatedAt,
+        cwd: workspace.cwd,
+        summary: displayName,
+        branch: workspace.branch,
+        detailedStatus: parsed?.detailedStatus ?? (isActive ? 'thinking' : 'idle'),
+        messageCount: parsed?.messageCount ?? 0,
+        toolCallCount: parsed?.toolCallCount ?? 0,
+        lastActivityTime: parsed?.lastActivityTime ?? eventsMtimeMs
       }
-    } catch {
-      // ignore
-    }
-
-    return results
-  }
-
-  // ── Session Lifecycle ────────────────────────────────────────────
-
-  async closeSession(sessionId: string): Promise<boolean> {
-    const fullPath = this.resolveAndValidateSessionPath(sessionId)
-    if (!fullPath) return false
-
-    try {
-      const files = await fsp.readdir(fullPath)
-      const lockFiles = files.filter((f) => /^inuse\.\d+\.lock$/.test(f))
-      if (lockFiles.length === 0) return false
-
-      let killed = false
-      for (const lockFile of lockFiles) {
-        const match = lockFile.match(/^inuse\.(\d+)\.lock$/)
-        if (!match) continue
-        const pid = parseInt(match[1], 10)
-        if (isNaN(pid) || pid <= 0) continue
-        try {
-          process.kill(pid, 'SIGTERM')
-          killed = true
-        } catch {
-          // Process already gone
-        }
-      }
-      return killed
-    } catch {
-      return false
-    }
-  }
-
-  async deleteSession(sessionId: string): Promise<void> {
-    const fullPath = this.resolveAndValidateSessionPath(sessionId)
-    if (!fullPath) throw new Error('Invalid session ID')
-    if (fs.existsSync(fullPath)) {
-      fs.rmSync(fullPath, { recursive: true, force: true })
-    }
-  }
-
-  // ── Session Resolution ───────────────────────────────────────────
-
-  async resolveSessionByPid(pid: number): Promise<ResolvedSession | null> {
-    const sessionDir = this.sessionDir
-    const lockFileName = `inuse.${pid}.lock`
-
-    try {
-      process.kill(pid, 0)
     } catch {
       return null
     }
-
-    try {
-      const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const fullPath = path.join(sessionDir, entry.name)
-        try {
-          const files = await fsp.readdir(fullPath)
-          if (files.includes(lockFileName)) {
-            const displayName = await this.getDisplayName(fullPath, entry.name)
-            return { sessionId: entry.name, displayName }
-          }
-        } catch {
-          // Skip unreadable dirs
-        }
-      }
-    } catch {
-      // Session directory doesn't exist
-    }
-
-    return null
   }
 
-  async resolveSessionByCwd(cwd: string): Promise<ResolvedSession | null> {
-    const sessionDir = this.sessionDir
-    const normalizedCwd = cwd.replace(/\\/g, '/').replace(/\/+$/, '')
-    if (!(await this.dirExists(sessionDir))) return null
-
-    let bestMatch: { id: string; mtime: number; fullPath: string } | null = null
-
-    try {
-      const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const fullPath = path.join(sessionDir, entry.name)
-
-        try {
-          const files = await fsp.readdir(fullPath)
-          const lockFile = files.find((f) => f.startsWith('inuse.') && f.endsWith('.lock'))
-          if (!lockFile) continue
-
-          const lockPid = parseInt(lockFile.replace('inuse.', '').replace('.lock', ''), 10)
-          if (isNaN(lockPid)) continue
-          try {
-            process.kill(lockPid, 0)
-          } catch {
-            continue
-          }
-
-          const yamlPath = path.join(fullPath, 'workspace.yaml')
-          let yamlContent: string
-          try {
-            yamlContent = await fsp.readFile(yamlPath, 'utf-8')
-          } catch {
-            continue
-          }
-          const cwdMatch = yamlContent.match(/^cwd:\s*(.+)$/m)
-          if (!cwdMatch) continue
-          const sessionCwd = cwdMatch[1].trim().replace(/\\/g, '/').replace(/\/+$/, '')
-          if (sessionCwd !== normalizedCwd) continue
-
-          const stat = await fsp.stat(fullPath)
-          if (!bestMatch || stat.mtimeMs > bestMatch.mtime) {
-            bestMatch = { id: entry.name, mtime: stat.mtimeMs, fullPath }
-          }
-        } catch {
-          // Skip
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    if (!bestMatch) return null
-    const displayName = await this.getDisplayName(bestMatch.fullPath, bestMatch.id)
-    return { sessionId: bestMatch.id, displayName }
+  protected parseEventsIncremental(filePath: string): Promise<ParsedSessionData> {
+    return parseCopilotEvents(filePath)
   }
 
-  // ── Command Building ─────────────────────────────────────────────
+  protected extractPromptsFromEvents(
+    sessionDir: string,
+    limit: number
+  ): Promise<SessionPrompt[]> {
+    return extractCopilotPrompts(sessionDir, limit)
+  }
 
   getResumeCommand(sessionId: string): string {
     return `copilot --resume=${sessionId}`
@@ -246,68 +80,27 @@ export class CopilotProvider implements SessionProvider {
     return 'copilot'
   }
 
+  protected onSessionDeleted(sessionDir: string): void {
+    clearCopilotParseCache(path.join(sessionDir, 'events.jsonl'))
+  }
+
   // ── Private Helpers ──────────────────────────────────────────────
-
-  private async dirExists(dirPath: string): Promise<boolean> {
-    try {
-      await fsp.access(dirPath)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  private validateSessionId(sessionId: string): boolean {
-    if (!sessionId || sessionId.includes('/') || sessionId.includes('\\') || sessionId.includes('..')) {
-      return false
-    }
-    return true
-  }
-
-  private resolveAndValidateSessionPath(sessionId: string): string | null {
-    if (!this.validateSessionId(sessionId)) return null
-    const targetPath = path.join(this.sessionDir, sessionId)
-    const resolved = path.resolve(targetPath)
-    if (!resolved.startsWith(path.resolve(this.sessionDir) + path.sep)) return null
-    return resolved
-  }
-
-  private async isSessionActive(sessionDir: string): Promise<boolean> {
-    try {
-      const files = await fsp.readdir(sessionDir)
-      const lockFile = files.find((f) => f.startsWith('inuse.') && f.endsWith('.lock'))
-      if (!lockFile) return false
-
-      const pidStr = lockFile.replace('inuse.', '').replace('.lock', '')
-      const pid = parseInt(pidStr, 10)
-      if (isNaN(pid)) return false
-
-      try {
-        process.kill(pid, 0)
-        return true
-      } catch {
-        return false
-      }
-    } catch {
-      return false
-    }
-  }
 
   private async getDisplayName(sessionDir: string, sessionId: string): Promise<string> {
     const planPath = path.join(sessionDir, 'plan.md')
-    const planName = await this.parsePlanSummaryAsync(planPath)
+    const planName = await this.parsePlanSummary(planPath)
     if (planName) return planName
 
-    const workspace = await this.parseWorkspaceYamlAsync(sessionDir)
+    const workspace = await this.parseWorkspaceYaml(sessionDir)
     if (workspace.summary) return workspace.summary
 
-    const firstMsg = await this.parseFirstUserMessageAsync(sessionDir)
+    const firstMsg = await this.parseFirstUserMessage(sessionDir)
     if (firstMsg) return firstMsg
 
     return sessionId.slice(0, 12)
   }
 
-  private async parsePlanSummaryAsync(planPath: string): Promise<string | undefined> {
+  private async parsePlanSummary(planPath: string): Promise<string | undefined> {
     try {
       const content = await fsp.readFile(planPath, 'utf-8')
       const firstHeading = content.match(/^#\s+(.+)$/m)
@@ -317,25 +110,28 @@ export class CopilotProvider implements SessionProvider {
     }
   }
 
-  private async parseWorkspaceYamlAsync(sessionDir: string): Promise<{ summary?: string; cwd?: string }> {
+  private async parseWorkspaceYaml(
+    sessionDir: string
+  ): Promise<{ summary?: string; cwd?: string; branch?: string }> {
     try {
       const yamlPath = path.join(sessionDir, 'workspace.yaml')
       const content = await fsp.readFile(yamlPath, 'utf-8')
       const summaryMatch = content.match(/^summary:\s*(.+)$/m)
       const cwdMatch = content.match(/^cwd:\s*(.+)$/m)
+      const branchMatch = content.match(/^branch:\s*(.+)$/m)
       return {
         summary: summaryMatch?.[1]?.trim() || undefined,
-        cwd: cwdMatch?.[1]?.trim() || undefined
+        cwd: cwdMatch?.[1]?.trim() || undefined,
+        branch: branchMatch?.[1]?.trim() || undefined
       }
     } catch {
       return {}
     }
   }
 
-  private async parseFirstUserMessageAsync(sessionDir: string): Promise<string | undefined> {
+  private async parseFirstUserMessage(sessionDir: string): Promise<string | undefined> {
     try {
       const eventsPath = path.join(sessionDir, 'events.jsonl')
-      // Read only first 8KB to avoid loading huge files
       const fd = await fsp.open(eventsPath, 'r')
       try {
         const buffer = Buffer.alloc(8192)
@@ -363,3 +159,4 @@ export class CopilotProvider implements SessionProvider {
     return undefined
   }
 }
+

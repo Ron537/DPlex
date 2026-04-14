@@ -77,3 +77,9 @@ body {
 .hover-bg:hover {
   background-color: var(--dplex-hover, rgba(255,255,255,0.1));
 }
+
+/* Status dot pulse animation for active AI sessions */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}

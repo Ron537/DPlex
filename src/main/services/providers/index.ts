@@ -1,4 +1,15 @@
-export type { SessionProvider, DiscoveredSession, ActiveProjectSession, ResolvedSession, ProviderInfo } from './types'
+export type {
+  SessionProvider,
+  DiscoveredSession,
+  ActiveProjectSession,
+  ResolvedSession,
+  ProviderInfo,
+  SessionStatus,
+  ParsedSessionData,
+  SessionPrompt,
+  WatcherCallbacks
+} from './types'
+export { BaseSessionProvider } from './baseProvider'
 export { ProviderRegistry } from './registry'
 export { CopilotProvider } from './copilotProvider'
 
@@ -10,7 +21,7 @@ export function createDefaultRegistry(): ProviderRegistry {
   const registry = new ProviderRegistry()
   registry.register(new CopilotProvider())
   // Register additional providers here:
-  // registry.register(new ClaudeProvider())
+  // registry.register(new ClaudeCodeProvider())
   // registry.register(new CodexProvider())
   return registry
 }

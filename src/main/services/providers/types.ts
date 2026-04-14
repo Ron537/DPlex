@@ -3,6 +3,36 @@
  * Each AI CLI tool (Copilot, Claude, Codex, etc.) implements SessionProvider.
  */
 
+/** Granular session status derived from JSONL event parsing. */
+export type SessionStatus =
+  | 'idle'
+  | 'thinking'
+  | 'executingTool'
+  | 'awaitingApproval'
+  | 'waitingForUser'
+
+/** Data extracted from incremental event parsing. */
+export interface ParsedSessionData {
+  detailedStatus: SessionStatus
+  messageCount: number
+  toolCallCount: number
+  lastActivityTime: number
+}
+
+/** A single user prompt extracted from a session. */
+export interface SessionPrompt {
+  text: string
+  timestamp?: number
+  index: number
+}
+
+/** Callbacks for real-time session watcher events. */
+export interface WatcherCallbacks {
+  onUpdated: (session: DiscoveredSession) => void
+  onAdded: (session: DiscoveredSession) => void
+  onRemoved: (sessionId: string, providerId: string) => void
+}
+
 export interface DiscoveredSession {
   id: string
   displayName: string
@@ -12,6 +42,11 @@ export interface DiscoveredSession {
   updatedAt: string
   cwd?: string
   summary?: string
+  detailedStatus?: SessionStatus
+  branch?: string
+  messageCount?: number
+  toolCallCount?: number
+  lastActivityTime?: number
 }
 
 export interface ActiveProjectSession {
@@ -65,4 +100,13 @@ export interface SessionProvider {
 
   /** Return the CLI command string to start a new session (e.g. "copilot"). */
   getNewSessionCommand(): string
+
+  /** Start watching for real-time session changes. */
+  startWatching(callbacks: WatcherCallbacks): Promise<void>
+
+  /** Stop watching for session changes. */
+  stopWatching(): void
+
+  /** Get user prompts from a session. */
+  getPrompts(sessionId: string, limit?: number): Promise<SessionPrompt[]>
 }
