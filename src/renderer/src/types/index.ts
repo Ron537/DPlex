@@ -67,3 +67,10 @@ export interface Project {
   addedAt: string
 }
 
+export interface ProviderInfo {
+  id: string
+  name: string
+  command: string
+  icon?: string
+}
+

@@ -1,80 +1,106 @@
-import { useEffect, useState, useRef } from 'react'
-import { ChevronRight, ChevronDown, Play, FolderOpen, GitBranch, Monitor, Globe, GripVertical, MoreVertical, Terminal, Copy, Trash2 } from 'lucide-react'
-import type { Project } from '../../types'
+import { useState, useRef } from 'react'
+import {
+  ChevronRight,
+  ChevronDown,
+  Play,
+  FolderOpen,
+  GitBranch,
+  GripVertical,
+  MoreVertical,
+  Terminal,
+  Copy,
+  Trash2
+} from 'lucide-react'
+import type { Project, AISession, ProviderInfo } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
 import { useTerminalStore } from '../../stores/terminalStore'
-
-function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '')
-}
+import { useGitBranch } from '../../hooks/useGitBranch'
+import { getStatusColor, getStatusLabel } from '../../utils/statusColors'
+import type { ProjectActivity } from '../../hooks/useProjectSessions'
 
 interface ProjectItemProps {
   project: Project
+  activity: ProjectActivity
+  providers: ProviderInfo[]
   isDragging: boolean
   dragOverPosition: 'above' | 'below' | null
   onDragStart: (id: string) => void
-  onDragOver: (id: string, position: 'above' | 'below') => void
+  onDragOver: (id: string, e: React.DragEvent) => void
   onDrop: (id: string) => void
   onDragEnd: () => void
 }
 
-export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart, onDragOver, onDrop, onDragEnd }: ProjectItemProps): React.JSX.Element {
+function relativeTime(date: Date | undefined): string {
+  if (!date) return ''
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+export function ProjectItem({
+  project,
+  activity,
+  providers,
+  isDragging,
+  dragOverPosition,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd
+}: ProjectItemProps): React.JSX.Element {
   const expandedIds = useProjectStore((s) => s.expandedProjectIds)
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
   const removeProject = useProjectStore((s) => s.removeProject)
   const startAISession = useProjectStore((s) => s.startAISession)
-  const getActiveSessionsForProject = useProjectStore((s) => s.getActiveSessionsForProject)
-  const groups = useTerminalStore((s) => s.groups)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
-  const [branch, setBranch] = useState<string | null>(null)
-  const dragHandleRef = useRef<HTMLSpanElement>(null)
+  const createTerminal = useTerminalStore((s) => s.createTerminal)
   const [canDrag, setCanDrag] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
+  const dragHandleRef = useRef<HTMLSpanElement>(null)
 
   const isExpanded = expandedIds.has(project.id)
-  const externalSessions = getActiveSessionsForProject(project.path)
+  const branch = useGitBranch(project.path)
+  const { sessions, openTabs, activeCount, hasActive, latestStatus, lastActivity } = activity
 
-  // Get DPlex-managed AI terminals for this project
-  const normProject = normalizePath(project.path)
-  const dplexTabs = groups.flatMap((g) =>
-    g.tabs
-      .filter((t) => {
-        if (!t.command || !t.cwd) return false
-        const normCwd = normalizePath(t.cwd)
-        return normCwd === normProject || normCwd.startsWith(normProject + '/')
-      })
-      .map((t) => ({ ...t, groupId: g.id }))
-  )
-
-  // Deduplicate: exclude external sessions that match a DPlex tab's sessionId
-  const dplexSessionIds = new Set(dplexTabs.map((t) => t.sessionId).filter(Boolean))
-  const filteredExternal = externalSessions.filter((s) => !dplexSessionIds.has(s.id))
-
-  const totalActive = dplexTabs.length + filteredExternal.length
+  const statusColor = hasActive
+    ? getStatusColor(latestStatus, true)
+    : sessions.length > 0
+      ? getStatusColor(undefined, false)
+      : 'transparent'
 
   const handleFocusTab = (tabId: string, groupId: string): void => {
     setActiveGroup(groupId)
     setActiveTerminalInGroup(groupId, tabId)
   }
 
-  useEffect(() => {
-    window.dplex.app.getGitBranch(project.path).then(setBranch)
-    const interval = setInterval(() => {
-      window.dplex.app.getGitBranch(project.path).then(setBranch)
-    }, 10000)
-    return () => clearInterval(interval)
-  }, [project.path])
+  const handleResumeSession = async (session: AISession): Promise<void> => {
+    const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
+    if (!cmd) return
+    useTerminalStore.getState().createTerminal(
+      undefined,
+      `↻ ${session.displayName}`,
+      cmd,
+      undefined,
+      session.cwd
+    )
+  }
 
   return (
     <div
+      data-reorderable-id={project.id}
       style={{ opacity: isDragging ? 0.4 : 1 }}
     >
       {/* Drop indicator above */}
       {dragOverPosition === 'above' && (
         <div className="mx-2 h-0.5 rounded" style={{ backgroundColor: 'var(--dplex-accent)' }} />
       )}
+
       {/* Project header row */}
       <div
         data-project-id={project.id}
@@ -87,9 +113,7 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
         onDragOver={(e) => {
           e.preventDefault()
           e.dataTransfer.dropEffect = 'move'
-          const rect = e.currentTarget.getBoundingClientRect()
-          const midY = rect.top + rect.height / 2
-          onDragOver(project.id, e.clientY < midY ? 'above' : 'below')
+          onDragOver(project.id, e)
         }}
         onDrop={(e) => {
           e.preventDefault()
@@ -112,6 +136,14 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
           <GripVertical size={12} />
         </span>
 
+        {/* Status dot */}
+        {statusColor !== 'transparent' && (
+          <span
+            className={`flex-shrink-0 w-2 h-2 rounded-full ${hasActive ? 'dplex-pulse' : ''}`}
+            style={{ backgroundColor: statusColor }}
+          />
+        )}
+
         {/* Expand chevron */}
         <span style={{ color: 'var(--dplex-text-muted)' }} className="flex-shrink-0">
           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -120,48 +152,61 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
         {/* Folder icon */}
         <FolderOpen size={13} style={{ color: 'var(--dplex-accent)' }} className="flex-shrink-0" />
 
-        {/* Project name + branch */}
+        {/* Project name + branch + last activity */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
               {project.name}
             </span>
-            {totalActive > 0 && (
+            {activeCount > 0 && (
               <span
-                className="text-[10px] font-medium flex-shrink-0"
-                style={{ color: '#22c55e' }}
+                className="text-[10px] font-medium flex-shrink-0 px-1 rounded"
+                style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)' }}
               >
-                ({totalActive})
+                {activeCount}
               </span>
             )}
           </div>
-          {branch ? (
-            <div className="flex items-center gap-1 mt-0.5">
-              <GitBranch size={9} style={{ color: 'var(--dplex-text-muted)' }} className="flex-shrink-0" />
+          <div className="flex items-center gap-1 mt-0.5">
+            {branch ? (
+              <>
+                <GitBranch size={9} style={{ color: 'var(--dplex-text-muted)' }} className="flex-shrink-0" />
+                <span className="text-[9px] truncate" style={{ color: 'var(--dplex-text-muted)' }}>
+                  {branch}
+                </span>
+              </>
+            ) : (
               <span className="text-[9px] truncate" style={{ color: 'var(--dplex-text-muted)' }}>
-                {branch}
+                {project.path}
               </span>
-            </div>
-          ) : (
-            <div className="text-[9px] truncate" style={{ color: 'var(--dplex-text-muted)' }}>
-              {project.path}
-            </div>
-          )}
+            )}
+            {lastActivity && (
+              <>
+                <span className="text-[9px]" style={{ color: 'var(--dplex-text-muted)' }}>·</span>
+                <span className="text-[9px] flex-shrink-0" style={{ color: 'var(--dplex-text-muted)' }}>
+                  {relativeTime(lastActivity)}
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Hover actions */}
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              startAISession(project)
-            }}
-            className="p-1 hover:bg-white/10 rounded transition-colors"
-            style={{ color: 'var(--dplex-accent)' }}
-            title="Start AI Session"
-          >
-            <Play size={11} />
-          </button>
+          {providers.map((p) => (
+            <button
+              key={p.id}
+              onClick={(e) => {
+                e.stopPropagation()
+                startAISession(project, p.id)
+              }}
+              className="p-1 hover:bg-white/10 rounded transition-colors"
+              style={{ color: 'var(--dplex-accent)' }}
+              title={`Start ${p.name} session`}
+            >
+              <Play size={11} />
+            </button>
+          ))}
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -179,7 +224,24 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
         {showMenu && (
           <>
             <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowMenu(false) }} />
-            <div className="absolute right-2 top-8 z-50 rounded shadow-xl py-1 min-w-[150px]" style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}>
+            <div
+              className="absolute right-2 top-8 z-50 rounded shadow-xl py-1 min-w-[160px]"
+              style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}
+            >
+              {providers.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    startAISession(project, p.id)
+                    setShowMenu(false)
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                  style={{ color: 'var(--dplex-text)' }}
+                >
+                  <Play size={11} /> Start {p.name}
+                </button>
+              ))}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -191,6 +253,9 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
               >
                 <Terminal size={11} /> Open Terminal
               </button>
+
+              <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -202,7 +267,22 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
               >
                 <Copy size={11} /> Copy Path
               </button>
+              {branch && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigator.clipboard.writeText(branch)
+                    setShowMenu(false)
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                  style={{ color: 'var(--dplex-text)' }}
+                >
+                  <GitBranch size={11} /> Copy Branch
+                </button>
+              )}
+
               <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -218,66 +298,104 @@ export function ProjectItem({ project, isDragging, dragOverPosition, onDragStart
         )}
       </div>
 
-      {/* Expanded: DPlex terminals + external sessions */}
+      {/* Expanded: session list */}
       {isExpanded && (
         <div className="ml-5 border-l" style={{ borderColor: 'var(--dplex-border)' }}>
-          {totalActive === 0 ? (
+          {!hasActive && openTabs.length === 0 ? (
             <div className="px-3 py-2 text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>
               No active sessions.
             </div>
           ) : (
             <>
-              {/* DPlex-managed terminals */}
-              {dplexTabs.map((tab) => (
-                <div
-                  key={tab.id}
-                  className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded-sm mx-1 cursor-pointer"
-                  onClick={() => handleFocusTab(tab.id, tab.groupId)}
-                >
-                  <Monitor size={10} style={{ color: '#22c55e' }} className="flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] truncate" style={{ color: 'var(--dplex-text)' }}>
-                      {tab.title}
+              {openTabs.map((tab) => {
+                const matchedSession = sessions.find((s) => s.id === tab.sessionId)
+                return (
+                  <div
+                    key={tab.id}
+                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/5 rounded-sm mx-1 cursor-pointer"
+                    onClick={() => handleFocusTab(tab.id, tab.groupId)}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: matchedSession
+                          ? getStatusColor(matchedSession.detailedStatus, matchedSession.status === 'active')
+                          : '#22c55e'
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] truncate" style={{ color: 'var(--dplex-text)' }}>
+                        {tab.title}
+                      </div>
+                      {matchedSession?.detailedStatus && matchedSession.detailedStatus !== 'idle' && (
+                        <div className="text-[9px]" style={{ color: getStatusColor(matchedSession.detailedStatus) }}>
+                          {getStatusLabel(matchedSession.detailedStatus)}
+                        </div>
+                      )}
                     </div>
+                    <span
+                      className="text-[9px] px-1 py-0.5 rounded flex-shrink-0"
+                      style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)' }}
+                    >
+                      OPEN
+                    </span>
                   </div>
-                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)' }}>
-                    DPlex
-                  </span>
-                </div>
-              ))}
+                )
+              })}
 
-              {/* External AI sessions */}
-              {filteredExternal.map((session) => (
-                <div
-                  key={session.id}
-                  className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 rounded-sm mx-1 cursor-pointer"
-                  onClick={async () => {
-                    const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
-                    if (!cmd) return
-                    useTerminalStore.getState().createTerminal(
-                      undefined,
-                      `↻ ${session.displayName}`,
-                      cmd,
-                      undefined,
-                      session.cwd
-                    )
-                  }}
-                >
-                  <Globe size={10} style={{ color: '#3b82f6' }} className="flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] truncate" style={{ color: 'var(--dplex-text)' }}>
-                      {session.displayName}
+              {sessions
+                .filter((s) =>
+                  s.status === 'active' &&
+                  !openTabs.some((t) =>
+                    t.sessionId === s.id ||
+                    (t.command && t.command.includes(s.id))
+                  )
+                )
+                .map((session) => (
+                  <div
+                    key={session.id}
+                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/5 rounded-sm mx-1 cursor-pointer"
+                    onClick={() => handleResumeSession(session)}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: getStatusColor(session.detailedStatus, session.status === 'active')
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] truncate" style={{ color: 'var(--dplex-text)' }}>
+                        {session.displayName}
+                      </div>
+                      <div className="flex items-center gap-1 text-[9px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                        {session.detailedStatus && session.detailedStatus !== 'idle' ? (
+                          <span style={{ color: getStatusColor(session.detailedStatus) }}>
+                            {getStatusLabel(session.detailedStatus)}
+                          </span>
+                        ) : (
+                          <span>{relativeTime(session.updatedAt)}</span>
+                        )}
+                        {session.messageCount != null && session.messageCount > 0 && (
+                          <>
+                            <span>·</span>
+                            <span>{session.messageCount} prompts</span>
+                          </>
+                        )}
+                      </div>
                     </div>
+                    <span
+                      className="text-[9px] px-1 py-0.5 rounded flex-shrink-0"
+                      style={{ color: 'var(--dplex-text-muted)', backgroundColor: 'var(--dplex-bg)' }}
+                    >
+                      {session.aiTool === 'copilot-cli' ? 'Copilot' : session.aiTool}
+                    </span>
                   </div>
-                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)' }}>
-                    External
-                  </span>
-                </div>
-              ))}
+                ))}
             </>
           )}
         </div>
       )}
+
       {/* Drop indicator below */}
       {dragOverPosition === 'below' && (
         <div className="mx-2 h-0.5 rounded" style={{ backgroundColor: 'var(--dplex-accent)' }} />

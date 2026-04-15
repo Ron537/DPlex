@@ -49,13 +49,6 @@ export interface DiscoveredSession {
   lastActivityTime?: number
 }
 
-export interface ActiveProjectSession {
-  id: string
-  displayName: string
-  cwd: string
-  aiTool: string
-}
-
 export interface ResolvedSession {
   sessionId: string
   displayName: string
@@ -65,6 +58,7 @@ export interface ProviderInfo {
   id: string
   name: string
   command: string
+  icon?: string
 }
 
 /**
@@ -76,12 +70,10 @@ export interface SessionProvider {
   readonly id: string
   readonly name: string
   readonly command: string
+  readonly icon?: string
 
   /** Discover all sessions for this provider from disk/filesystem. */
   discoverSessions(): Promise<DiscoveredSession[]>
-
-  /** Find active sessions whose CWD matches any of the given project paths. */
-  getActiveProjectSessions(projectPaths: string[]): Promise<ActiveProjectSession[]>
 
   /** Close an active session by killing its process. Returns true if a process was killed. */
   closeSession(sessionId: string): Promise<boolean>

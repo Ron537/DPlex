@@ -9,6 +9,7 @@ export class CopilotProvider extends BaseSessionProvider {
   readonly id = 'copilot-cli'
   readonly name = 'Copilot CLI'
   readonly command = 'copilot'
+  readonly icon = 'copilot'
 
   // ── Abstract method implementations ──────────────────────────────
 

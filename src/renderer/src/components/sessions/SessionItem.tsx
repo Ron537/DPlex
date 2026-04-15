@@ -9,11 +9,13 @@ import {
   Wrench,
   Copy,
   FolderOpen,
-  MessagesSquare
+  MessagesSquare,
+  FolderPlus
 } from 'lucide-react'
 import type { AISession, SessionStatus } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSessionStore } from '../../stores/sessionStore'
+import { useProjectStore } from '../../stores/projectStore'
 
 interface SessionItemProps {
   session: AISession
@@ -303,6 +305,19 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
             >
               <Copy size={11} /> Copy Session ID
             </button>
+            {session.cwd && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  useProjectStore.getState().addProject(session.cwd)
+                  setShowMenu(false)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                <FolderPlus size={11} /> Pin as Project
+              </button>
+            )}
             <div style={{ borderTop: '1px solid var(--dplex-border)' }} className="my-1" />
             <button
               onClick={(e) => {

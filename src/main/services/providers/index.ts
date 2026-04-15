@@ -1,7 +1,6 @@
 export type {
   SessionProvider,
   DiscoveredSession,
-  ActiveProjectSession,
   ResolvedSession,
   ProviderInfo,
   SessionStatus,

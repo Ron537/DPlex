@@ -17,6 +17,7 @@ import {
 import { createDefaultRegistry } from './services/providers'
 import { loadWorkspace, saveWorkspace, type PersistedWorkspace } from './services/sessionPersistence'
 import { handleSessionNotification, clearNotificationState, seedNotificationState } from './services/notifications'
+import { getBranch, watchBranch, unwatchBranch, stopAllBranchWatchers } from './services/gitService'
 
 const providerRegistry = createDefaultRegistry()
 
@@ -92,6 +93,7 @@ function createWindow(): void {
     for (const provider of providerRegistry.getAllProviders()) {
       provider.stopWatching()
     }
+    stopAllBranchWatchers()
     if (mainWindow) {
       destroyPtysForWindow(mainWindow.id)
     }
@@ -148,10 +150,6 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('sessions:close', (_event, sessionId: string, providerId?: string) => {
     return providerRegistry.closeSession(sessionId, providerId)
-  })
-
-  ipcMain.handle('sessions:getActiveForProjects', (_event, projectPaths: string[]) => {
-    return providerRegistry.getActiveProjectSessions(projectPaths)
   })
 
   // Provider-aware commands
@@ -260,21 +258,53 @@ function registerIpcHandlers(): void {
     return result.filePaths[0]
   })
 
-  // Git branch for a directory (async to avoid blocking main process)
+  // Git branch for a directory (legacy — kept for backward compatibility)
   ipcMain.handle('app:getGitBranch', async (_event, dirPath: string) => {
-    try {
-      const { execFile } = await import('child_process')
-      return new Promise<string | null>((resolve) => {
-        execFile('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-          cwd: dirPath,
-          timeout: 3000
-        }, (err, stdout) => {
-          if (err) return resolve(null)
-          resolve(stdout.trim() || null)
-        })
-      })
-    } catch {
-      return null
+    return getBranch(dirPath)
+  })
+
+  // Git service — reactive branch watching
+  ipcMain.handle('git:getBranch', async (_event, dirPath: string) => {
+    return getBranch(dirPath)
+  })
+
+  // Track per-subscription callback references — keyed by dirPath to support
+  // multiple projects in the same repo without overwriting each other
+  const gitWatchCallbacks = new Map<string, {
+    repoRoot: string
+    callback: (repoRoot: string, branch: string | null) => void
+  }>()
+
+  // Single shared callback that forwards to renderer
+  const sendBranchChange = (repoRoot: string, branch: string | null): void => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('git:branchChanged', repoRoot, branch)
+    }
+  }
+
+  ipcMain.handle('git:watchBranch', async (_event, dirPath: string) => {
+    // If already watching this exact dirPath, just return the repo root
+    const existing = gitWatchCallbacks.get(dirPath)
+    if (existing) return existing.repoRoot
+
+    const callback = (root: string, branch: string | null): void => {
+      sendBranchChange(root, branch)
+    }
+
+    const repoRoot = await watchBranch(dirPath, callback)
+    if (repoRoot) {
+      gitWatchCallbacks.set(dirPath, { repoRoot, callback })
+    }
+    return repoRoot
+  })
+
+  ipcMain.on('git:unwatchBranch', (_event, repoRoot: string) => {
+    // Find and remove all subscriptions for this repo root
+    for (const [dirPath, entry] of gitWatchCallbacks) {
+      if (entry.repoRoot === repoRoot) {
+        unwatchBranch(repoRoot, entry.callback)
+        gitWatchCallbacks.delete(dirPath)
+      }
     }
   })
 }
@@ -317,5 +347,6 @@ app.on('before-quit', () => {
   for (const provider of providerRegistry.getAllProviders()) {
     provider.stopWatching()
   }
+  stopAllBranchWatchers()
   destroyAllPtys()
 })

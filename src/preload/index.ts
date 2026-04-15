@@ -19,14 +19,13 @@ export interface DplexAPI {
     }[]>
     delete: (sessionId: string, providerId?: string) => Promise<void>
     close: (sessionId: string, providerId?: string) => Promise<boolean>
-    checkStatuses: (projectPaths: string[]) => Promise<{ id: string; displayName: string; cwd: string; aiTool: string }[]>
     loadWorkspace: () => Promise<unknown | null>
     saveWorkspace: (data: unknown) => Promise<void>
     saveWorkspaceSync: (data: unknown) => void
     resolveSessionId: (pid: number, cwd?: string) => Promise<{ sessionId: string; displayName: string } | null>
     getResumeCommand: (providerId: string, sessionId: string) => Promise<string | null>
     getNewSessionCommand: (providerId: string) => Promise<string | null>
-    getProviders: () => Promise<{ id: string; name: string; command: string }[]>
+    getProviders: () => Promise<{ id: string; name: string; command: string; icon?: string }[]>
     getPrompts: (sessionId: string, providerId?: string, limit?: number) => Promise<{ text: string; timestamp?: number; index: number }[]>
     startWatching: () => Promise<void>
     stopWatching: () => Promise<void>
@@ -57,6 +56,12 @@ export interface DplexAPI {
     selectFolder: () => Promise<string | null>
     getGitBranch: (dirPath: string) => Promise<string | null>
   }
+  git: {
+    getBranch: (dirPath: string) => Promise<string | null>
+    watchBranch: (dirPath: string) => Promise<string | null>
+    unwatchBranch: (repoRoot: string) => void
+    onBranchChanged: (callback: (repoRoot: string, branch: string | null) => void) => () => void
+  }
 }
 
 const dplexAPI: DplexAPI = {
@@ -86,7 +91,6 @@ const dplexAPI: DplexAPI = {
     discover: (providerId?) => ipcRenderer.invoke('sessions:discover', providerId),
     delete: (sessionId, providerId?) => ipcRenderer.invoke('sessions:delete', sessionId, providerId),
     close: (sessionId, providerId?) => ipcRenderer.invoke('sessions:close', sessionId, providerId),
-    checkStatuses: (projectPaths) => ipcRenderer.invoke('sessions:getActiveForProjects', projectPaths),
     loadWorkspace: () => ipcRenderer.invoke('sessions:loadWorkspace'),
     saveWorkspace: (data) => ipcRenderer.invoke('sessions:saveWorkspace', data),
     saveWorkspaceSync: (data) => ipcRenderer.sendSync('sessions:saveWorkspaceSync', data),
@@ -131,6 +135,20 @@ const dplexAPI: DplexAPI = {
     getAvailableShells: () => ipcRenderer.invoke('app:getAvailableShells'),
     selectFolder: () => ipcRenderer.invoke('app:selectFolder'),
     getGitBranch: (dirPath: string) => ipcRenderer.invoke('app:getGitBranch', dirPath)
+  },
+  git: {
+    getBranch: (dirPath: string) => ipcRenderer.invoke('git:getBranch', dirPath),
+    watchBranch: (dirPath: string) => ipcRenderer.invoke('git:watchBranch', dirPath),
+    unwatchBranch: (repoRoot: string) => ipcRenderer.send('git:unwatchBranch', repoRoot),
+    onBranchChanged: (callback: (repoRoot: string, branch: string | null) => void) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        repoRoot: string,
+        branch: string | null
+      ): void => callback(repoRoot, branch)
+      ipcRenderer.on('git:branchChanged', handler)
+      return () => ipcRenderer.removeListener('git:branchChanged', handler)
+    }
   }
 }
 

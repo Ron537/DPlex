@@ -22,13 +22,19 @@ interface SessionState {
   getFilteredSessions: () => { active: AISession[]; idle: AISession[] }
 }
 
+/** Composite key for session identity — prevents cross-provider ID collisions. */
+function sessionKey(aiTool: string, id: string): string {
+  return `${aiTool}:${id}`
+}
+
 function mapDiscoveredToAISession(
   s: Awaited<ReturnType<typeof window.dplex.sessions.discover>>[number],
   nameOverrides: Record<string, string>
 ): AISession {
+  const key = sessionKey(s.aiTool, s.id)
   return {
     id: s.id,
-    displayName: nameOverrides[s.id] ?? s.displayName,
+    displayName: nameOverrides[key] ?? nameOverrides[s.id] ?? s.displayName,
     status: s.status === 'active' ? ('active' as const) : ('idle' as const),
     aiTool: s.aiTool,
     createdAt: new Date(s.createdAt),
@@ -80,11 +86,13 @@ export const useSessionStore = create<SessionState>((set, get) => {
     },
 
     closeSession: async (sessionId) => {
+      const session = get().sessions.find((s) => s.id === sessionId)
+      const providerId = session?.aiTool
       try {
-        await window.dplex.sessions.close(sessionId)
+        await window.dplex.sessions.close(sessionId, providerId)
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s.id === sessionId
+            s.id === sessionId && s.aiTool === providerId
               ? { ...s, status: 'idle' as const, detailedStatus: 'idle' as const }
               : s
           )
@@ -96,10 +104,14 @@ export const useSessionStore = create<SessionState>((set, get) => {
     },
 
     deleteSession: async (sessionId) => {
+      const session = get().sessions.find((s) => s.id === sessionId)
+      const providerId = session?.aiTool
       try {
-        await window.dplex.sessions.delete(sessionId)
+        await window.dplex.sessions.delete(sessionId, providerId)
         set((state) => ({
-          sessions: state.sessions.filter((s) => s.id !== sessionId)
+          sessions: state.sessions.filter((s) =>
+            !(s.id === sessionId && s.aiTool === (providerId ?? s.aiTool))
+          )
         }))
       } catch (err) {
         set({ error: String(err) })
@@ -107,9 +119,10 @@ export const useSessionStore = create<SessionState>((set, get) => {
     },
 
     setSessionNameOverride: (sessionId, name) => {
+      const session = get().sessions.find((s) => s.id === sessionId)
+      const key = session ? sessionKey(session.aiTool, sessionId) : sessionId
       set((state) => {
-        const overrides = { ...state.sessionNameOverrides, [sessionId]: name }
-        // Persist to settings
+        const overrides = { ...state.sessionNameOverrides, [key]: name }
         window.dplex.settings.merge({ sessionNameOverrides: overrides })
         return {
           sessionNameOverrides: overrides,
@@ -126,21 +139,27 @@ export const useSessionStore = create<SessionState>((set, get) => {
       const unsubUpdated = window.dplex.sessions.onSessionUpdated((raw) => {
         const updated = mapDiscoveredToAISession(raw, get().sessionNameOverrides)
         set((state) => ({
-          sessions: state.sessions.map((s) => (s.id === updated.id ? updated : s))
+          sessions: state.sessions.map((s) =>
+            s.id === updated.id && s.aiTool === updated.aiTool ? updated : s
+          )
         }))
       })
 
       const unsubAdded = window.dplex.sessions.onSessionAdded((raw) => {
         const added = mapDiscoveredToAISession(raw, get().sessionNameOverrides)
         set((state) => {
-          if (state.sessions.some((s) => s.id === added.id)) return state
+          if (state.sessions.some((s) => s.id === added.id && s.aiTool === added.aiTool)) {
+            return state
+          }
           return { sessions: [added, ...state.sessions] }
         })
       })
 
-      const unsubRemoved = window.dplex.sessions.onSessionRemoved((sessionId) => {
+      const unsubRemoved = window.dplex.sessions.onSessionRemoved((sessionId, providerId) => {
         set((state) => ({
-          sessions: state.sessions.filter((s) => s.id !== sessionId)
+          sessions: state.sessions.filter((s) =>
+            !(s.id === sessionId && s.aiTool === providerId)
+          )
         }))
       })
 

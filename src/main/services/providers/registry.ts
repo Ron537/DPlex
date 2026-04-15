@@ -1,7 +1,6 @@
 import type {
   SessionProvider,
   DiscoveredSession,
-  ActiveProjectSession,
   ResolvedSession,
   ProviderInfo
 } from './types'
@@ -29,7 +28,8 @@ export class ProviderRegistry {
     return this.getAllProviders().map((p) => ({
       id: p.id,
       name: p.name,
-      command: p.command
+      command: p.command,
+      icon: p.icon
     }))
   }
 
@@ -49,16 +49,6 @@ export class ProviderRegistry {
     return results.sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
-  }
-
-  /** Aggregate active project sessions from all providers. */
-  async getActiveProjectSessions(projectPaths: string[]): Promise<ActiveProjectSession[]> {
-    const results: ActiveProjectSession[] = []
-    for (const provider of this.providers.values()) {
-      const sessions = await provider.getActiveProjectSessions(projectPaths)
-      results.push(...sessions)
-    }
-    return results
   }
 
   /** Close a session — tries the specified provider, or searches all. */

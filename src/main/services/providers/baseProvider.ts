@@ -4,7 +4,6 @@ import * as path from 'path'
 import type {
   SessionProvider,
   DiscoveredSession,
-  ActiveProjectSession,
   ResolvedSession,
   WatcherCallbacks,
   SessionPrompt,
@@ -31,7 +30,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
 
   private static readonly DEBOUNCE_MS = 300
   private static readonly STALE_CHECK_MS = 5000
-  private static readonly MAX_AGE_DAYS = 30
+  private static readonly MAX_AGE_DAYS = 7
 
   // ── Abstract methods — each provider implements these ────────────
 
@@ -90,52 +89,6 @@ export abstract class BaseSessionProvider implements SessionProvider {
     } catch {
       return []
     }
-  }
-
-  // ── Active Project Sessions ──────────────────────────────────────
-
-  async getActiveProjectSessions(projectPaths: string[]): Promise<ActiveProjectSession[]> {
-    const sessionDir = this.getSessionDir()
-    const results: ActiveProjectSession[] = []
-    if (!(await this.dirExists(sessionDir))) return results
-
-    const normalizedPaths = projectPaths.map((p) => p.replace(/\\/g, '/').replace(/\/+$/, ''))
-
-    try {
-      const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
-
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const fullPath = path.join(sessionDir, entry.name)
-
-        try {
-          const pid = await this.getActivePid(fullPath)
-          if (pid === null) continue
-
-          const session = await this.parseSessionDir(fullPath, entry.name)
-          if (!session?.cwd) continue
-
-          const normalizedCwd = session.cwd.replace(/\\/g, '/').replace(/\/+$/, '')
-          const matches = normalizedPaths.some(
-            (pp) => normalizedCwd === pp || normalizedCwd.startsWith(pp + '/')
-          )
-          if (!matches) continue
-
-          results.push({
-            id: entry.name,
-            displayName: session.displayName,
-            cwd: session.cwd,
-            aiTool: this.id
-          })
-        } catch {
-          // skip
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    return results
   }
 
   // ── Session Lifecycle ────────────────────────────────────────────

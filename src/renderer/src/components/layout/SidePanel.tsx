@@ -42,6 +42,9 @@ export function SidePanel(): React.JSX.Element | null {
   const [providerFilter, setProviderFilter] = useState('all')
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set(['all']))
   const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [projectSearchQuery, setProjectSearchQuery] = useState('')
+  const [projectActiveOnly, setProjectActiveOnly] = useState(false)
+  const [showProjectFilterMenu, setShowProjectFilterMenu] = useState(false)
   const resizing = useRef(false)
 
   // Compute available providers and counts
@@ -161,6 +164,65 @@ export function SidePanel(): React.JSX.Element | null {
           </button>
         </div>
         <div className="flex items-center gap-0.5">
+          {activeTab === 'projects' && (
+            <div className="relative">
+              <button
+                onClick={() => setShowProjectFilterMenu(!showProjectFilterMenu)}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+                style={{
+                  color: projectActiveOnly
+                    ? 'var(--dplex-accent)'
+                    : 'var(--dplex-text-muted)'
+                }}
+                title="Filter projects"
+              >
+                <SlidersHorizontal size={12} />
+              </button>
+
+              {showProjectFilterMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowProjectFilterMenu(false)}
+                  />
+                  <div
+                    className="absolute right-0 top-7 z-50 rounded shadow-xl py-1 min-w-[180px]"
+                    style={{
+                      backgroundColor: 'var(--dplex-bg)',
+                      border: '1px solid var(--dplex-border)'
+                    }}
+                  >
+                    <div
+                      className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
+                      style={{ color: 'var(--dplex-text-muted)' }}
+                    >
+                      Show
+                    </div>
+                    <button
+                      onClick={() => setProjectActiveOnly(false)}
+                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                      style={{ color: 'var(--dplex-text)' }}
+                    >
+                      All Projects
+                      {!projectActiveOnly && (
+                        <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setProjectActiveOnly(true)}
+                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                      style={{ color: 'var(--dplex-text)' }}
+                    >
+                      Active Only
+                      {projectActiveOnly && (
+                        <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {activeTab === 'sessions' && (
             <>
               {/* Filter button */}
@@ -315,37 +377,42 @@ export function SidePanel(): React.JSX.Element | null {
         </div>
       </div>
 
-      {/* Search — only for sessions tab */}
-      {activeTab === 'sessions' && (
-        <div className="px-2 py-2">
-          <div
-            className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors"
-            style={{
-              backgroundColor: 'var(--dplex-bg)',
-              border: '1px solid var(--dplex-border)'
-            }}
-          >
-            <Search
-              size={12}
-              style={{ color: 'var(--dplex-text-muted)' }}
-              className="flex-shrink-0"
-            />
-            <input
-              type="text"
-              placeholder="Search sessions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent text-xs placeholder-zinc-600 outline-none w-full"
-              style={{ color: 'var(--dplex-text)' }}
-            />
-          </div>
+      {/* Search */}
+      <div className="px-2 py-2">
+        <div
+          className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors"
+          style={{
+            backgroundColor: 'var(--dplex-bg)',
+            border: '1px solid var(--dplex-border)'
+          }}
+        >
+          <Search
+            size={12}
+            style={{ color: 'var(--dplex-text-muted)' }}
+            className="flex-shrink-0"
+          />
+          <input
+            type="text"
+            placeholder={activeTab === 'projects' ? 'Search projects...' : 'Search sessions...'}
+            value={activeTab === 'projects' ? projectSearchQuery : searchQuery}
+            onChange={(e) =>
+              activeTab === 'projects'
+                ? setProjectSearchQuery(e.target.value)
+                : setSearchQuery(e.target.value)
+            }
+            className="bg-transparent text-xs placeholder-zinc-600 outline-none w-full"
+            style={{ color: 'var(--dplex-text)' }}
+          />
         </div>
-      )}
+      </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'projects' ? (
-          <ProjectList />
+          <ProjectList
+            searchQuery={projectSearchQuery}
+            activeOnly={projectActiveOnly}
+          />
         ) : (
           <SessionList
             groupMode={groupMode}

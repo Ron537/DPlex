@@ -12,39 +12,23 @@ function folderName(folderPath: string): string {
   return parts[parts.length - 1] || folderPath
 }
 
-function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '')
-}
-
-export interface ActiveSession {
-  id: string
-  displayName: string
-  cwd: string
-  aiTool: string
-}
-
 interface ProjectState {
   projects: Project[]
   expandedProjectIds: Set<string>
-  activeSessions: ActiveSession[]
   loaded: boolean
 
   loadProjects: () => Promise<void>
-  addProject: () => Promise<void>
+  addProject: (path?: string) => Promise<void>
   removeProject: (id: string) => void
   reorderProject: (draggedId: string, targetId: string, position: 'above' | 'below') => void
   toggleExpanded: (id: string) => void
-  startAISession: (project: Project) => void
-  getActiveSessionsForProject: (projectPath: string) => ActiveSession[]
+  startAISession: (project: Project, providerId?: string) => void
   persistProjects: () => void
-  refreshActiveSessions: () => Promise<void>
-  startStatusPolling: () => () => void
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   expandedProjectIds: new Set(),
-  activeSessions: [],
   loaded: false,
 
   loadProjects: async () => {
@@ -59,23 +43,23 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   persistProjects: () => {
     const { projects } = get()
-    // Use atomic merge IPC to avoid read-modify-write race with settingsStore
     window.dplex.settings.merge({ projects })
   },
 
-  addProject: async () => {
-    const selectedPath = await window.dplex.app.selectFolder()
-    if (!selectedPath) return
+  addProject: async (selectedPath?: string) => {
+    const pathToAdd = selectedPath ?? (await window.dplex.app.selectFolder())
+    if (!pathToAdd) return
 
     const { projects } = get()
-    // Don't add duplicate paths
-    const normalized = normalizePath(selectedPath)
-    if (projects.some((p) => normalizePath(p.path) === normalized)) return
+    const normalized = pathToAdd.replace(/\\/g, '/').replace(/\/+$/, '')
+    if (projects.some((p) => p.path.replace(/\\/g, '/').replace(/\/+$/, '') === normalized)) {
+      return
+    }
 
     const project: Project = {
       id: generateId(),
-      name: folderName(selectedPath),
-      path: selectedPath,
+      name: folderName(pathToAdd),
+      path: pathToAdd,
       addedAt: new Date().toISOString()
     }
 
@@ -99,7 +83,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     const reordered = [...projects]
     const [moved] = reordered.splice(fromIndex, 1)
-    // After removing, recalculate insert index
     const insertIndex = reordered.findIndex((p) => p.id === targetId)
     reordered.splice(position === 'below' ? insertIndex + 1 : insertIndex, 0, moved)
     set({ projects: reordered })
@@ -118,15 +101,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
   },
 
-  startAISession: (project) => {
+  startAISession: (project, providerId?) => {
     const settings = useSettingsStore.getState().settings
-    const providerId = settings.defaultAITool
+    const pid = providerId ?? settings.defaultAITool
 
-    // Get command and display name synchronously from IPC cache
-    window.dplex.sessions.getNewSessionCommand(providerId).then((cmd) => {
+    window.dplex.sessions.getNewSessionCommand(pid).then((cmd) => {
       window.dplex.sessions.getProviders().then((providers) => {
-        const command = cmd || (providerId === 'copilot-cli' ? 'copilot' : providerId)
-        const providerName = providers?.find((p) => p.id === providerId)?.name ?? 'AI'
+        const command = cmd || (pid === 'copilot-cli' ? 'copilot' : pid)
+        const providerName = providers?.find((p) => p.id === pid)?.name ?? 'AI'
         const title = `${providerName} · ${folderName(project.path)}`
 
         useTerminalStore.getState().createTerminal(
@@ -138,37 +120,5 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         )
       })
     })
-  },
-
-  getActiveSessionsForProject: (projectPath) => {
-    const { activeSessions } = get()
-    const normProject = normalizePath(projectPath)
-    return activeSessions.filter((s) => {
-      const normCwd = normalizePath(s.cwd)
-      return normCwd === normProject || normCwd.startsWith(normProject + '/')
-    })
-  },
-
-  refreshActiveSessions: async () => {
-    const { projects } = get()
-    if (projects.length === 0) {
-      set({ activeSessions: [] })
-      return
-    }
-    try {
-      const paths = projects.map((p) => p.path)
-      const sessions = await window.dplex.sessions.checkStatuses(paths)
-      set({ activeSessions: sessions as unknown as ActiveSession[] })
-    } catch {
-      // ignore
-    }
-  },
-
-  startStatusPolling: () => {
-    get().refreshActiveSessions()
-    const interval = setInterval(() => {
-      get().refreshActiveSessions()
-    }, 5000)
-    return () => clearInterval(interval)
   }
 }))
