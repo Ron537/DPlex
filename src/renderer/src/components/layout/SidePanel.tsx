@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
+import { MOD } from '../../utils/shortcuts'
 import {
   Search,
   PanelLeftClose,
@@ -383,7 +389,7 @@ export function SidePanel(): React.JSX.Element | null {
             onClick={toggleSidebar}
             className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
             style={{ color: 'var(--dplex-text-muted)' }}
-            title="Hide sidebar (⌘B)"
+            title={`Hide sidebar (${MOD}B)`}
           >
             <PanelLeftClose size={12} />
           </button>

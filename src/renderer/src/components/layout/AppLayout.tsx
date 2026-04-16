@@ -8,6 +8,7 @@ import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
 import { useSessions } from '../../hooks/useSessions'
 import { getTheme } from '../../services/themes'
+import { MOD } from '../../utils/shortcuts'
 import type { TerminalTab, EditorGroup, LayoutNode } from '../../types'
 
 // Prune layout tree to only include groups that exist in the restored set
@@ -191,7 +192,7 @@ export function AppLayout(): React.JSX.Element {
                   <div>
                     <div className="text-sm font-semibold" style={{ color: 'var(--dplex-text-muted)' }}>DPlex</div>
                     <div className="text-xs mt-1" style={{ color: 'var(--dplex-text-muted)', opacity: 0.8 }}>
-                      Press ⌘T to open a new terminal
+                      Press {MOD}T to open a new terminal
                     </div>
                   </div>
                 </div>

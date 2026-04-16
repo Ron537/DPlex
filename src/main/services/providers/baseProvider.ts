@@ -30,7 +30,15 @@ export abstract class BaseSessionProvider implements SessionProvider {
 
   private static readonly DEBOUNCE_MS = 300
   private static readonly STALE_CHECK_MS = 5000
-  private static readonly MAX_AGE_DAYS = 7
+  private static readonly DEFAULT_MAX_AGE_DAYS = 7
+  private static maxAgeDays: number = BaseSessionProvider.DEFAULT_MAX_AGE_DAYS
+
+  /** Set the max age (in days) used by session discovery. Shared across all providers. */
+  static setMaxAgeDays(days: number): void {
+    if (Number.isFinite(days) && days >= 1) {
+      BaseSessionProvider.maxAgeDays = Math.min(365, Math.floor(days))
+    }
+  }
 
   // ── Abstract methods — each provider implements these ────────────
 
@@ -66,7 +74,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
     try {
       const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
       const sessions: DiscoveredSession[] = []
-      const cutoff = Date.now() - BaseSessionProvider.MAX_AGE_DAYS * 86400000
+      const cutoff = Date.now() - BaseSessionProvider.maxAgeDays * 86400000
 
       for (const entry of entries) {
         if (!entry.isDirectory()) continue
@@ -74,10 +82,18 @@ export abstract class BaseSessionProvider implements SessionProvider {
 
         try {
           const stat = await fsp.stat(fullPath)
+          // Fast-path skip: if dir mtime is older than cutoff, actual session
+          // activity is guaranteed to be older too.
           if (stat.mtimeMs < cutoff) continue
 
           const session = await this.parseSessionDir(fullPath, entry.name)
-          if (session) sessions.push(session)
+          if (!session) continue
+
+          // Filter by the session's reported updatedAt (events activity),
+          // which can be older than dir mtime (lock files touch the dir).
+          if (new Date(session.updatedAt).getTime() < cutoff) continue
+
+          sessions.push(session)
         } catch {
           // Skip unreadable sessions
         }

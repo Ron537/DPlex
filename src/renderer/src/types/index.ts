@@ -58,6 +58,7 @@ export interface AppSettings {
   sidebarWidth: number
   sidebarVisible: boolean
   sessionPollIntervalMs: number
+  sessionMaxAgeDays: number
 }
 
 export interface Project {

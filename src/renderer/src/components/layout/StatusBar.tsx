@@ -1,6 +1,7 @@
 import { Terminal, PanelLeftOpen, PanelLeftClose, Settings } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { MOD } from '../../utils/shortcuts'
 
 interface StatusBarProps {
   onOpenSettings: () => void
@@ -21,7 +22,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         <button
           onClick={toggleSidebar}
           className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-          title={sidebarVisible ? 'Hide sidebar (⌘B)' : 'Show sidebar (⌘B)'}
+          title={sidebarVisible ? `Hide sidebar (${MOD}B)` : `Show sidebar (${MOD}B)`}
         >
           {sidebarVisible ? <PanelLeftClose size={12} /> : <PanelLeftOpen size={12} />}
         </button>
@@ -37,7 +38,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         <button
           onClick={onOpenSettings}
           className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-          title="Settings (⌘,)"
+          title={`Settings (${MOD},)`}
         >
           <Settings size={12} />
         </button>

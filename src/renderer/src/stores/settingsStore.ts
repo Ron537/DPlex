@@ -58,7 +58,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: cachedTheme,
   sidebarWidth: 260,
   sidebarVisible: true,
-  sessionPollIntervalMs: 5000
+  sessionPollIntervalMs: 5000,
+  sessionMaxAgeDays: 7
 }
 
 interface SettingsState {

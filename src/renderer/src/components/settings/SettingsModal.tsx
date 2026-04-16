@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Settings, Palette, Terminal, Bot, Keyboard } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useSessionStore } from '../../stores/sessionStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
 import type { ShellInfo, AppSettings } from '../../types'
+import { MOD, SHIFT } from '../../utils/shortcuts'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -11,9 +13,6 @@ interface SettingsModalProps {
 }
 
 type SettingsTab = 'appearance' | 'terminal' | 'ai-tools' | 'shortcuts'
-
-const isMac = navigator.platform.toUpperCase().includes('MAC')
-const MOD = isMac ? '⌘' : 'Ctrl+'
 
 const SHORTCUTS: { category: string; items: { keys: string; description: string }[] }[] = [
   {
@@ -29,7 +28,7 @@ const SHORTCUTS: { category: string; items: { keys: string; description: string 
     category: 'Layout',
     items: [
       { keys: `${MOD}\\`, description: 'Split right' },
-      { keys: `${MOD}⇧\\`, description: 'Split down' }
+      { keys: `${MOD}${SHIFT}\\`, description: 'Split down' }
     ]
   },
   {
@@ -68,6 +67,7 @@ function SettingItem({ label, description, children }: {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JSX.Element | null {
   const settings = useSettingsStore((s) => s.settings)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
+  const refreshSessions = useSessionStore((s) => s.refreshSessions)
   const [shells, setShells] = useState<ShellInfo[]>([])
   const [providers, setProviders] = useState<{ id: string; name: string; command: string }[]>([])
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
@@ -110,7 +110,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
     useSettingsStore.setState((s) => ({ settings: { ...s.settings, ...partial } }))
     // Debounce the persist
     debounceRef.current = setTimeout(() => {
-      updateSettings(partial)
+      updateSettings(partial).then(() => {
+        if (partial.sessionMaxAgeDays !== undefined) {
+          refreshSessions()
+        }
+      })
     }, 400)
   }
 
@@ -268,6 +272,37 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
+                </SettingItem>
+
+                <SettingItem
+                  label="Session History Max Age"
+                  description={`Sessions older than this are hidden from the history panel. Currently ${settings.sessionMaxAgeDays} day${settings.sessionMaxAgeDays === 1 ? '' : 's'}.`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={1}
+                      max={90}
+                      value={settings.sessionMaxAgeDays}
+                      onChange={(e) => applyDebounced({ sessionMaxAgeDays: Number(e.target.value) })}
+                      className="flex-1 accent-blue-500"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={settings.sessionMaxAgeDays}
+                      onChange={(e) => {
+                        const n = Number(e.target.value)
+                        if (Number.isFinite(n) && n >= 1) {
+                          applyDebounced({ sessionMaxAgeDays: Math.min(365, Math.floor(n)) })
+                        }
+                      }}
+                      className="w-16 rounded px-2 py-1 text-xs outline-none"
+                      style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>days</span>
+                  </div>
                 </SettingItem>
               </>
             )}

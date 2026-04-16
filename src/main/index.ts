@@ -15,6 +15,7 @@ import {
   discoverAvailableShells
 } from './services/ptyManager'
 import { createDefaultRegistry } from './services/providers'
+import { BaseSessionProvider } from './services/providers/baseProvider'
 import { loadWorkspace, saveWorkspace, type PersistedWorkspace } from './services/sessionPersistence'
 import { handleSessionNotification, clearNotificationState, seedNotificationState } from './services/notifications'
 import { getBranch, watchBranch, unwatchBranch, stopAllBranchWatchers } from './services/gitService'
@@ -44,8 +45,20 @@ function saveSettings(data: Record<string, unknown>): void {
 
 function mergeSettings(patch: Record<string, unknown>): void {
   const current = loadSettings()
-  saveSettings({ ...current, ...patch })
+  const next = { ...current, ...patch }
+  saveSettings(next)
+  applySettingsToServices(next)
 }
+
+function applySettingsToServices(settings: Record<string, unknown>): void {
+  const maxAge = settings.sessionMaxAgeDays
+  if (typeof maxAge === 'number') {
+    BaseSessionProvider.setMaxAgeDays(maxAge)
+  }
+}
+
+// Apply persisted settings to backend services at startup
+applySettingsToServices(loadSettings())
 
 function createWindow(): void {
   // Read saved theme to set correct initial window background
@@ -236,6 +249,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle('settings:getAll', () => loadSettings())
   ipcMain.handle('settings:setAll', (_event, data: Record<string, unknown>) => {
     saveSettings(data)
+    applySettingsToServices(data)
   })
   ipcMain.handle('settings:merge', (_event, patch: Record<string, unknown>) => {
     mergeSettings(patch)
