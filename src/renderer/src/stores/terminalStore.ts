@@ -147,6 +147,26 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   closeTerminal: (terminalId) => {
     const state = get()
+
+    // If this tab is tied to an AI session, explicitly close the session on
+    // disk (kills PIDs in inuse.*.lock files via the provider's canonical
+    // path). Just killing the PTY sometimes leaves the Copilot process alive
+    // (SIGHUP may not propagate or may be caught), so the session keeps
+    // showing as active in history/project views until a manual close.
+    let tab: TerminalTab | undefined
+    for (const g of state.groups) {
+      const found = g.tabs.find((t) => t.id === terminalId)
+      if (found) {
+        tab = found
+        break
+      }
+    }
+    if (tab?.sessionId && tab.providerId) {
+      void window.dplex.sessions.close(tab.sessionId, tab.providerId).catch(() => {
+        // ignore — provider may fail if the session is already gone
+      })
+    }
+
     destroyTerminal(terminalId)
 
     const updatedGroups = state.groups.map((g) => {
