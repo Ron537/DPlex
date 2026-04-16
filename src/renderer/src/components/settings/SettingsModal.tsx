@@ -125,7 +125,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-white/10 rounded transition-colors"
+            className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
             style={{ color: 'var(--dplex-text-muted)' }}
           >
             <X size={14} />

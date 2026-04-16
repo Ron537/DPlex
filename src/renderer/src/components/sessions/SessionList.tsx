@@ -243,7 +243,7 @@ function CollapsibleGroup({
     <div>
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-1 w-full px-2 py-1 mt-1 text-[10px] font-medium uppercase tracking-wider hover:bg-white/5 transition-colors"
+        className="flex items-center gap-1 w-full px-2 py-1 mt-1 text-[10px] font-medium uppercase tracking-wider hover:bg-[var(--dplex-hover)] transition-colors"
         style={{
           color: accent ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
         }}

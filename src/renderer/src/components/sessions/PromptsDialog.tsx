@@ -116,7 +116,7 @@ export function PromptsDialog({
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-white/10 rounded"
+            className="p-1 hover:bg-[var(--dplex-hover)] rounded"
             style={{ color: 'var(--dplex-text-muted)' }}
           >
             <X size={14} />

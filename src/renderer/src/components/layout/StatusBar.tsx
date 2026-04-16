@@ -20,7 +20,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
       <div className="flex items-center gap-2">
         <button
           onClick={toggleSidebar}
-          className="p-0.5 hover:text-white hover:bg-white/10 rounded transition-colors"
+          className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
           title={sidebarVisible ? 'Hide sidebar (⌘B)' : 'Show sidebar (⌘B)'}
         >
           {sidebarVisible ? <PanelLeftClose size={12} /> : <PanelLeftOpen size={12} />}
@@ -36,7 +36,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         <span>{totalTerminals} terminal{totalTerminals !== 1 ? 's' : ''} · {groups.length} group{groups.length !== 1 ? 's' : ''}</span>
         <button
           onClick={onOpenSettings}
-          className="p-0.5 hover:text-white hover:bg-white/10 rounded transition-colors"
+          className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
           title="Settings (⌘,)"
         >
           <Settings size={12} />

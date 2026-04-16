@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { persistWorkspaceNow } from '../../stores/terminalStore'
-import { useSettingsStore } from '../../stores/settingsStore'
+import { useSettingsStore, applyCssVarsSync } from '../../stores/settingsStore'
 import { SidePanel } from './SidePanel'
 import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
@@ -90,19 +90,9 @@ export function AppLayout(): React.JSX.Element {
 
   const theme = getTheme(themeId)
 
-  // Apply theme CSS variables
+  // Apply theme CSS variables (including status colors)
   useEffect(() => {
-    const root = document.documentElement
-    root.style.setProperty('--dplex-bg', theme.ui.bg)
-    root.style.setProperty('--dplex-bg-alt', theme.ui.bgAlt)
-    root.style.setProperty('--dplex-border', theme.ui.border)
-    root.style.setProperty('--dplex-text', theme.ui.text)
-    root.style.setProperty('--dplex-text-muted', theme.ui.textMuted)
-    root.style.setProperty('--dplex-accent', theme.ui.accent)
-    root.style.setProperty('--dplex-hover', theme.ui.hover || 'rgba(255,255,255,0.1)')
-    root.style.setProperty('--dplex-scrollbar', theme.ui.scrollbar || 'rgba(255,255,255,0.15)')
-    root.style.setProperty('--dplex-scrollbar-hover', theme.ui.scrollbarHover || 'rgba(255,255,255,0.25)')
-    document.body.style.backgroundColor = theme.ui.bg
+    applyCssVarsSync(themeId)
   }, [themeId])
 
   useSessions()

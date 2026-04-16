@@ -69,7 +69,7 @@ export function ShellSelector({ onSelect }: ShellSelectorProps): React.JSX.Eleme
       <button
         ref={buttonRef}
         onClick={handleClick}
-        className="flex items-center justify-center w-5 h-8 hover:bg-white/10 transition-colors flex-shrink-0"
+        className="flex items-center justify-center w-5 h-8 hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
         style={{ color: 'var(--dplex-text-muted)' }}
         title="Select shell type"
       >
@@ -85,7 +85,7 @@ export function ShellSelector({ onSelect }: ShellSelectorProps): React.JSX.Eleme
                 setOpen(false)
                 onSelect(shell.path)
               }}
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors flex items-center justify-between gap-4"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)] transition-colors flex items-center justify-between gap-4"
               style={{ color: 'var(--dplex-text)' }}
             >
               <span className="font-medium">{shell.name}</span>

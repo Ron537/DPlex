@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTerminalStore } from '../stores/terminalStore'
-import type { AISession, SessionStatus, TerminalTab } from '../types'
+import type { AISession, TerminalTab } from '../types'
 
 /**
  * Normalize a path for comparison: resolve separators, trim trailing slashes.
@@ -35,8 +35,6 @@ export interface ProjectActivity {
   activeCount: number
   /** Whether any session or tab is actively running. */
   hasActive: boolean
-  /** Most recent detailed status across all matched sessions. */
-  latestStatus: SessionStatus | undefined
   /** Most recent activity timestamp (uses lastActivityTime, falls back to updatedAt). */
   lastActivity: Date | undefined
 }
@@ -84,15 +82,7 @@ export function computeProjectActivity(
   const activeCount = activeSessions.length
   const hasActive = activeCount > 0
 
-  // 5. Latest status from most recently active session
-  const latestActive = activeSessions.sort((a, b) => {
-    const aTime = a.lastActivityTime ?? a.updatedAt.getTime()
-    const bTime = b.lastActivityTime ?? b.updatedAt.getTime()
-    return bTime - aTime
-  })[0]
-  const latestStatus = latestActive?.detailedStatus
-
-  // 6. Most recent activity across all matched sessions
+  // 5. Most recent activity across all matched sessions
   const lastActivity = matchedSessions.reduce<Date | undefined>((latest, s) => {
     const time = s.lastActivityTime ? new Date(s.lastActivityTime) : s.updatedAt
     return !latest || time > latest ? time : latest
@@ -103,7 +93,6 @@ export function computeProjectActivity(
     openTabs: matchedTabs,
     activeCount,
     hasActive,
-    latestStatus,
     lastActivity
   }
 }
@@ -170,13 +159,6 @@ export function buildProjectSessionIndex(
     const activeCount = activeSessions.length
     const hasActive = activeCount > 0
 
-    const sortedActive = [...activeSessions].sort((a, b) => {
-      const aTime = a.lastActivityTime ?? a.updatedAt.getTime()
-      const bTime = b.lastActivityTime ?? b.updatedAt.getTime()
-      return bTime - aTime
-    })
-    const latestStatus = sortedActive[0]?.detailedStatus
-
     const lastActivity = matchedSessions.reduce<Date | undefined>((latest, s) => {
       const time = s.lastActivityTime ? new Date(s.lastActivityTime) : s.updatedAt
       return !latest || time > latest ? time : latest
@@ -187,7 +169,6 @@ export function buildProjectSessionIndex(
       openTabs: matchedTabs,
       activeCount,
       hasActive,
-      latestStatus,
       lastActivity
     })
   }

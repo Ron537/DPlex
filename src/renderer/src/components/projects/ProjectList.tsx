@@ -17,7 +17,6 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
   const projects = useProjectStore((s) => s.projects)
   const loaded = useProjectStore((s) => s.loaded)
   const loadProjects = useProjectStore((s) => s.loadProjects)
-  const addProject = useProjectStore((s) => s.addProject)
   const reorderProject = useProjectStore((s) => s.reorderProject)
   const sessions = useSessionStore((s) => s.sessions)
   const groups = useTerminalStore((s) => s.groups)
@@ -69,36 +68,26 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
 
   const { handlers, isDragging, dragOverPosition } = useReorderable(handleReorder)
 
-  const handleAddProject = useCallback(() => {
-    addProject()
-  }, [addProject])
-
   return (
     <div
-      className="flex flex-col gap-0.5 min-h-full"
+      className="flex flex-col min-h-full pt-1"
       onDragOver={(e) => handlers.onContainerDragOver(e, filteredProjects)}
       onDrop={(e) => handlers.onContainerDrop(e)}
     >
-      {/* Add Project button */}
-      <button
-        onClick={handleAddProject}
-        className="flex items-center gap-2 mx-2 mb-1 px-2 py-1.5 rounded text-[11px] hover:bg-white/5 transition-colors"
-        style={{ color: 'var(--dplex-text-muted)', border: '1px dashed var(--dplex-border)' }}
-      >
-        <FolderPlus size={13} />
-        Add Project
-      </button>
-
       {filteredProjects.length === 0 && (
-        <div className="px-3 py-6 text-xs text-center" style={{ color: 'var(--dplex-text-muted)' }}>
+        <div className="px-4 py-8 text-center" style={{ color: 'var(--dplex-text-muted)' }}>
           {projects.length === 0 ? (
-            <>
-              No projects yet.
-              <br />
-              <span className="text-[10px]">Add a folder to get started.</span>
-            </>
+            <div className="flex flex-col items-center gap-2">
+              <FolderPlus size={20} style={{ opacity: 0.4 }} />
+              <div>
+                <div className="text-xs">No projects yet</div>
+                <div className="text-[10px] mt-0.5" style={{ opacity: 0.7 }}>
+                  Click + to add a folder
+                </div>
+              </div>
+            </div>
           ) : (
-            'No matching projects.'
+            <span className="text-xs">No matching projects.</span>
           )}
         </div>
       )}
@@ -112,7 +101,6 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
             openTabs: [],
             activeCount: 0,
             hasActive: false,
-            latestStatus: undefined,
             lastActivity: undefined
           }}
           providers={providers}

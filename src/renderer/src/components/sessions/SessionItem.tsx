@@ -21,17 +21,21 @@ interface SessionItemProps {
   session: AISession
   onDelete: (sessionId: string) => void
   onShowPrompts?: (session: AISession) => void
+  /** 'compact' hides CWD and "Pin as Project" — used inside project view */
+  compact?: boolean
+  /** Override the default click handler (resume/focus). Used to focus a specific tab. */
+  onClick?: () => void
 }
 
 const STATUS_CONFIG: Record<
   SessionStatus,
   { color: string; label: string; pulse: boolean }
 > = {
-  idle: { color: '#a6adc8', label: 'Idle', pulse: false },
-  thinking: { color: '#89b4fa', label: 'Thinking', pulse: true },
-  executingTool: { color: '#f9e2af', label: 'Running tool', pulse: true },
-  awaitingApproval: { color: '#f38ba8', label: 'Needs approval', pulse: true },
-  waitingForUser: { color: '#a6e3a1', label: 'Waiting for input', pulse: true }
+  idle: { color: 'var(--dplex-status-idle)', label: 'Idle', pulse: false },
+  thinking: { color: 'var(--dplex-status-thinking)', label: 'Thinking', pulse: true },
+  executingTool: { color: 'var(--dplex-status-executing)', label: 'Running tool', pulse: true },
+  awaitingApproval: { color: 'var(--dplex-status-approval)', label: 'Needs approval', pulse: true },
+  waitingForUser: { color: 'var(--dplex-status-waiting)', label: 'Waiting for input', pulse: true }
 }
 
 /** Find an open tab matching this session and focus it. Checks sessionId first, then command. */
@@ -72,7 +76,7 @@ function folderName(p?: string): string {
   return parts[parts.length - 1] || p
 }
 
-export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemProps): React.JSX.Element {
+export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick }: SessionItemProps): React.JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeSession = useSessionStore((s) => s.closeSession)
   const [showMenu, setShowMenu] = useState(false)
@@ -104,8 +108,8 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
 
   return (
     <div
-      className="group flex items-start gap-2 px-3 py-2 hover:bg-white/5 cursor-pointer rounded-sm mx-1 relative"
-      onClick={handleResume}
+      className="group flex items-start gap-2 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-sm mx-1 relative"
+      onClick={onClick ?? handleResume}
       onContextMenu={(e) => {
         e.preventDefault()
         setShowMenu(!showMenu)
@@ -133,14 +137,17 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
             {session.displayName}
           </span>
           {isOpen && (
-            <span className="text-[8px] font-bold px-1 rounded bg-blue-500/20 text-blue-400 flex-shrink-0">
+            <span
+              className="text-[8px] font-bold px-1 rounded flex-shrink-0"
+              style={{ color: 'var(--dplex-accent)', backgroundColor: 'color-mix(in srgb, var(--dplex-accent) 15%, transparent)' }}
+            >
               OPEN
             </span>
           )}
         </div>
 
         {/* Row 2: CWD subtitle */}
-        {session.cwd && (
+        {!compact && session.cwd && (
           <div
             className="text-[10px] truncate mt-0.5"
             style={{ color: 'var(--dplex-text-muted)' }}
@@ -219,7 +226,7 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
           e.stopPropagation()
           setShowMenu(!showMenu)
         }}
-        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded transition-opacity flex-shrink-0 mt-0.5"
+        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-opacity flex-shrink-0 mt-0.5"
       >
         <MoreVertical size={12} style={{ color: 'var(--dplex-text-muted)' }} />
       </button>
@@ -240,7 +247,7 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
                 e.stopPropagation()
                 handleResume()
               }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
               style={{ color: 'var(--dplex-text)' }}
             >
               <Play size={11} /> Resume
@@ -251,7 +258,7 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
                 onShowPrompts?.(session)
                 setShowMenu(false)
               }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
               style={{ color: 'var(--dplex-text)' }}
             >
               <MessagesSquare size={11} /> Show Prompts
@@ -263,7 +270,7 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
                   closeSession(session.id)
                   setShowMenu(false)
                 }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                 style={{ color: 'var(--dplex-text)' }}
               >
                 <Square size={11} /> Close
@@ -276,7 +283,7 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
                   e.stopPropagation()
                   handleCopyCwd()
                 }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                 style={{ color: 'var(--dplex-text)' }}
               >
                 <FolderOpen size={11} /> Copy Path
@@ -289,7 +296,7 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
                   navigator.clipboard.writeText(session.branch!)
                   setShowMenu(false)
                 }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                 style={{ color: 'var(--dplex-text)' }}
               >
                 <GitBranch size={11} /> Copy Branch
@@ -300,19 +307,19 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
                 e.stopPropagation()
                 handleCopyId()
               }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
               style={{ color: 'var(--dplex-text)' }}
             >
               <Copy size={11} /> Copy Session ID
             </button>
-            {session.cwd && (
+            {!compact && session.cwd && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   useProjectStore.getState().addProject(session.cwd)
                   setShowMenu(false)
                 }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                 style={{ color: 'var(--dplex-text)' }}
               >
                 <FolderPlus size={11} /> Pin as Project
@@ -325,7 +332,7 @@ export function SessionItem({ session, onDelete, onShowPrompts }: SessionItemPro
                 onDelete(session.id)
                 setShowMenu(false)
               }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-white/10"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-[var(--dplex-hover)]"
             >
               <Trash2 size={11} /> Delete
             </button>

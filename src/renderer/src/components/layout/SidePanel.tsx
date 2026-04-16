@@ -6,10 +6,12 @@ import {
   FolderKanban,
   History,
   SlidersHorizontal,
-  Check
+  Check,
+  Plus
 } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useProjectStore } from '../../stores/projectStore'
 import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
 
@@ -37,6 +39,7 @@ export function SidePanel(): React.JSX.Element | null {
   const sidebarWidth = useSettingsStore((s) => s.settings.sidebarWidth)
   const setSidebarWidth = useSettingsStore((s) => s.setSidebarWidth)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
+  const addProject = useProjectStore((s) => s.addProject)
   const [activeTab, setActiveTab] = useState<SidebarTab>('projects')
   const [groupMode, setGroupMode] = useState<SessionGroupMode>('time')
   const [providerFilter, setProviderFilter] = useState('all')
@@ -165,10 +168,19 @@ export function SidePanel(): React.JSX.Element | null {
         </div>
         <div className="flex items-center gap-0.5">
           {activeTab === 'projects' && (
-            <div className="relative">
+            <>
+              <button
+                onClick={() => addProject()}
+                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+                style={{ color: 'var(--dplex-text-muted)' }}
+                title="Add project"
+              >
+                <Plus size={13} />
+              </button>
+              <div className="relative">
               <button
                 onClick={() => setShowProjectFilterMenu(!showProjectFilterMenu)}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
+                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
                 style={{
                   color: projectActiveOnly
                     ? 'var(--dplex-accent)'
@@ -200,7 +212,7 @@ export function SidePanel(): React.JSX.Element | null {
                     </div>
                     <button
                       onClick={() => setProjectActiveOnly(false)}
-                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                       style={{ color: 'var(--dplex-text)' }}
                     >
                       All Projects
@@ -210,7 +222,7 @@ export function SidePanel(): React.JSX.Element | null {
                     </button>
                     <button
                       onClick={() => setProjectActiveOnly(true)}
-                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                       style={{ color: 'var(--dplex-text)' }}
                     >
                       Active Only
@@ -222,6 +234,7 @@ export function SidePanel(): React.JSX.Element | null {
                 </>
               )}
             </div>
+            </>
           )}
           {activeTab === 'sessions' && (
             <>
@@ -229,7 +242,7 @@ export function SidePanel(): React.JSX.Element | null {
               <div className="relative">
                 <button
                   onClick={() => setShowFilterMenu(!showFilterMenu)}
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
+                  className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
                   style={{
                     color: hasActiveFilters
                       ? 'var(--dplex-accent)'
@@ -263,7 +276,7 @@ export function SidePanel(): React.JSX.Element | null {
                       </div>
                       <button
                         onClick={() => setGroupMode('time')}
-                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                         style={{ color: 'var(--dplex-text)' }}
                       >
                         Time
@@ -273,7 +286,7 @@ export function SidePanel(): React.JSX.Element | null {
                       </button>
                       <button
                         onClick={() => setGroupMode('workspace')}
-                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                         style={{ color: 'var(--dplex-text)' }}
                       >
                         Workspace
@@ -298,7 +311,7 @@ export function SidePanel(): React.JSX.Element | null {
                         <button
                           key={opt.id}
                           onClick={() => toggleStatusFilter(opt.id)}
-                          className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                          className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                           style={{ color: 'var(--dplex-text)' }}
                         >
                           {opt.label}
@@ -330,7 +343,7 @@ export function SidePanel(): React.JSX.Element | null {
                             <button
                               key={opt.id}
                               onClick={() => setProviderFilter(opt.id)}
-                              className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-white/10"
+                              className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
                               style={{ color: 'var(--dplex-text)' }}
                             >
                               {opt.label}{' '}
@@ -355,7 +368,7 @@ export function SidePanel(): React.JSX.Element | null {
               <button
                 onClick={() => refreshSessions()}
                 disabled={loading}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
+                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
                 style={{ color: 'var(--dplex-text-muted)' }}
                 title="Refresh sessions"
               >
@@ -368,7 +381,7 @@ export function SidePanel(): React.JSX.Element | null {
           )}
           <button
             onClick={toggleSidebar}
-            className="p-1 hover:bg-white/10 rounded transition-colors"
+            className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
             style={{ color: 'var(--dplex-text-muted)' }}
             title="Hide sidebar (⌘B)"
           >

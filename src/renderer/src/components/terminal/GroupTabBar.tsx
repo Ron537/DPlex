@@ -137,7 +137,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 e.stopPropagation()
                 closeTerminal(tab.id)
               }}
-              className="opacity-0 group-hover:opacity-100 hover:bg-white/10 rounded p-0.5 transition-opacity ml-0.5"
+              className="opacity-0 group-hover:opacity-100 hover:bg-[var(--dplex-hover)] rounded p-0.5 transition-opacity ml-0.5"
             >
               <X size={9} />
             </button>
@@ -149,7 +149,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
             setActiveGroup(group.id)
             createTerminal(group.id)
           }}
-          className="flex items-center justify-center w-7 h-8 hover:bg-white/10 transition-colors flex-shrink-0"
+          className="flex items-center justify-center w-7 h-8 hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
           style={{ color: 'var(--dplex-text-muted)' }}
           title="New terminal (default shell)"
         >
@@ -167,7 +167,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
       <div className="flex items-center gap-0.5 px-1 flex-shrink-0">
         <button
           onClick={() => splitGroup(group.id, 'horizontal')}
-          className="p-0.5 hover:bg-white/10 rounded transition-colors"
+          className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
           style={{ color: 'var(--dplex-text-muted)' }}
           title="Split right"
         >
@@ -175,7 +175,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
         </button>
         <button
           onClick={() => splitGroup(group.id, 'vertical')}
-          className="p-0.5 hover:bg-white/10 rounded transition-colors"
+          className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
           style={{ color: 'var(--dplex-text-muted)' }}
           title="Split down"
         >
