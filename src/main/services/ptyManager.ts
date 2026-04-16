@@ -45,6 +45,40 @@ function getShellArgs(shellPath: string): string[] {
   return []
 }
 
+// Build args for launching `command` via the given shell. Per-shell/OS syntax.
+// Unix POSIX shells are replaced via `exec` so there's no shell to fall back to.
+function getCommandShellArgs(shellPath: string, command: string): string[] {
+  const base = (shellPath.split(/[\\/]/).pop() || '').replace(/\.exe$/i, '').toLowerCase()
+
+  // POSIX shells — login shell + exec replacement
+  if (base === 'zsh' || base === 'bash' || base === 'sh' || base === 'fish') {
+    return ['-l', '-c', `exec ${command}`]
+  }
+
+  // PowerShell — no login flag, pass command string
+  if (base === 'powershell' || base === 'pwsh') {
+    return ['-NoLogo', '-NoProfile', '-Command', command]
+  }
+
+  // cmd.exe — /c runs and exits
+  if (base === 'cmd') {
+    return ['/c', command]
+  }
+
+  // WSL — run the command through the default distribution
+  if (base === 'wsl') {
+    return ['--', 'bash', '-lc', `exec ${command}`]
+  }
+
+  // Unknown shell — best-effort POSIX style (works for most Unix shells)
+  if (process.platform !== 'win32') {
+    return ['-l', '-c', `exec ${command}`]
+  }
+
+  // Unknown Windows shell — fall back to cmd-style
+  return ['/c', command]
+}
+
 export function discoverAvailableShells(): ShellInfo[] {
   const seen = new Set<string>()
   const shells: ShellInfo[] = []
@@ -148,7 +182,7 @@ export function createPty(
   // When a command is provided, exec it through the login shell so PATH is set up
   // but the shell process is replaced — no shell to fall back to on Ctrl+C
   const shellArgs = command
-    ? ['-l', '-c', `exec ${command}`]
+    ? getCommandShellArgs(shellPath, command)
     : getShellArgs(shellPath)
 
   const ptyProcess = pty.spawn(shellPath, shellArgs, {

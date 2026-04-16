@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 import * as fsp from 'fs/promises'
 import * as path from 'path'
+import { spawn } from 'child_process'
 import type {
   SessionProvider,
   DiscoveredSession,
@@ -9,6 +10,44 @@ import type {
   SessionPrompt,
   ParsedSessionData
 } from './types'
+
+// Filesystems on macOS and Windows are case-insensitive by default; Linux is case-sensitive.
+const FS_CASE_SENSITIVE = process.platform !== 'darwin' && process.platform !== 'win32'
+
+/** Normalize a path for equality comparison, honoring filesystem case sensitivity. */
+function normalizePathForCompare(p: string): string {
+  const unified = p.replace(/\\/g, '/').replace(/\/+$/, '')
+  return FS_CASE_SENSITIVE ? unified : unified.toLowerCase()
+}
+
+/**
+ * Terminate a process by PID. On Windows, uses `taskkill /T /F` to also terminate
+ * child processes (child Node processes typically spawn AI tool subprocesses).
+ * Returns true if the kill request was issued successfully.
+ */
+function killProcess(pid: number): boolean {
+  if (process.platform === 'win32') {
+    try {
+      // /T kills the process tree, /F forces termination
+      const result = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
+        windowsHide: true,
+        stdio: 'ignore'
+      })
+      result.on('error', () => {
+        // Ignore — process may already be gone
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+  try {
+    process.kill(pid, 'SIGTERM')
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * Abstract base class for AI session providers.
@@ -124,12 +163,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
         if (!match) continue
         const pid = parseInt(match[1], 10)
         if (isNaN(pid) || pid <= 0) continue
-        try {
-          process.kill(pid, 'SIGTERM')
-          killed = true
-        } catch {
-          // Process already gone
-        }
+        if (killProcess(pid)) killed = true
       }
       return killed
     } catch {
@@ -193,7 +227,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
 
   async resolveSessionByCwd(cwd: string): Promise<ResolvedSession | null> {
     const sessionDir = this.getSessionDir()
-    const normalizedCwd = cwd.replace(/\\/g, '/').replace(/\/+$/, '')
+    const normalizedCwd = normalizePathForCompare(cwd)
     if (!(await this.dirExists(sessionDir))) return null
 
     let bestMatch: { id: string; mtime: number; session: DiscoveredSession } | null = null
@@ -211,7 +245,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
           const session = await this.parseSessionDir(fullPath, entry.name)
           if (!session?.cwd) continue
 
-          const sessionCwd = session.cwd.replace(/\\/g, '/').replace(/\/+$/, '')
+          const sessionCwd = normalizePathForCompare(session.cwd)
           if (sessionCwd !== normalizedCwd) continue
 
           const stat = await fsp.stat(fullPath)
