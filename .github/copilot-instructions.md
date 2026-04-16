@@ -62,7 +62,7 @@ AI session tabs are serialized to `sessions.json` in the Electron userData direc
 - **Icons**: `lucide-react` exclusively.
 - **No `async` in Zustand actions that callers expect to be synchronous** — use `.then()` internally if you need async IPC, otherwise click handlers and Zustand subscriptions may silently swallow errors.
 - **Session active detection**: Check for `inuse.<PID>.lock` files, then verify PID is alive via `process.kill(pid, 0)`. This is provider-specific logic inside each provider class.
-- **Do not push to git without explicit user approval.**
+- **Do not commit or push to git without explicit user approval.** Always wait for the user to confirm before running `git commit` or `git push`.
 - **Status colors**: Use CSS custom properties (`var(--dplex-status-*)`) defined in `settingsStore.ts` via `applyCssVarsSync()`. Never hardcode status colors — they adapt for light/dark theme contrast. Use `STATUS_ACTIVE_COLOR` and `STATUS_ACTIVE_BG` from `utils/statusColors.ts` for active badges.
 - **Hover backgrounds**: Always use `hover:bg-[var(--dplex-hover)]` — never `hover:bg-white/5` or `hover:bg-white/10` which are invisible on light themes.
 
