@@ -279,6 +279,35 @@ export const THEMES: Record<string, AppTheme> = {
       brightWhite: '#ffffff'
     },
     ui: { bg: '#f5f5f5', bgAlt: '#e8e8e8', border: '#d1d1d1', text: '#333333', textMuted: '#777777', accent: '#325cc0', hover: 'rgba(0,0,0,0.06)', scrollbar: 'rgba(0,0,0,0.15)', scrollbarHover: 'rgba(0,0,0,0.25)' }
+  },
+  'dplex': {
+    id: 'dplex',
+    name: 'DPlex',
+    variant: 'dark',
+    terminal: {
+      background: '#131313',
+      foreground: '#d4d4d4',
+      cursor: '#a78bfa',
+      cursorAccent: '#131313',
+      selectionBackground: '#3b3560',
+      black: '#131313',
+      red: '#f87171',
+      green: '#4ade80',
+      yellow: '#facc15',
+      blue: '#818cf8',
+      magenta: '#c084fc',
+      cyan: '#67e8f9',
+      white: '#d4d4d4',
+      brightBlack: '#555555',
+      brightRed: '#fca5a5',
+      brightGreen: '#86efac',
+      brightYellow: '#fde68a',
+      brightBlue: '#a5b4fc',
+      brightMagenta: '#d8b4fe',
+      brightCyan: '#a5f3fc',
+      brightWhite: '#ffffff'
+    },
+    ui: { bg: '#131313', bgAlt: '#0a0a0a', border: '#2a2a2a', text: '#d4d4d4', textMuted: '#666666', accent: '#8b5cf6' }
   }
 }
 

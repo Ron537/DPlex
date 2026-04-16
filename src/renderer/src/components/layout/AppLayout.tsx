@@ -154,11 +154,24 @@ export function AppLayout(): React.JSX.Element {
             {groups.length > 0 ? (
               <GroupLayout node={layout} />
             ) : (
-              <div className="flex items-center justify-center h-full text-zinc-500">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">⬡</div>
-                  <div className="text-sm font-medium">DPlex</div>
-                  <div className="text-xs mt-1 text-zinc-600">Press ⌘T to open a new terminal</div>
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center flex flex-col items-center gap-4">
+                  {/* DPlex logo */}
+                  <svg viewBox="0 0 512 512" width="72" height="72" style={{ opacity: 0.6 }}>
+                    <rect x="66" y="86" width="105" height="340" rx="14" fill="var(--dplex-text-muted)" opacity="0.4"/>
+                    <rect x="193" y="86" width="253" height="340" rx="14" fill="var(--dplex-text-muted)" opacity="0.25"/>
+                    <rect x="181" y="96" width="2" height="320" rx="1" fill="var(--dplex-text-muted)" opacity="0.3"/>
+                    <path d="M220,175 L248,196 L220,217" stroke="var(--dplex-accent)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    <rect x="262" y="188" width="90" height="8" rx="4" fill="var(--dplex-text-muted)" opacity="0.5"/>
+                    <path d="M220,325 L248,346 L220,367" stroke="var(--dplex-accent)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.6"/>
+                    <rect x="262" y="338" width="60" height="8" rx="4" fill="var(--dplex-text-muted)" opacity="0.35"/>
+                  </svg>
+                  <div>
+                    <div className="text-sm font-semibold" style={{ color: 'var(--dplex-text-muted)' }}>DPlex</div>
+                    <div className="text-xs mt-1" style={{ color: 'var(--dplex-text-muted)', opacity: 0.8 }}>
+                      Press ⌘T to open a new terminal
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

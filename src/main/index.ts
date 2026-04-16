@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as fs from 'fs'
@@ -75,7 +75,7 @@ function createWindow(): void {
     trafficLightPosition: { x: 12, y: 14 },
     autoHideMenuBar: true,
     backgroundColor: windowBg,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -324,6 +324,11 @@ if (!gotLock) {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.dplex')
+
+  // Set dock icon on macOS (dev mode shows Electron's default otherwise)
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(nativeImage.createFromPath(icon))
+  }
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
