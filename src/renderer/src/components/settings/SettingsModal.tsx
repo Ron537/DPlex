@@ -440,6 +440,48 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                 </SettingItem>
 
                 <SettingItem
+                  label="Notification cooldown"
+                  description={`Minimum time between notifications for the same session. Currently ${settings.notificationCooldownSeconds} second${settings.notificationCooldownSeconds === 1 ? '' : 's'}. Set to 0 to disable.`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={300}
+                      step={5}
+                      value={settings.notificationCooldownSeconds}
+                      onChange={(e) =>
+                        applyDebounced({ notificationCooldownSeconds: Number(e.target.value) })
+                      }
+                      className="flex-1 accent-blue-500"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={3600}
+                      value={settings.notificationCooldownSeconds}
+                      onChange={(e) => {
+                        const n = Number(e.target.value)
+                        if (Number.isFinite(n) && n >= 0) {
+                          applyDebounced({
+                            notificationCooldownSeconds: Math.min(3600, Math.floor(n))
+                          })
+                        }
+                      }}
+                      className="w-16 rounded px-2 py-1 text-xs outline-none"
+                      style={{
+                        backgroundColor: 'var(--dplex-bg-alt)',
+                        border: '1px solid var(--dplex-border)',
+                        color: 'var(--dplex-text)'
+                      }}
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                      sec
+                    </span>
+                  </div>
+                </SettingItem>
+
+                <SettingItem
                   label="Idle escalation"
                   description={`Re-notify when a waiting session goes unanswered for this long. Currently ${settings.idleTooLongMinutes} minute${settings.idleTooLongMinutes === 1 ? '' : 's'}.`}
                 >

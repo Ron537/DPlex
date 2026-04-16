@@ -69,6 +69,7 @@ export interface AppSettings {
   notificationSound: boolean
   dndFrom: string | null // "HH:MM" or null
   dndTo: string | null
+  notificationCooldownSeconds: number
   idleTooLongMinutes: number
 }
 

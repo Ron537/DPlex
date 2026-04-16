@@ -68,6 +68,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   notificationSound: false,
   dndFrom: null,
   dndTo: null,
+  notificationCooldownSeconds: 30,
   idleTooLongMinutes: 5
 }
 

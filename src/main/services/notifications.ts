@@ -12,7 +12,6 @@ import iconAsset from '../../../resources/icon.png?asset'
  * the settings pipeline.
  */
 
-const COOLDOWN_MS = 30_000
 const lastNotificationTime = new Map<string, number>()
 
 let cachedIcon: NativeImage | null = null
@@ -36,6 +35,7 @@ interface NotificationSettings {
   sound: boolean
   dndFrom: string | null // "HH:MM"
   dndTo: string | null
+  cooldownSeconds: number
 }
 
 let settings: NotificationSettings = {
@@ -46,7 +46,8 @@ let settings: NotificationSettings = {
   onlyWhenUnfocused: true,
   sound: false,
   dndFrom: null,
-  dndTo: null
+  dndTo: null,
+  cooldownSeconds: 30
 }
 
 /**
@@ -81,6 +82,7 @@ export function applyNotificationSettings(patch: Partial<NotificationSettings>):
 
 export function clearNotificationState(compositeIdOrSessionId: string): void {
   lastNotificationTime.delete(compositeIdOrSessionId)
+  dismissNotificationFor(compositeIdOrSessionId)
 }
 
 function isKindEnabled(kind: AttentionKind): boolean {
@@ -127,8 +129,27 @@ function anyWindowFocused(): boolean {
  * watching THIS session (vs the app being focused but on a different tab).
  */
 let activeCompositeId: string | null = null
+
+/**
+ * Live notifications indexed by compositeId. Used to auto-dismiss the OS
+ * notification when the user focuses the corresponding session tab.
+ */
+const activeNotifications = new Map<string, Notification>()
+
+function dismissNotificationFor(compositeId: string): void {
+  const n = activeNotifications.get(compositeId)
+  if (!n) return
+  activeNotifications.delete(compositeId)
+  try {
+    n.close()
+  } catch {
+    // ignore — some platforms may throw if the notification is already gone
+  }
+}
+
 export function setActiveCompositeId(id: string | null): void {
   activeCompositeId = id
+  if (id) dismissNotificationFor(id)
 }
 
 function kindTitle(kind: AttentionKind, escalated: boolean): string {
@@ -178,7 +199,8 @@ export function handleAttentionEvent(ev: AttentionEvent): void {
 
   const now = Date.now()
   const lastTime = lastNotificationTime.get(ev.compositeId) ?? 0
-  if (now - lastTime < COOLDOWN_MS) return
+  const cooldownMs = Math.max(0, settings.cooldownSeconds) * 1000
+  if (cooldownMs > 0 && now - lastTime < cooldownMs) return
   lastNotificationTime.set(ev.compositeId, now)
 
   const notification = new Notification({
@@ -186,6 +208,15 @@ export function handleAttentionEvent(ev: AttentionEvent): void {
     body: kindBody(ev),
     silent: !settings.sound,
     icon: getNotificationIcon()
+  })
+
+  // Replace any prior live notification for this session — only one at a time.
+  dismissNotificationFor(ev.compositeId)
+  activeNotifications.set(ev.compositeId, notification)
+  notification.on('close', () => {
+    if (activeNotifications.get(ev.compositeId) === notification) {
+      activeNotifications.delete(ev.compositeId)
+    }
   })
 
   notification.on('click', () => {

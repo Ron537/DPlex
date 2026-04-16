@@ -104,6 +104,9 @@ function applySettingsToServices(settings: Record<string, unknown>): void {
   if (typeof settings.dndTo === 'string' || settings.dndTo === null) {
     notificationPatch.dndTo = settings.dndTo ?? null
   }
+  if (typeof settings.notificationCooldownSeconds === 'number') {
+    notificationPatch.cooldownSeconds = Math.max(0, settings.notificationCooldownSeconds)
+  }
   if (Object.keys(notificationPatch).length > 0) {
     applyNotificationSettings(
       notificationPatch as Partial<Parameters<typeof applyNotificationSettings>[0]>
