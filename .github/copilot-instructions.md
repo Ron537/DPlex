@@ -63,3 +63,25 @@ AI session tabs are serialized to `sessions.json` in the Electron userData direc
 - **No `async` in Zustand actions that callers expect to be synchronous** — use `.then()` internally if you need async IPC, otherwise click handlers and Zustand subscriptions may silently swallow errors.
 - **Session active detection**: Check for `inuse.<PID>.lock` files, then verify PID is alive via `process.kill(pid, 0)`. This is provider-specific logic inside each provider class.
 - **Do not push to git without explicit user approval.**
+- **Status colors**: Use CSS custom properties (`var(--dplex-status-*)`) defined in `settingsStore.ts` via `applyCssVarsSync()`. Never hardcode status colors — they adapt for light/dark theme contrast. Use `STATUS_ACTIVE_COLOR` and `STATUS_ACTIVE_BG` from `utils/statusColors.ts` for active badges.
+- **Hover backgrounds**: Always use `hover:bg-[var(--dplex-hover)]` — never `hover:bg-white/5` or `hover:bg-white/10` which are invisible on light themes.
+
+## Code Review Policy
+
+After every major change (project refactors, new features, architectural changes — not minor styling tweaks or few-line fixes), automatically run a deep dual-model code review before committing:
+
+1. Launch **two parallel code-review agents** using the `task` tool with `agent_type: "code-review"`:
+   - One with `model: "claude-opus-4.6"` 
+   - One with `model: "gpt-5.4"`
+2. Both reviews must cover **all** of the following:
+   - **Dead code** — unused imports, variables, functions, types, exports
+   - **Memory leaks** — event listener cleanup, subscription management, timer cleanup, React effect cleanup
+   - **Security** — XSS vectors, unsafe eval, prototype pollution, path traversal
+   - **Race conditions** — async conflicts, stale closures, missing cancellation
+   - **Performance** — unnecessary re-renders, missing memoization, O(n²) loops
+   - **Correctness** — logic errors, edge cases, null/undefined handling, type safety
+   - **Clean code** — consistent patterns, clear naming, appropriate abstractions, reusability
+   - **File size** — no oversized files with too many responsibilities; split when needed
+   - **Design patterns** — proper separation of concerns, DRY, extensibility
+3. Wait for both reviews to complete, then **fix all genuine issues** before committing.
+4. Report a summary of findings and fixes to the user.
