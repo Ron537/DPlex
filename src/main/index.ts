@@ -17,10 +17,33 @@ import {
 import { createDefaultRegistry } from './services/providers'
 import { BaseSessionProvider } from './services/providers/baseProvider'
 import { loadWorkspace, saveWorkspace, type PersistedWorkspace } from './services/sessionPersistence'
-import { handleSessionNotification, clearNotificationState, seedNotificationState } from './services/notifications'
+import {
+  applyNotificationSettings,
+  clearNotificationState,
+  handleAttentionEvent,
+  setFocusSessionCallback,
+  clearFocusSessionCallback,
+  setActiveCompositeId
+} from './services/notifications'
+import * as attentionService from './services/attentionService'
+import { makeCompositeId } from '../preload/attentionTypes'
 import { getBranch, watchBranch, unwatchBranch, stopAllBranchWatchers } from './services/gitService'
 
 const providerRegistry = createDefaultRegistry()
+
+// Bridge attention service → notifications + renderer.
+// Registered once at module load; listeners are module-level singletons.
+attentionService.onNewAttentionEvent((event) => {
+  handleAttentionEvent(event)
+})
+attentionService.onEscalation((event) => {
+  handleAttentionEvent(event)
+})
+attentionService.onSnapshotChanged((snapshot) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('attention:updated', snapshot)
+  }
+})
 
 const SETTINGS_PATH = join(app.getPath('userData'), 'settings.json')
 
@@ -54,6 +77,42 @@ function applySettingsToServices(settings: Record<string, unknown>): void {
   const maxAge = settings.sessionMaxAgeDays
   if (typeof maxAge === 'number') {
     BaseSessionProvider.setMaxAgeDays(maxAge)
+  }
+
+  const notificationPatch: Record<string, unknown> = {}
+  if (typeof settings.notificationsEnabled === 'boolean') {
+    notificationPatch.enabled = settings.notificationsEnabled
+  }
+  if (typeof settings.notifyOnApproval === 'boolean') {
+    notificationPatch.notifyOnApproval = settings.notifyOnApproval
+  }
+  if (typeof settings.notifyOnInput === 'boolean') {
+    notificationPatch.notifyOnInput = settings.notifyOnInput
+  }
+  if (typeof settings.notifyOnFinished === 'boolean') {
+    notificationPatch.notifyOnFinished = settings.notifyOnFinished
+  }
+  if (typeof settings.notifyOnlyWhenUnfocused === 'boolean') {
+    notificationPatch.onlyWhenUnfocused = settings.notifyOnlyWhenUnfocused
+  }
+  if (typeof settings.notificationSound === 'boolean') {
+    notificationPatch.sound = settings.notificationSound
+  }
+  if (typeof settings.dndFrom === 'string' || settings.dndFrom === null) {
+    notificationPatch.dndFrom = settings.dndFrom ?? null
+  }
+  if (typeof settings.dndTo === 'string' || settings.dndTo === null) {
+    notificationPatch.dndTo = settings.dndTo ?? null
+  }
+  if (Object.keys(notificationPatch).length > 0) {
+    applyNotificationSettings(
+      notificationPatch as Partial<Parameters<typeof applyNotificationSettings>[0]>
+    )
+  }
+
+  const idleMinutes = settings.idleTooLongMinutes
+  if (typeof idleMinutes === 'number' && idleMinutes > 0) {
+    attentionService.setIdleThresholdMinutes(idleMinutes)
   }
 }
 
@@ -101,6 +160,14 @@ function createWindow(): void {
     mainWindow?.show()
   })
 
+  // Wire notification click → renderer focus-session intent.
+  // Re-registered on every window creation so the current mainWindow receives it.
+  setFocusSessionCallback((compositeId: string) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('attention:focusSession', compositeId)
+    }
+  })
+
   mainWindow.on('closed', () => {
     // Stop all provider watchers — on macOS the app stays alive after window close
     for (const provider of providerRegistry.getAllProviders()) {
@@ -110,6 +177,8 @@ function createWindow(): void {
     if (mainWindow) {
       destroyPtysForWindow(mainWindow.id)
     }
+    // Clear focus callback so notification clicks queue until a new window exists
+    clearFocusSessionCallback()
     mainWindow = null
   })
 
@@ -158,7 +227,15 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('sessions:delete', async (_event, sessionId: string, providerId?: string) => {
     await providerRegistry.deleteSession(sessionId, providerId)
-    clearNotificationState(sessionId)
+    if (providerId) {
+      const compositeId = makeCompositeId(providerId, sessionId)
+      clearNotificationState(compositeId)
+      attentionService.forgetSession(compositeId)
+    } else {
+      // providerId unknown — sweep every attention entry matching this bare id
+      const removed = attentionService.forgetSessionsByBareId(sessionId)
+      for (const cid of removed) clearNotificationState(cid)
+    }
   })
 
   ipcMain.handle('sessions:close', (_event, sessionId: string, providerId?: string) => {
@@ -186,27 +263,45 @@ function registerIpcHandlers(): void {
       }
     }
 
+    // First pass: seed attention state from already-discovered sessions without
+    // firing notifications. This avoids spurious notifications for sessions
+    // that were already in a waiting state before DPlex started.
+    try {
+      const initial = await providerRegistry.discoverSessions()
+      for (const session of initial) {
+        attentionService.seedDiscoveredSession(session)
+      }
+    } catch {
+      // Non-fatal — watchers below will still pick up state changes.
+    }
+
     for (const provider of providerRegistry.getAllProviders()) {
       await provider.startWatching({
         onUpdated: (session) => {
-          handleSessionNotification(session)
+          attentionService.ingestSessionUpdate(session)
           sendToRenderer('sessions:updated', session)
         },
         onAdded: (session) => {
-          seedNotificationState(session)
+          attentionService.addDiscoveredSession(session)
           sendToRenderer('sessions:added', session)
         },
         onRemoved: (sessionId, providerId) => {
+          const compositeId = makeCompositeId(providerId, sessionId)
+          clearNotificationState(compositeId)
+          attentionService.forgetSession(compositeId)
           sendToRenderer('sessions:removed', sessionId, providerId)
         }
       })
     }
+
+    attentionService.startIdleSweeper()
   })
 
   ipcMain.handle('sessions:stopWatching', () => {
     for (const provider of providerRegistry.getAllProviders()) {
       provider.stopWatching()
     }
+    attentionService.stopIdleSweeper()
   })
 
   // Prompt extraction
@@ -253,6 +348,21 @@ function registerIpcHandlers(): void {
   })
   ipcMain.handle('settings:merge', (_event, patch: Record<string, unknown>) => {
     mergeSettings(patch)
+  })
+
+  // Attention inbox
+  ipcMain.handle('attention:getSnapshot', () => attentionService.currentSnapshot())
+  ipcMain.on('attention:acknowledge', (_event, compositeId: string) => {
+    attentionService.acknowledge(compositeId)
+  })
+  ipcMain.on('attention:acknowledgeAll', () => {
+    attentionService.acknowledgeAll()
+  })
+  ipcMain.on('attention:dismiss', (_event, compositeId: string) => {
+    attentionService.dismiss(compositeId)
+  })
+  ipcMain.on('attention:setActiveTab', (_event, compositeId: string | null) => {
+    setActiveCompositeId(compositeId)
   })
 
   // App info

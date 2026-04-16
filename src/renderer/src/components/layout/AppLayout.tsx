@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { persistWorkspaceNow } from '../../stores/terminalStore'
 import { useSettingsStore, applyCssVarsSync } from '../../stores/settingsStore'
+import { useAttentionStore } from '../../stores/attentionStore'
 import { SidePanel } from './SidePanel'
 import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
+import { AttentionBellButton } from '../attention/AttentionBellButton'
 import { useSessions } from '../../hooks/useSessions'
 import { getTheme } from '../../services/themes'
 import { MOD } from '../../utils/shortcuts'
@@ -136,6 +138,71 @@ export function AppLayout(): React.JSX.Element {
     return () => window.removeEventListener('dplex:open-settings', handler)
   }, [])
 
+  // Initialize attention store: hydrate snapshot + subscribe to updates.
+  useEffect(() => {
+    const unsub = useAttentionStore.getState().init()
+    return () => {
+      unsub()
+    }
+  }, [])
+
+  // Wire main-process focus-session intent → focus matching tab in renderer.
+  useEffect(() => {
+    const unsub = window.dplex.attention.onFocusSession((compositeId) => {
+      const [providerId, ...rest] = compositeId.split(':')
+      const sessionId = rest.join(':')
+      if (!providerId || !sessionId) return
+      const { groups, setActiveGroup, setActiveTerminalInGroup } = useTerminalStore.getState()
+      for (const group of groups) {
+        const tab = group.tabs.find(
+          (t) => t.sessionId === sessionId && (!t.providerId || t.providerId === providerId)
+        )
+        if (tab) {
+          setActiveGroup(group.id)
+          setActiveTerminalInGroup(group.id, tab.id)
+          // Auto-ack only `finished` is handled centrally via the active-tab
+          // subscription below; here we just focus.
+          return
+        }
+      }
+    })
+    return () => {
+      unsub()
+    }
+  }, [])
+
+  // Auto-acknowledge "finished" events when the user focuses the owning tab.
+  // Track the composite id of the active AI session tab so main can make
+  // notification decisions tab-aware (only suppress when user is looking at
+  // THIS session). Also auto-ack `finished` when that tab becomes active.
+  useEffect(() => {
+    const computeActiveComposite = (state: ReturnType<typeof useTerminalStore.getState>) => {
+      const activeGroup = state.groups.find((g) => g.id === state.activeGroupId)
+      if (!activeGroup) return null
+      const tab = activeGroup.tabs.find((t) => t.id === activeGroup.activeTabId)
+      if (!tab?.sessionId || !tab.providerId) return null
+      return `${tab.providerId}:${tab.sessionId}`
+    }
+
+    // Push initial value on mount.
+    window.dplex.attention.setActiveTab(computeActiveComposite(useTerminalStore.getState()))
+
+    const unsubscribe = useTerminalStore.subscribe((state, prev) => {
+      const current = computeActiveComposite(state)
+      const previous = computeActiveComposite(prev)
+      if (current === previous) return
+      window.dplex.attention.setActiveTab(current)
+      if (current) {
+        const attention = useAttentionStore.getState()
+        const event = attention.active.find((e) => e.compositeId === current)
+        if (event && event.kind === 'finished') {
+          attention.acknowledge(current)
+        }
+      }
+    })
+    return unsubscribe
+  }, [])
+
   return (
     <div className="flex flex-col h-screen text-white overflow-hidden" style={{ backgroundColor: theme.ui.bg, color: theme.ui.text }}>
       {/* macOS title bar / drag region */}
@@ -144,7 +211,9 @@ export function AppLayout(): React.JSX.Element {
         <div className="flex-1 text-center">
           <span className="text-[11px] text-zinc-600 font-medium select-none">DPlex</span>
         </div>
-        <div className="w-[76px] flex-shrink-0" />
+        <div className="w-[76px] flex-shrink-0 flex items-center justify-end pr-2">
+          <AttentionBellButton />
+        </div>
       </div>
 
       <div className="flex flex-1 min-h-0">

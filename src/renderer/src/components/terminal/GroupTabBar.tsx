@@ -1,8 +1,16 @@
 import { useRef, useState, DragEvent } from 'react'
 import { Plus, X, Terminal as TerminalIcon, SplitSquareHorizontal, SplitSquareVertical } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { useAttentionStore } from '../../stores/attentionStore'
 import { ShellSelector } from './ShellSelector'
 import type { EditorGroup } from '../../types'
+import type { AttentionKind } from '../../../../preload/attentionTypes'
+
+const DOT_COLOR: Record<AttentionKind, string> = {
+  waitingForApproval: 'var(--dplex-status-approval)',
+  waitingForInput: 'var(--dplex-status-waiting)',
+  finished: 'var(--dplex-status-thinking)'
+}
 
 interface GroupTabBarProps {
   group: EditorGroup
@@ -23,6 +31,8 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
   const [editValue, setEditValue] = useState('')
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const activeEvents = useAttentionStore((s) => s.active)
 
   const handleDoubleClick = (tabId: string, currentTitle: string): void => {
     setEditingTabId(tabId)
@@ -116,6 +126,21 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
             onDoubleClick={() => handleDoubleClick(tab.id, tab.title)}
           >
             <TerminalIcon size={11} className="flex-shrink-0" style={{ color: 'var(--dplex-text-muted)' }} />
+            {(() => {
+              if (!tab.sessionId || !tab.providerId) return null
+              const compositeId = `${tab.providerId}:${tab.sessionId}`
+              const event = activeEvents.find(
+                (e) => e.compositeId === compositeId && !e.suppressed
+              )
+              if (!event) return null
+              return (
+                <span
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: DOT_COLOR[event.kind] }}
+                  title={event.kind}
+                />
+              )
+            })()}
             {editingTabId === tab.id ? (
               <input
                 ref={inputRef}

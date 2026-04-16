@@ -5,6 +5,7 @@ export interface TerminalTab {
   cwd?: string
   command?: string // Direct command to exec (e.g. 'copilot'). Bypasses shell — no shell to fall back to.
   sessionId?: string // AI tool session ID (e.g. copilot session dir name) for --resume on restore
+  providerId?: string // AI provider id (e.g. 'copilot-cli') for composite attention identity
   pid?: number // PTY process PID, used for PID→session mapping
 }
 
@@ -59,6 +60,16 @@ export interface AppSettings {
   sidebarVisible: boolean
   sessionPollIntervalMs: number
   sessionMaxAgeDays: number
+  // Attention inbox / notifications
+  notificationsEnabled: boolean
+  notifyOnApproval: boolean
+  notifyOnInput: boolean
+  notifyOnFinished: boolean
+  notifyOnlyWhenUnfocused: boolean
+  notificationSound: boolean
+  dndFrom: string | null // "HH:MM" or null
+  dndTo: string | null
+  idleTooLongMinutes: number
 }
 
 export interface Project {

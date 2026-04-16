@@ -116,7 +116,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           title,
           command,
           undefined,
-          project.path
+          project.path,
+          pid
         )
       })
     })

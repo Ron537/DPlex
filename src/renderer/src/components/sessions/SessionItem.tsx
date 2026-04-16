@@ -38,12 +38,23 @@ const STATUS_CONFIG: Record<
   waitingForUser: { color: 'var(--dplex-status-waiting)', label: 'Waiting for input', pulse: true }
 }
 
-/** Find an open tab matching this session and focus it. Checks sessionId first, then command. */
-function focusExistingTab(sessionId: string, resumeCommand?: string): boolean {
+/**
+ * Find an open tab matching this session and focus it. Uses composite
+ * identity (providerId + sessionId) to avoid cross-provider ID collisions,
+ * with a resume-command fallback for legacy tabs missing providerId.
+ */
+function focusExistingTab(
+  sessionId: string,
+  providerId: string,
+  resumeCommand?: string
+): boolean {
   const { groups, setActiveGroup, setActiveTerminalInGroup } = useTerminalStore.getState()
   for (const group of groups) {
     const tab = group.tabs.find(
-      (t) => t.sessionId === sessionId || (resumeCommand && t.command === resumeCommand)
+      (t) =>
+        (t.sessionId === sessionId &&
+          (t.providerId === providerId || t.providerId === undefined)) ||
+        (resumeCommand && t.command === resumeCommand)
     )
     if (tab) {
       setActiveGroup(group.id)
@@ -54,9 +65,15 @@ function focusExistingTab(sessionId: string, resumeCommand?: string): boolean {
   return false
 }
 
-function hasOpenTab(sessionId: string): boolean {
+function hasOpenTab(sessionId: string, providerId: string): boolean {
   const { groups } = useTerminalStore.getState()
-  return groups.some((g) => g.tabs.some((t) => t.sessionId === sessionId))
+  return groups.some((g) =>
+    g.tabs.some(
+      (t) =>
+        t.sessionId === sessionId &&
+        (t.providerId === providerId || t.providerId === undefined)
+    )
+  )
 }
 
 function timeAgo(date: Date): string {
@@ -83,16 +100,16 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
 
   const status = session.detailedStatus ?? (session.status === 'active' ? 'thinking' : 'idle')
   const config = STATUS_CONFIG[status]
-  const isOpen = hasOpenTab(session.id)
+  const isOpen = hasOpenTab(session.id, session.aiTool)
 
   const handleResume = async (): Promise<void> => {
     const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
-    if (focusExistingTab(session.id, cmd ?? undefined)) {
+    if (focusExistingTab(session.id, session.aiTool, cmd ?? undefined)) {
       setShowMenu(false)
       return
     }
     if (!cmd) return
-    createTerminal(undefined, `↻ ${session.displayName}`, cmd, undefined, session.cwd)
+    createTerminal(undefined, `↻ ${session.displayName}`, cmd, undefined, session.cwd, session.aiTool)
     setShowMenu(false)
   }
 

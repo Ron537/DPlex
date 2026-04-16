@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type { AttentionSnapshot } from './attentionTypes'
 
 export interface DplexAPI {
   pty: {
@@ -61,6 +62,15 @@ export interface DplexAPI {
     watchBranch: (dirPath: string) => Promise<string | null>
     unwatchBranch: (repoRoot: string) => void
     onBranchChanged: (callback: (repoRoot: string, branch: string | null) => void) => () => void
+  }
+  attention: {
+    getSnapshot: () => Promise<AttentionSnapshot>
+    acknowledge: (compositeId: string) => void
+    acknowledgeAll: () => void
+    dismiss: (compositeId: string) => void
+    setActiveTab: (compositeId: string | null) => void
+    onUpdated: (callback: (snapshot: AttentionSnapshot) => void) => () => void
+    onFocusSession: (callback: (compositeId: string) => void) => () => void
   }
 }
 
@@ -148,6 +158,25 @@ const dplexAPI: DplexAPI = {
       ): void => callback(repoRoot, branch)
       ipcRenderer.on('git:branchChanged', handler)
       return () => ipcRenderer.removeListener('git:branchChanged', handler)
+    }
+  },
+  attention: {
+    getSnapshot: () => ipcRenderer.invoke('attention:getSnapshot'),
+    acknowledge: (compositeId) => ipcRenderer.send('attention:acknowledge', compositeId),
+    acknowledgeAll: () => ipcRenderer.send('attention:acknowledgeAll'),
+    dismiss: (compositeId) => ipcRenderer.send('attention:dismiss', compositeId),
+    setActiveTab: (compositeId) => ipcRenderer.send('attention:setActiveTab', compositeId),
+    onUpdated: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, snapshot: AttentionSnapshot): void =>
+        callback(snapshot)
+      ipcRenderer.on('attention:updated', handler)
+      return () => ipcRenderer.removeListener('attention:updated', handler)
+    },
+    onFocusSession: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, compositeId: string): void =>
+        callback(compositeId)
+      ipcRenderer.on('attention:focusSession', handler)
+      return () => ipcRenderer.removeListener('attention:focusSession', handler)
     }
   }
 }

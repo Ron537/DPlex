@@ -59,7 +59,16 @@ const DEFAULT_SETTINGS: AppSettings = {
   sidebarWidth: 260,
   sidebarVisible: true,
   sessionPollIntervalMs: 5000,
-  sessionMaxAgeDays: 7
+  sessionMaxAgeDays: 7,
+  notificationsEnabled: true,
+  notifyOnApproval: true,
+  notifyOnInput: true,
+  notifyOnFinished: true,
+  notifyOnlyWhenUnfocused: true,
+  notificationSound: false,
+  dndFrom: null,
+  dndTo: null,
+  idleTooLongMinutes: 5
 }
 
 interface SettingsState {

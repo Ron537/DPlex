@@ -13,9 +13,23 @@ function makeGroupId(): string {
   return `group-${++groupCounter}`
 }
 
-function makeTerminalTab(title?: string, id?: string, shell?: string, cwd?: string, command?: string): TerminalTab {
+function makeTerminalTab(
+  title?: string,
+  id?: string,
+  shell?: string,
+  cwd?: string,
+  command?: string,
+  providerId?: string
+): TerminalTab {
   tabCounter++
-  return { id: id ?? makeTerminalId(), title: title ?? `Terminal ${tabCounter}`, shell, cwd, command }
+  return {
+    id: id ?? makeTerminalId(),
+    title: title ?? `Terminal ${tabCounter}`,
+    shell,
+    cwd,
+    command,
+    providerId
+  }
 }
 
 function removeGroupFromLayout(node: LayoutNode, groupId: string): LayoutNode | null {
@@ -61,7 +75,7 @@ interface TerminalState {
   activeGroupId: string | null
   restored: boolean
 
-  createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string) => string
+  createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string, providerId?: string) => string
   closeTerminal: (terminalId: string) => void
   setActiveGroup: (groupId: string) => void
   setActiveTerminalInGroup: (groupId: string, terminalId: string) => void
@@ -87,9 +101,9 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   layout: { type: 'group', groupId: 'group-0' },
   activeGroupId: null,
   restored: false,
-  createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string) => {
+  createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string, providerId?: string) => {
     const state = get()
-    const tab = makeTerminalTab(title, undefined, shell, cwd, command)
+    const tab = makeTerminalTab(title, undefined, shell, cwd, command, providerId)
     const targetGroupId = groupId ?? state.activeGroupId
 
     // If no groups exist or target group not found, create initial group
@@ -366,7 +380,8 @@ function serializeWorkspace(): unknown {
           title: t.title,
           cwd: t.cwd,
           command: t.command,
-          sessionId: t.sessionId
+          sessionId: t.sessionId,
+          providerId: t.providerId
         })),
       activeTabId: g.activeTabId
     })),

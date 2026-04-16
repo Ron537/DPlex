@@ -126,16 +126,39 @@ function processEvent(
       data.detailedStatus = 'idle'
       break
 
-    case 'tool.execution_start':
-      data.detailedStatus = 'executingTool'
+    case 'tool.user_requested':
+      // Copilot is waiting on the user to approve a tool call.
+      data.detailedStatus = 'awaitingApproval'
+      break
+
+    case 'tool.execution_start': {
+      // Copilot's built-in `ask_user` tool is not really a tool — it blocks
+      // on the user answering a prompt, so treat it as waitingForUser.
+      const toolName = (event.data?.toolName as string | undefined) ?? ''
+      if (toolName === 'ask_user') {
+        data.detailedStatus = 'waitingForUser'
+      } else {
+        data.detailedStatus = 'executingTool'
+      }
       data.toolCallCount++
       break
+    }
 
     case 'tool.execution_complete':
       // Only revert to thinking if this was the last outstanding tool call
       if (pendingToolCalls <= 1) {
         data.detailedStatus = 'thinking'
       }
+      break
+
+    case 'session.task_complete':
+      // Authoritative "agent finished its task" signal.
+      data.detailedStatus = 'idle'
+      break
+
+    case 'abort':
+      // User aborted the current turn (e.g., denied approval or Ctrl-C).
+      data.detailedStatus = 'idle'
       break
 
     case 'session.shutdown':

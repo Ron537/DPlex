@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Settings, Palette, Terminal, Bot, Keyboard } from 'lucide-react'
+import { X, Settings, Palette, Terminal, Bot, Keyboard, BellRing } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
@@ -12,7 +12,7 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type SettingsTab = 'appearance' | 'terminal' | 'ai-tools' | 'shortcuts'
+type SettingsTab = 'appearance' | 'terminal' | 'ai-tools' | 'notifications' | 'shortcuts'
 
 const SHORTCUTS: { category: string; items: { keys: string; description: string }[] }[] = [
   {
@@ -45,6 +45,7 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'terminal', label: 'Terminal', icon: Terminal },
   { id: 'ai-tools', label: 'AI Tools', icon: Bot },
+  { id: 'notifications', label: 'Notifications', icon: BellRing },
   { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard }
 ]
 
@@ -302,6 +303,178 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
                     />
                     <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>days</span>
+                  </div>
+                </SettingItem>
+              </>
+            )}
+
+            {activeTab === 'notifications' && (
+              <>
+                <SettingItem
+                  label="Enable notifications"
+                  description="Master toggle for desktop notifications and the attention inbox badge."
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.notificationsEnabled}
+                      onChange={(e) => applyNow({ notificationsEnabled: e.target.checked })}
+                      className="accent-blue-500"
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                      Show desktop notifications
+                    </span>
+                  </label>
+                </SettingItem>
+
+                <SettingItem
+                  label="Notify me about"
+                  description="Pick which kinds of events raise a desktop notification."
+                >
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.notifyOnApproval}
+                        onChange={(e) => applyNow({ notifyOnApproval: e.target.checked })}
+                        className="accent-blue-500"
+                      />
+                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                        Waiting for approval
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.notifyOnInput}
+                        onChange={(e) => applyNow({ notifyOnInput: e.target.checked })}
+                        className="accent-blue-500"
+                      />
+                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                        Waiting for input
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.notifyOnFinished}
+                        onChange={(e) => applyNow({ notifyOnFinished: e.target.checked })}
+                        className="accent-blue-500"
+                      />
+                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                        Session finished (became idle)
+                      </span>
+                    </label>
+                  </div>
+                </SettingItem>
+
+                <SettingItem
+                  label="Only when unfocused"
+                  description="Suppress notifications when the DPlex window is already focused."
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.notifyOnlyWhenUnfocused}
+                      onChange={(e) => applyNow({ notifyOnlyWhenUnfocused: e.target.checked })}
+                      className="accent-blue-500"
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                      Only notify when window is not focused
+                    </span>
+                  </label>
+                </SettingItem>
+
+                <SettingItem
+                  label="Play sound"
+                  description="Use the OS default sound when a notification fires."
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.notificationSound}
+                      onChange={(e) => applyNow({ notificationSound: e.target.checked })}
+                      className="accent-blue-500"
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                      Enable notification sound
+                    </span>
+                  </label>
+                </SettingItem>
+
+                <SettingItem
+                  label="Do not disturb"
+                  description="Quiet-hours window (24-hour HH:MM). Leave both empty to disable. Supports overnight spans (e.g. 22:00 → 08:00)."
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={settings.dndFrom ?? ''}
+                      onChange={(e) =>
+                        applyNow({ dndFrom: e.target.value.trim() ? e.target.value : null })
+                      }
+                      className="rounded px-2 py-1 text-xs outline-none"
+                      style={{
+                        backgroundColor: 'var(--dplex-bg-alt)',
+                        border: '1px solid var(--dplex-border)',
+                        color: 'var(--dplex-text)'
+                      }}
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                      to
+                    </span>
+                    <input
+                      type="time"
+                      value={settings.dndTo ?? ''}
+                      onChange={(e) =>
+                        applyNow({ dndTo: e.target.value.trim() ? e.target.value : null })
+                      }
+                      className="rounded px-2 py-1 text-xs outline-none"
+                      style={{
+                        backgroundColor: 'var(--dplex-bg-alt)',
+                        border: '1px solid var(--dplex-border)',
+                        color: 'var(--dplex-text)'
+                      }}
+                    />
+                  </div>
+                </SettingItem>
+
+                <SettingItem
+                  label="Idle escalation"
+                  description={`Re-notify when a waiting session goes unanswered for this long. Currently ${settings.idleTooLongMinutes} minute${settings.idleTooLongMinutes === 1 ? '' : 's'}.`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={1}
+                      max={30}
+                      value={settings.idleTooLongMinutes}
+                      onChange={(e) =>
+                        applyDebounced({ idleTooLongMinutes: Number(e.target.value) })
+                      }
+                      className="flex-1 accent-blue-500"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={180}
+                      value={settings.idleTooLongMinutes}
+                      onChange={(e) => {
+                        const n = Number(e.target.value)
+                        if (Number.isFinite(n) && n >= 1) {
+                          applyDebounced({ idleTooLongMinutes: Math.min(180, Math.floor(n)) })
+                        }
+                      }}
+                      className="w-16 rounded px-2 py-1 text-xs outline-none"
+                      style={{
+                        backgroundColor: 'var(--dplex-bg-alt)',
+                        border: '1px solid var(--dplex-border)',
+                        color: 'var(--dplex-text)'
+                      }}
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                      min
+                    </span>
                   </div>
                 </SettingItem>
               </>
