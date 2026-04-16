@@ -56,7 +56,15 @@ npm run build:linux
 - **Split panes** — horizontal and vertical splits with resizable dividers
 - **Tabbed interface** — multiple terminals per pane, drag tabs between panes
 - **Tab reordering** — drag and drop tabs within and across groups
+- **Shell selector** — pick from auto-detected system shells (bash, zsh, fish, PowerShell, etc.) when opening a new terminal
 - **Workspace persistence** — AI session tabs are saved and restored across app restarts
+
+### Attention Inbox
+- **Notification bell** — aggregated inbox surfaces sessions that need you, with an unread badge in the title bar
+- **Event kinds** — separate signals for *waiting for approval*, *waiting for input*, and *finished*
+- **Auto-dismiss on focus** — events clear automatically when you focus the relevant tab
+- **Configurable cooldown** — tune how often a session can re-notify to avoid noise (in settings)
+- **Jump-to-session** — click any inbox entry to activate its tab
 
 ### Project Management
 - **Project sidebar** — add project folders, see active sessions at a glance
@@ -70,9 +78,10 @@ npm run build:linux
 - **Session discovery** — automatically discovers past sessions from AI tool data directories
 - **Search & filter** — find sessions by name, ID, or summary
 - **Resume sessions** — click to resume any past session in a new terminal tab
-- **Close active sessions** — stop running AI sessions from the sidebar
+- **Close active sessions** — stop running AI sessions from the sidebar; closing a tab fully terminates the underlying AI process
 - **Delete sessions** — remove session data from disk
 - **Time and workspace grouping** — group session history by recency or by workspace
+- **Prompt history viewer** — browse and search the list of prompts you've sent in any past session
 
 ### Multi-Provider Support
 - **Provider-agnostic architecture** — pluggable provider system for any AI CLI tool
