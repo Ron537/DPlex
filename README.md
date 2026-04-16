@@ -52,6 +52,26 @@ npm run build:linux
 
 ## Features
 
+## Screenshots
+
+### Main Workspace
+![DPlex main workspace](assets/screenshots/workspace-main.png)
+
+### Session History
+![DPlex session history](assets/screenshots/session-history.png)
+
+### Attention Inbox
+![DPlex attention inbox](assets/screenshots/attention-inbox.png)
+
+### Settings Modal
+![DPlex settings modal](assets/screenshots/settings-modal.png)
+
+### Shell Selector
+![DPlex shell selector](assets/screenshots/shell-selector.png)
+
+### Split Layout
+![DPlex split layout](assets/screenshots/split-layout.png)
+
 ### Terminal Multiplexer
 - **Split panes** — horizontal and vertical splits with resizable dividers
 - **Tabbed interface** — multiple terminals per pane, drag tabs between panes
