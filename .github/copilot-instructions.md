@@ -7,9 +7,11 @@ npm run dev          # Start Electron app in dev mode (hot reload)
 npm run build        # Typecheck + build (runs typecheck:node && typecheck:web first)
 npm run lint         # ESLint across entire project
 npm run typecheck    # TypeScript check only (no build)
+npm run test:unit    # Run unit tests (Vitest)
+npm run test:e2e     # Run Electron end-to-end tests (Playwright)
+npm run test:monkey  # Run randomized monkey tests (Playwright)
+npm run test:all     # Run all tests
 ```
-
-There are no tests in this project.
 
 ## Architecture
 
@@ -65,13 +67,15 @@ AI session tabs are serialized to `sessions.json` in the Electron userData direc
 - **Do not commit or push to git without explicit user approval.** Always wait for the user to confirm before running `git commit` or `git push`.
 - **Status colors**: Use CSS custom properties (`var(--dplex-status-*)`) defined in `settingsStore.ts` via `applyCssVarsSync()`. Never hardcode status colors — they adapt for light/dark theme contrast. Use `STATUS_ACTIVE_COLOR` and `STATUS_ACTIVE_BG` from `utils/statusColors.ts` for active badges.
 - **Hover backgrounds**: Always use `hover:bg-[var(--dplex-hover)]` — never `hover:bg-white/5` or `hover:bg-white/10` which are invisible on light themes.
+- **Testing policy**: After each change, run relevant automated tests before finishing work. At minimum run `npm run test:unit` for logic changes and the affected Playwright suite (`npm run test:e2e` / `npm run test:monkey`) for UI or integration changes.
+- **Regression prevention**: Every new behavior must include or update relevant tests so regressions are caught in CI.
 
 ## Code Review Policy
 
 After every major change (project refactors, new features, architectural changes — not minor styling tweaks or few-line fixes), automatically run a deep dual-model code review before committing:
 
 1. Launch **two parallel code-review agents** using the `task` tool with `agent_type: "code-review"`:
-   - One with `model: "claude-opus-4.6"` 
+   - One with `model: "claude-opus-4.7"` 
    - One with `model: "gpt-5.4"`
 2. Both reviews must cover **all** of the following:
    - **Dead code** — unused imports, variables, functions, types, exports
