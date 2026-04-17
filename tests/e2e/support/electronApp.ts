@@ -3,6 +3,29 @@ import * as os from 'os'
 import * as path from 'path'
 import * as fs from 'fs/promises'
 
+function createTestEnv(userDataDir: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    DPLEX_E2E: '1'
+  }
+
+  if (process.platform === 'win32') {
+    env.HOME = userDataDir
+    env.USERPROFILE = userDataDir
+    env.APPDATA = userDataDir
+    env.LOCALAPPDATA = userDataDir
+    env.TEMP = userDataDir
+    env.TMP = userDataDir
+    return env
+  }
+
+  env.XDG_CONFIG_HOME = userDataDir
+  env.XDG_DATA_HOME = userDataDir
+  env.XDG_STATE_HOME = userDataDir
+  env.HOME = userDataDir
+  return env
+}
+
 export async function launchApp(): Promise<{
   app: ElectronApplication
   window: Page
@@ -15,14 +38,7 @@ export async function launchApp(): Promise<{
 
   const app = await electron.launch({
     args: [bootstrapEntry, mainEntry],
-    env: {
-      ...process.env,
-      DPLEX_E2E: '1',
-      XDG_CONFIG_HOME: userDataDir,
-      XDG_DATA_HOME: userDataDir,
-      XDG_STATE_HOME: userDataDir,
-      HOME: userDataDir
-    }
+    env: createTestEnv(userDataDir)
   })
 
   const window = await app.firstWindow()

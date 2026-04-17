@@ -75,7 +75,7 @@ AI session tabs are serialized to `sessions.json` in the Electron userData direc
 After every major change (project refactors, new features, architectural changes — not minor styling tweaks or few-line fixes), automatically run a deep dual-model code review before committing:
 
 1. Launch **two parallel code-review agents** using the `task` tool with `agent_type: "code-review"`:
-   - One with `model: "claude-opus-4.6"`
+   - One with `model: "claude-opus-4.7"` 
    - One with `model: "gpt-5.4"`
 2. Both reviews must cover **all** of the following:
    - **Dead code** — unused imports, variables, functions, types, exports
