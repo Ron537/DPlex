@@ -8,7 +8,7 @@ export async function launchApp(): Promise<{
   window: Page
   userDataDir: string
 }> {
-  const repoRoot = path.resolve(__dirname, '..', '..', '..')
+  const repoRoot = process.cwd()
   const mainEntry = path.join(repoRoot, 'out', 'main', 'index.js')
   const bootstrapEntry = path.join(repoRoot, 'tests', 'e2e', 'support', 'electron-entry.cjs')
   const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dplex-e2e-'))

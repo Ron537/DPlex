@@ -21,14 +21,14 @@ test.describe('DPlex monkey tests', () => {
     if (!window || !app) throw new Error('App window not available')
     const maybeClickByTitle = async (title: string): Promise<void> => {
       const button = window.getByTitle(title).first()
-      if (await button.count()) {
+      if ((await button.count()) > 0) {
         await button.click({ timeout: 500 }).catch(() => {})
       }
     }
 
     const maybeClickByRole = async (name: string): Promise<void> => {
       const button = window.getByRole('button', { name, exact: true }).first()
-      if (await button.count()) {
+      if ((await button.count()) > 0) {
         await button.click({ timeout: 500 }).catch(() => {})
       }
     }
@@ -77,9 +77,7 @@ test.describe('DPlex monkey tests', () => {
 
     await expect(window.getByText(/terminals? · \d+ groups?/)).toBeVisible()
 
-    const isCrashed = await app.evaluate(async ({ app }) => {
-      return app.isReady() ? false : true
-    })
+    const isCrashed = await app.evaluate(async ({ app }) => !app.isReady())
 
     expect(isCrashed).toBe(false)
   })

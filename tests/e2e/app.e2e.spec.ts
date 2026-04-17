@@ -47,9 +47,6 @@ test.describe('DPlex Electron app', () => {
 
     const splitButtonsBefore = await window.getByTitle('Split right').count()
     await window.getByTitle('Split right').first().click()
-    await expect(async () => {
-      const splitButtonsAfter = await window.getByTitle('Split right').count()
-      expect(splitButtonsAfter).toBeGreaterThan(splitButtonsBefore)
-    }).toPass()
+    await expect(window.getByTitle('Split right')).toHaveCount(splitButtonsBefore + 1)
   })
 })

@@ -100,4 +100,30 @@ describe('copilotEventsParser', () => {
     expect(latestOnly[0].text).toBe('second prompt')
     expect(latestOnly[0].index).toBe(1)
   })
+
+  it('handles missing files and malformed jsonl lines without throwing', async () => {
+    const missing = await parseCopilotEvents(eventsFile)
+    expect(missing).toEqual({
+      detailedStatus: 'idle',
+      messageCount: 0,
+      toolCallCount: 0,
+      lastActivityTime: 0
+    })
+
+    await fsp.writeFile(
+      eventsFile,
+      [
+        'not-json',
+        JSON.stringify({ type: 'tool.execution_start', data: { toolName: 'shell' } }),
+        '{"type":"tool.execution_complete"',
+        JSON.stringify({ type: 'session.task_complete', timestamp: 'bad-timestamp' })
+      ].join('\n') + '\n',
+      'utf-8'
+    )
+
+    const parsed = await parseCopilotEvents(eventsFile)
+    expect(parsed.toolCallCount).toBe(1)
+    expect(parsed.detailedStatus).toBe('idle')
+    expect(parsed.lastActivityTime).toBe(0)
+  })
 })
