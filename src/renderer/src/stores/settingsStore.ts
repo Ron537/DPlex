@@ -5,9 +5,9 @@ import { getTheme } from '../services/themes'
 // Read cached theme from localStorage synchronously to avoid flash
 function getCachedTheme(): string {
   try {
-    return localStorage.getItem('dplex-theme') || 'midnight'
+    return localStorage.getItem('dplex-theme') || 'dplex'
   } catch {
-    return 'midnight'
+    return 'dplex'
   }
 }
 
@@ -44,6 +44,9 @@ export function applyCssVarsSync(themeId: string): void {
   root.style.setProperty('--dplex-status-active-bg', isLight ? 'rgba(22,163,74,0.12)' : 'rgba(34,197,94,0.12)')
 
   document.body.style.backgroundColor = theme.ui.bg
+  // Tell the browser to render native form controls (checkboxes, radios, ranges,
+  // time inputs, scrollbars) in the matching light/dark mode.
+  root.style.colorScheme = isLight ? 'light' : 'dark'
 }
 
 const cachedTheme = getCachedTheme()

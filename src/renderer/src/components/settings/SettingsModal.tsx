@@ -176,7 +176,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         key={t.id}
                         onClick={() => applyNow({ theme: t.id })}
                         className={`flex flex-col items-center gap-1.5 p-2 rounded border transition-colors ${
-                          isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-transparent hover:border-zinc-500'
+                          isSelected ? 'border-[var(--dplex-accent)] bg-[var(--dplex-accent)]/10' : 'border-transparent hover:border-zinc-500'
                         }`}
                         style={{ borderColor: isSelected ? undefined : 'var(--dplex-border)' }}
                       >
@@ -203,7 +203,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         key={t.id}
                         onClick={() => applyNow({ theme: t.id })}
                         className={`flex flex-col items-center gap-1.5 p-2 rounded border transition-colors ${
-                          isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-transparent hover:border-zinc-500'
+                          isSelected ? 'border-[var(--dplex-accent)] bg-[var(--dplex-accent)]/10' : 'border-transparent hover:border-zinc-500'
                         }`}
                         style={{ borderColor: isSelected ? undefined : 'var(--dplex-border)' }}
                       >
@@ -244,7 +244,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     type="range" min={10} max={24}
                     value={settings.fontSize}
                     onChange={(e) => applyDebounced({ fontSize: Number(e.target.value) })}
-                    className="w-full accent-blue-500"
+                    className="w-full accent-[var(--dplex-accent)]"
                   />
                 </SettingItem>
 
@@ -276,8 +276,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                 </SettingItem>
 
                 <SettingItem
-                  label="Session History Max Age"
-                  description={`Sessions older than this are hidden from the history panel. Currently ${settings.sessionMaxAgeDays} day${settings.sessionMaxAgeDays === 1 ? '' : 's'}.`}
+                  label="Session Max Age"
+                  description={`Sessions older than this are hidden from the sessions panel. Currently ${settings.sessionMaxAgeDays} day${settings.sessionMaxAgeDays === 1 ? '' : 's'}.`}
                 >
                   <div className="flex items-center gap-3">
                     <input
@@ -286,7 +286,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       max={90}
                       value={settings.sessionMaxAgeDays}
                       onChange={(e) => applyDebounced({ sessionMaxAgeDays: Number(e.target.value) })}
-                      className="flex-1 accent-blue-500"
+                      className="flex-1 accent-[var(--dplex-accent)]"
                     />
                     <input
                       type="number"
@@ -319,7 +319,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       type="checkbox"
                       checked={settings.notificationsEnabled}
                       onChange={(e) => applyNow({ notificationsEnabled: e.target.checked })}
-                      className="accent-blue-500"
+                      className="accent-[var(--dplex-accent)]"
                     />
                     <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
                       Show desktop notifications
@@ -337,7 +337,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         type="checkbox"
                         checked={settings.notifyOnApproval}
                         onChange={(e) => applyNow({ notifyOnApproval: e.target.checked })}
-                        className="accent-blue-500"
+                        className="accent-[var(--dplex-accent)]"
                       />
                       <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
                         Waiting for approval
@@ -348,7 +348,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         type="checkbox"
                         checked={settings.notifyOnInput}
                         onChange={(e) => applyNow({ notifyOnInput: e.target.checked })}
-                        className="accent-blue-500"
+                        className="accent-[var(--dplex-accent)]"
                       />
                       <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
                         Waiting for input
@@ -359,7 +359,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         type="checkbox"
                         checked={settings.notifyOnFinished}
                         onChange={(e) => applyNow({ notifyOnFinished: e.target.checked })}
-                        className="accent-blue-500"
+                        className="accent-[var(--dplex-accent)]"
                       />
                       <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
                         Session finished (became idle)
@@ -377,7 +377,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       type="checkbox"
                       checked={settings.notifyOnlyWhenUnfocused}
                       onChange={(e) => applyNow({ notifyOnlyWhenUnfocused: e.target.checked })}
-                      className="accent-blue-500"
+                      className="accent-[var(--dplex-accent)]"
                     />
                     <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
                       Only notify when window is not focused
@@ -394,7 +394,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       type="checkbox"
                       checked={settings.notificationSound}
                       onChange={(e) => applyNow({ notificationSound: e.target.checked })}
-                      className="accent-blue-500"
+                      className="accent-[var(--dplex-accent)]"
                     />
                     <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
                       Enable notification sound
@@ -453,7 +453,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       onChange={(e) =>
                         applyDebounced({ notificationCooldownSeconds: Number(e.target.value) })
                       }
-                      className="flex-1 accent-blue-500"
+                      className="flex-1 accent-[var(--dplex-accent)]"
                     />
                     <input
                       type="number"
@@ -494,7 +494,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       onChange={(e) =>
                         applyDebounced({ idleTooLongMinutes: Number(e.target.value) })
                       }
-                      className="flex-1 accent-blue-500"
+                      className="flex-1 accent-[var(--dplex-accent)]"
                     />
                     <input
                       type="number"

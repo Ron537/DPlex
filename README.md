@@ -74,13 +74,13 @@ npm run build:linux
 - **Drag-and-drop reordering** — organize projects in your preferred order
 - **Git branch display** — current branch shown per project
 
-### Session History
+### Sessions
 - **Session discovery** — automatically discovers past sessions from AI tool data directories
 - **Search & filter** — find sessions by name, ID, or summary
 - **Resume sessions** — click to resume any past session in a new terminal tab
 - **Close active sessions** — stop running AI sessions from the sidebar; closing a tab fully terminates the underlying AI process
 - **Delete sessions** — remove session data from disk
-- **Time and workspace grouping** — group session history by recency or by workspace
+- **Time and workspace grouping** — group sessions by recency or by workspace
 - **Prompt history viewer** — browse and search the list of prompts you've sent in any past session
 
 ### Multi-Provider Support

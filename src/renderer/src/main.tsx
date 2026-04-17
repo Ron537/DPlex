@@ -6,7 +6,7 @@ import App from './App'
 import { applyCssVarsSync } from './stores/settingsStore'
 
 // Apply cached theme CSS vars synchronously before React renders — prevents flash
-const cachedTheme = localStorage.getItem('dplex-theme') || 'midnight'
+const cachedTheme = localStorage.getItem('dplex-theme') || 'dplex'
 applyCssVarsSync(cachedTheme)
 
 createRoot(document.getElementById('root')!).render(

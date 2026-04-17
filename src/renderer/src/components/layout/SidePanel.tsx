@@ -10,7 +10,7 @@ import {
   PanelLeftClose,
   RefreshCw,
   FolderKanban,
-  History,
+  MessagesSquare,
   SlidersHorizontal,
   Check,
   Plus
@@ -168,8 +168,8 @@ export function SidePanel(): React.JSX.Element | null {
                 activeTab === 'sessions' ? 'var(--dplex-bg)' : 'transparent'
             }}
           >
-            <History size={11} />
-            HISTORY
+            <MessagesSquare size={11} />
+            SESSIONS
           </button>
         </div>
         <div className="flex items-center gap-0.5">

@@ -125,9 +125,11 @@ applySettingsToServices(loadSettings())
 function createWindow(): void {
   // Read saved theme to set correct initial window background
   const savedSettings = loadSettings()
-  const savedTheme = (savedSettings.theme as string) || 'midnight'
+  const savedTheme = (savedSettings.theme as string) || 'dplex'
   // Map theme ID to its UI background color
   const themeBgMap: Record<string, string> = {
+    'dplex': '#131313',
+    'dplex-light': '#fafafa',
     'midnight': '#1a1a2e',
     'dracula': '#282a36',
     'monokai': '#272822',
@@ -138,7 +140,7 @@ function createWindow(): void {
     'solarized-light': '#fdf6e3',
     'quiet-light': '#f5f5f5'
   }
-  const windowBg = themeBgMap[savedTheme] || '#1a1a2e'
+  const windowBg = themeBgMap[savedTheme] || '#131313'
 
   mainWindow = new BrowserWindow({
     width: 1200,

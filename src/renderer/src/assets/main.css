@@ -2,12 +2,60 @@
 @import "@xterm/xterm/css/xterm.css";
 
 :root {
+  color-scheme: dark;
   --dplex-bg: #1a1a2e;
   --dplex-bg-alt: #16162a;
   --dplex-border: #2a2a4a;
   --dplex-text: #e0e0e0;
   --dplex-text-muted: #888;
   --dplex-accent: #74c0fc;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--dplex-accent);
+}
+
+/* Style native range tracks so they respect the theme (color-scheme alone
+   doesn't fully restyle them in WebKit/Chromium). */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--dplex-border);
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--dplex-border);
+  border-radius: 9999px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 9999px;
+  background: var(--dplex-accent);
+  border: none;
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: var(--dplex-border);
+  border-radius: 9999px;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--dplex-accent);
+  border: none;
+  cursor: pointer;
 }
 
 body {

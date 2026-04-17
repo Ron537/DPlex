@@ -32,7 +32,7 @@ export function TerminalView({ terminalId, isActive, onFocus }: TerminalViewProp
 
   return (
     <div
-      className={`terminal-container w-full h-full relative ${isActive ? 'ring-1 ring-blue-500/30' : ''}`}
+      className={`terminal-container w-full h-full relative ${isActive ? 'ring-1 ring-[var(--dplex-accent)]/30' : ''}`}
       onClick={onFocus}
     >
       <div ref={containerRef} className="w-full h-full" />

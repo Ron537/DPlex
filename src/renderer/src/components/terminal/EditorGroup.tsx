@@ -113,7 +113,7 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
         {dropZone && (
           <div className="absolute inset-0 pointer-events-none z-20">
             <div
-              className={`absolute bg-blue-500/20 border-2 border-blue-500/50 transition-all ${
+              className={`absolute bg-[var(--dplex-accent)]/20 border-2 border-[var(--dplex-accent)]/50 transition-all ${
                 dropZone === 'left'
                   ? 'inset-y-0 left-0 w-1/2'
                   : dropZone === 'right'

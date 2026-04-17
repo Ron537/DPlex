@@ -25,7 +25,7 @@ export function getOrCreateTerminal(
   const existing = registry.get(terminalId)
   if (existing) return existing
 
-  const appTheme = getTheme(themeId || 'midnight')
+  const appTheme = getTheme(themeId || 'dplex')
 
   const term = new Terminal({
     fontFamily,
