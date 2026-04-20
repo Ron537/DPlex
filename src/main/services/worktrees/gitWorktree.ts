@@ -13,7 +13,7 @@ import {
 } from '../gitService'
 import type { WorktreeInfo, WorktreeStatus } from './types'
 import { getEntriesForRepo } from './sidecar'
-import { parsePorcelain as parsePorcelainImpl, type RawWorktreeRecord } from './porcelain'
+import { parsePorcelain as parseGitWorktreePorcelain, type RawWorktreeRecord } from './porcelain'
 
 /**
  * Parse `git worktree list --porcelain` output.
@@ -31,7 +31,7 @@ import { parsePorcelain as parsePorcelainImpl, type RawWorktreeRecord } from './
  * structured records.
  */
 export function parsePorcelain(output: string): RawWorktreeRecord[] {
-  return parsePorcelainImpl(output)
+  return parseGitWorktreePorcelain(output)
 }
 
 export type { RawWorktreeRecord }
@@ -142,7 +142,7 @@ export async function listWorktreesWithStatus(
   if (res.code !== 0) return null
 
   const identity = (await getRepoIdentity(canonicalRoot)) ?? canonicalRoot
-  const raws = parsePorcelainImpl(res.stdout).filter((r) => !r.bare)
+  const raws = parseGitWorktreePorcelain(res.stdout).filter((r) => !r.bare)
   const sidecar = getEntriesForRepo(identity)
   const enriched = await Promise.all(raws.map((r) => enrich(canonicalRoot, r, sidecar)))
 
