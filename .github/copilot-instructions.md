@@ -39,7 +39,7 @@ No other files need changes. The provider handles: session discovery, active ses
 Zustand stores (no Redux). Four stores, each owning a specific domain:
 
 - **terminalStore** — Terminal tabs, editor groups, split layout tree. Auto-persists AI session tabs to disk via debounced save. The layout is a recursive `LayoutNode` tree (group | split).
-- **projectStore** — Project list, drag-and-drop ordering, active session polling. Polls every 5s for active sessions across all providers.
+- **projectStore** — Project list, drag-and-drop ordering, active session tracking (event-driven via provider watchers; no polling).
 - **sessionStore** — Session history list (discovered from providers), search/filter.
 - **settingsStore** — App settings with immediate persistence.
 
@@ -72,20 +72,23 @@ AI session tabs are serialized to `sessions.json` in the Electron userData direc
 
 ## Code Review Policy
 
-After every major change (project refactors, new features, architectural changes — not minor styling tweaks or few-line fixes), automatically run a deep dual-model code review before committing:
+After every major change (project refactors, new features, architectural changes — not minor styling tweaks or few-line fixes), automatically run a deep dual-model code review before committing. The same procedure applies whenever the user explicitly asks to "run a code review" (or similar wording).
 
 1. Launch **two parallel code-review agents** using the `task` tool with `agent_type: "code-review"`:
    - One with `model: "claude-opus-4.7"` 
    - One with `model: "gpt-5.4"`
 2. Both reviews must cover **all** of the following:
-   - **Dead code** — unused imports, variables, functions, types, exports
-   - **Memory leaks** — event listener cleanup, subscription management, timer cleanup, React effect cleanup
-   - **Security** — XSS vectors, unsafe eval, prototype pollution, path traversal
+   - **Dead code** — unused imports, variables, functions, classes, types, exports, IPC handlers, and anything else that is no longer referenced
+   - **Duplicate code** — near-identical logic across files that should be extracted into a shared helper/module for reuse
+   - **Memory leaks** — event listener cleanup, subscription management, timer/interval cleanup, React effect cleanup, PTY/watcher disposal
+   - **Security** — XSS vectors, unsafe eval, prototype pollution, path traversal, shell injection, exposure of secrets
    - **Race conditions** — async conflicts, stale closures, missing cancellation
-   - **Performance** — unnecessary re-renders, missing memoization, O(n²) loops
+   - **Performance** — unnecessary re-renders, missing memoization, O(n²) loops, redundant polling mechanisms, irrelevant or duplicated file watching, non-optimized queries/IPC round-trips
+   - **Best practices** — verify established patterns and idioms are followed; call out anti-patterns
+   - **Cross-platform support** — no implementation that only works on one OS. The project must support **macOS, Windows, and Linux**. Flag hardcoded path separators, shell invocations, signals, env vars, or APIs that don't work on all three.
    - **Correctness** — logic errors, edge cases, null/undefined handling, type safety
-   - **Clean code** — consistent patterns, clear naming, appropriate abstractions, reusability
-   - **File size** — no oversized files with too many responsibilities; split when needed
+   - **Clean, reusable, maintainable code** — consistent patterns, clear naming, appropriate abstractions, DRY
+   - **File size & separation of concerns** — no oversized files mixing multiple unrelated areas. Each file should own a single, well-defined area. Split files that handle multiple concerns into isolated, area-specific files/classes.
    - **Design patterns** — proper separation of concerns, DRY, extensibility
 3. Wait for both reviews to complete, then **fix all genuine issues** before committing.
 4. Report a summary of findings and fixes to the user.

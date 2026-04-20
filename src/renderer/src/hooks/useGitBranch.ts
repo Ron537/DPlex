@@ -8,14 +8,15 @@ export function useGitBranch(dirPath: string | undefined): string | null {
   const [branch, setBranch] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!dirPath) {
-      setBranch(null)
-      return
-    }
+    // Clear any prior value immediately so the UI doesn't show a stale
+    // branch during the async switch to a new path.
+    setBranch(null)
+
+    if (!dirPath) return
 
     let cancelled = false
     let cleanupListener: (() => void) | null = null
-    let watchedRepoRoot: string | null = null
+    let watchToken: string | null = null
 
     // Initial fetch
     window.dplex.git.getBranch(dirPath).then((b) => {
@@ -23,17 +24,17 @@ export function useGitBranch(dirPath: string | undefined): string | null {
     })
 
     // Subscribe to push updates
-    window.dplex.git.watchBranch(dirPath).then((repoRoot) => {
+    window.dplex.git.watchBranch(dirPath).then((result) => {
       if (cancelled) {
         // Effect already cleaned up — tear down immediately
-        if (repoRoot) window.dplex.git.unwatchBranch(repoRoot)
+        if (result) window.dplex.git.unwatchBranch(result.token)
         return
       }
-      if (!repoRoot) return
-      watchedRepoRoot = repoRoot
+      if (!result) return
+      watchToken = result.token
 
       cleanupListener = window.dplex.git.onBranchChanged((changedRoot, newBranch) => {
-        if (!cancelled && changedRoot === repoRoot) {
+        if (!cancelled && changedRoot === result.repoRoot) {
           setBranch(newBranch)
         }
       })
@@ -42,8 +43,8 @@ export function useGitBranch(dirPath: string | undefined): string | null {
     return () => {
       cancelled = true
       cleanupListener?.()
-      if (watchedRepoRoot) {
-        window.dplex.git.unwatchBranch(watchedRepoRoot)
+      if (watchToken) {
+        window.dplex.git.unwatchBranch(watchToken)
       }
     }
   }, [dirPath])

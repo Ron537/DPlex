@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   MoreVertical,
   Play,
@@ -16,6 +16,7 @@ import type { AISession, SessionStatus } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
+import { PopoverMenu } from '../common/PopoverMenu'
 
 interface SessionItemProps {
   session: AISession
@@ -97,6 +98,7 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeSession = useSessionStore((s) => s.closeSession)
   const [showMenu, setShowMenu] = useState(false)
+  const menuAnchorRef = useRef<HTMLButtonElement>(null)
 
   const status = session.detailedStatus ?? (session.status === 'active' ? 'thinking' : 'idle')
   const config = STATUS_CONFIG[status]
@@ -239,6 +241,7 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
 
       {/* Three-dot menu button */}
       <button
+        ref={menuAnchorRef}
         onClick={(e) => {
           e.stopPropagation()
           setShowMenu(!showMenu)
@@ -249,113 +252,107 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
       </button>
 
       {/* Context menu */}
-      {showMenu && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowMenu(false) }} />
-          <div
-            className="absolute right-2 top-8 z-50 rounded shadow-xl py-1 min-w-[160px]"
-            style={{
-              backgroundColor: 'var(--dplex-bg)',
-              border: '1px solid var(--dplex-border)'
+      <PopoverMenu
+        anchorRef={menuAnchorRef}
+        open={showMenu}
+        onClose={() => setShowMenu(false)}
+        className="min-w-[160px]"
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handleResume()
+          }}
+          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+          style={{ color: 'var(--dplex-text)' }}
+        >
+          <Play size={11} /> Resume
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onShowPrompts?.(session)
+            setShowMenu(false)
+          }}
+          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+          style={{ color: 'var(--dplex-text)' }}
+        >
+          <MessagesSquare size={11} /> Show Prompts
+        </button>
+        {session.status === 'active' && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              closeSession(session.id)
+              setShowMenu(false)
             }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+            style={{ color: 'var(--dplex-text)' }}
           >
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleResume()
-              }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-              style={{ color: 'var(--dplex-text)' }}
-            >
-              <Play size={11} /> Resume
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onShowPrompts?.(session)
-                setShowMenu(false)
-              }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-              style={{ color: 'var(--dplex-text)' }}
-            >
-              <MessagesSquare size={11} /> Show Prompts
-            </button>
-            {session.status === 'active' && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  closeSession(session.id)
-                  setShowMenu(false)
-                }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                style={{ color: 'var(--dplex-text)' }}
-              >
-                <Square size={11} /> Close
-              </button>
-            )}
-            <div style={{ borderTop: '1px solid var(--dplex-border)' }} className="my-1" />
-            {session.cwd && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleCopyCwd()
-                }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                style={{ color: 'var(--dplex-text)' }}
-              >
-                <FolderOpen size={11} /> Copy Path
-              </button>
-            )}
-            {session.branch && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  navigator.clipboard.writeText(session.branch!)
-                  setShowMenu(false)
-                }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                style={{ color: 'var(--dplex-text)' }}
-              >
-                <GitBranch size={11} /> Copy Branch
-              </button>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleCopyId()
-              }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-              style={{ color: 'var(--dplex-text)' }}
-            >
-              <Copy size={11} /> Copy Session ID
-            </button>
-            {!compact && session.cwd && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  useProjectStore.getState().addProject(session.cwd)
-                  setShowMenu(false)
-                }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                style={{ color: 'var(--dplex-text)' }}
-              >
-                <FolderPlus size={11} /> Pin as Project
-              </button>
-            )}
-            <div style={{ borderTop: '1px solid var(--dplex-border)' }} className="my-1" />
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(session.id)
-                setShowMenu(false)
-              }}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-[var(--dplex-hover)]"
-            >
-              <Trash2 size={11} /> Delete
-            </button>
-          </div>
-        </>
-      )}
+            <Square size={11} /> Close
+          </button>
+        )}
+        <div style={{ borderTop: '1px solid var(--dplex-border)' }} className="my-1" />
+        {session.cwd && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleCopyCwd()
+            }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+            style={{ color: 'var(--dplex-text)' }}
+          >
+            <FolderOpen size={11} /> Copy Path
+          </button>
+        )}
+        {session.branch && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              navigator.clipboard.writeText(session.branch!)
+              setShowMenu(false)
+            }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+            style={{ color: 'var(--dplex-text)' }}
+          >
+            <GitBranch size={11} /> Copy Branch
+          </button>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handleCopyId()
+          }}
+          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+          style={{ color: 'var(--dplex-text)' }}
+        >
+          <Copy size={11} /> Copy Session ID
+        </button>
+        {!compact && session.cwd && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              useProjectStore.getState().addProject(session.cwd)
+              setShowMenu(false)
+            }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+            style={{ color: 'var(--dplex-text)' }}
+          >
+            <FolderPlus size={11} /> Pin as Project
+          </button>
+        )}
+        <div style={{ borderTop: '1px solid var(--dplex-border)' }} className="my-1" />
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(session.id)
+            setShowMenu(false)
+          }}
+          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-[var(--dplex-hover)]"
+        >
+          <Trash2 size={11} /> Delete
+        </button>
+      </PopoverMenu>
     </div>
   )
 }

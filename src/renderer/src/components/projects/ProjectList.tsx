@@ -6,7 +6,7 @@ import { ProjectItem } from './ProjectItem'
 import { FolderPlus } from 'lucide-react'
 import { useReorderable } from '../../hooks/useReorderable'
 import { buildProjectSessionIndex } from '../../hooks/useProjectSessions'
-import type { ProviderInfo } from '../../types'
+import type { Project, ProviderInfo } from '../../types'
 
 interface ProjectListProps {
   searchQuery?: string
@@ -28,36 +28,70 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
     }
   }, [loaded])
 
-  // Load providers once
   useEffect(() => {
     window.dplex.sessions.getProviders().then(setProviders)
   }, [])
 
-  // Build session index once for all projects
   const projectPaths = useMemo(() => projects.map((p) => p.path), [projects])
   const sessionIndex = useMemo(
     () => buildProjectSessionIndex(sessions, groups, projectPaths),
     [sessions, groups, projectPaths]
   )
 
-  // Filter projects
-  const filteredProjects = useMemo(() => {
-    let result = projects
+  // Build parentId→children map keyed by project id. Orphan children (whose
+  // parent was removed) fall back to being rendered as top-level projects.
+  const childrenByParent = useMemo(() => {
+    const idSet = new Set(projects.map((p) => p.id))
+    const m = new Map<string, Project[]>()
+    for (const p of projects) {
+      if (p.parentProjectId && idSet.has(p.parentProjectId)) {
+        const arr = m.get(p.parentProjectId) ?? []
+        arr.push(p)
+        m.set(p.parentProjectId, arr)
+      }
+    }
+    return m
+  }, [projects])
 
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter((p) => p.name.toLowerCase().includes(q))
+  // Render-order projects. Only top-level origins render directly here — their
+  // worktree children render INSIDE the parent's expanded body (so they share
+  // the parent's contrasted background container). Orphans whose parent was
+  // removed still get surfaced at top level.
+  const filtered = useMemo(() => {
+    const q = searchQuery?.toLowerCase() ?? ''
+    const matchesFilter = (p: Project): boolean => {
+      if (q && !p.name.toLowerCase().includes(q)) return false
+      if (activeOnly && !sessionIndex.get(p.path)?.hasActive) return false
+      return true
     }
 
-    if (activeOnly) {
-      result = result.filter((p) => {
-        const activity = sessionIndex.get(p.path)
-        return activity?.hasActive
-      })
-    }
+    const idSet = new Set(projects.map((p) => p.id))
+    const isOrphan = (p: Project): boolean =>
+      Boolean(p.parentProjectId) && !idSet.has(p.parentProjectId!)
+    const isTopLevel = (p: Project): boolean => !p.parentProjectId || isOrphan(p)
 
+    const hasFilter = Boolean(q) || Boolean(activeOnly)
+    const result: { project: Project; children?: Project[] }[] = []
+
+    for (const p of projects) {
+      if (!isTopLevel(p)) continue
+
+      const kids = childrenByParent.get(p.id) ?? []
+      const visibleKids = kids.filter(matchesFilter)
+      const parentMatches = matchesFilter(p)
+
+      if (hasFilter) {
+        // When filtering, surface any matching item at top level (flat) so
+        // matches aren't hidden by a collapsed parent. Parent gets no children
+        // in filter mode — matching children appear as their own top-level rows.
+        if (parentMatches) result.push({ project: p })
+        for (const kid of visibleKids) result.push({ project: kid })
+      } else {
+        result.push({ project: p, children: kids })
+      }
+    }
     return result
-  }, [projects, searchQuery, activeOnly, sessionIndex])
+  }, [projects, childrenByParent, searchQuery, activeOnly, sessionIndex])
 
   const handleReorder = useCallback(
     (draggedId: string, targetId: string, position: 'above' | 'below') => {
@@ -71,10 +105,15 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
   return (
     <div
       className="flex flex-col min-h-full pt-1"
-      onDragOver={(e) => handlers.onContainerDragOver(e, filteredProjects)}
+      onDragOver={(e) =>
+        handlers.onContainerDragOver(
+          e,
+          filtered.map((r) => r.project)
+        )
+      }
       onDrop={(e) => handlers.onContainerDrop(e)}
     >
-      {filteredProjects.length === 0 && (
+      {filtered.length === 0 && (
         <div className="px-4 py-8 text-center" style={{ color: 'var(--dplex-text-muted)' }}>
           {projects.length === 0 ? (
             <div className="flex flex-col items-center gap-2">
@@ -92,17 +131,29 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
         </div>
       )}
 
-      {filteredProjects.map((project) => (
+      {filtered.map(({ project, children }) => (
         <ProjectItem
           key={project.id}
           project={project}
-          activity={sessionIndex.get(project.path) ?? {
-            sessions: [],
-            openTabs: [],
-            activeCount: 0,
-            hasActive: false,
-            lastActivity: undefined
-          }}
+          childProjects={children}
+          getActivity={(path) =>
+            sessionIndex.get(path) ?? {
+              sessions: [],
+              openTabs: [],
+              activeCount: 0,
+              hasActive: false,
+              lastActivity: undefined
+            }
+          }
+          activity={
+            sessionIndex.get(project.path) ?? {
+              sessions: [],
+              openTabs: [],
+              activeCount: 0,
+              hasActive: false,
+              lastActivity: undefined
+            }
+          }
           providers={providers}
           isDragging={isDragging(project.id)}
           dragOverPosition={dragOverPosition(project.id)}

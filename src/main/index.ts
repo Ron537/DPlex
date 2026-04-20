@@ -1,5 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron'
 import { join } from 'path'
+import * as path from 'path'
+import { randomUUID } from 'crypto'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as fs from 'fs'
 import * as os from 'os'
@@ -27,7 +29,18 @@ import {
 } from './services/notifications'
 import * as attentionService from './services/attentionService'
 import { makeCompositeId } from '../preload/attentionTypes'
-import { getBranch, watchBranch, unwatchBranch, stopAllBranchWatchers } from './services/gitService'
+import {
+  getBranch,
+  watchBranch,
+  unwatchBranch,
+  stopAllBranchWatchers,
+  inspectPath
+} from './services/gitService'
+import * as worktreeService from './services/worktrees'
+import type {
+  CreateWorktreeOptions,
+  DeleteWorktreeOptions
+} from './services/worktrees/types'
 
 const providerRegistry = createDefaultRegistry()
 
@@ -397,43 +410,175 @@ function registerIpcHandlers(): void {
     return getBranch(dirPath)
   })
 
-  // Track per-subscription callback references — keyed by dirPath to support
-  // multiple projects in the same repo without overwriting each other
-  const gitWatchCallbacks = new Map<string, {
-    repoRoot: string
-    callback: (repoRoot: string, branch: string | null) => void
-  }>()
-
-  // Single shared callback that forwards to renderer
-  const sendBranchChange = (repoRoot: string, branch: string | null): void => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('git:branchChanged', repoRoot, branch)
-    }
-  }
-
-  ipcMain.handle('git:watchBranch', async (_event, dirPath: string) => {
-    // If already watching this exact dirPath, just return the repo root
-    const existing = gitWatchCallbacks.get(dirPath)
-    if (existing) return existing.repoRoot
-
-    const callback = (root: string, branch: string | null): void => {
-      sendBranchChange(root, branch)
-    }
-
-    const repoRoot = await watchBranch(dirPath, callback)
-    if (repoRoot) {
-      gitWatchCallbacks.set(dirPath, { repoRoot, callback })
-    }
-    return repoRoot
+  ipcMain.handle('git:inspectPath', async (_event, dirPath: string) => {
+    return inspectPath(dirPath)
   })
 
-  ipcMain.on('git:unwatchBranch', (_event, repoRoot: string) => {
-    // Find and remove all subscriptions for this repo root
-    for (const [dirPath, entry] of gitWatchCallbacks) {
-      if (entry.repoRoot === repoRoot) {
-        unwatchBranch(repoRoot, entry.callback)
-        gitWatchCallbacks.delete(dirPath)
+  // Track per-subscription callback references — keyed by TOKEN so that
+  // multiple renderer-side consumers can watch the same repoRoot without
+  // tearing each other's subscriptions down on unwatch.
+  const gitWatchCallbacks = new Map<
+    string,
+    { repoRoot: string; callback: (repoRoot: string, branch: string | null) => void }
+  >()
+  // Per-webContents token set so we can tear everything down if the renderer
+  // reloads/crashes before git:unwatchBranch is called.
+  const gitWatchTokensByWebContents = new Map<number, Set<string>>()
+
+  const teardownGitWatchToken = (token: string): void => {
+    const entry = gitWatchCallbacks.get(token)
+    if (!entry) return
+    gitWatchCallbacks.delete(token)
+    unwatchBranch(entry.repoRoot, entry.callback)
+  }
+
+  ipcMain.handle('git:watchBranch', async (event, dirPath: string) => {
+    const sender = event.sender
+    const wcId = sender.id
+
+    // Install destroyed handler BEFORE awaiting so a reload/crash during
+    // watchBranch() still tears everything down.
+    let set = gitWatchTokensByWebContents.get(wcId)
+    if (!set) {
+      set = new Set()
+      gitWatchTokensByWebContents.set(wcId, set)
+      sender.once('destroyed', () => {
+        const tokens = gitWatchTokensByWebContents.get(wcId)
+        gitWatchTokensByWebContents.delete(wcId)
+        if (tokens) for (const t of tokens) teardownGitWatchToken(t)
+      })
+    }
+
+    const callback = (root: string, branch: string | null): void => {
+      if (!sender.isDestroyed()) {
+        sender.send('git:branchChanged', root, branch)
       }
+    }
+    const repoRoot = await watchBranch(dirPath, callback)
+    if (!repoRoot) return null
+    if (sender.isDestroyed()) {
+      unwatchBranch(repoRoot, callback)
+      return null
+    }
+    const token = randomUUID()
+    gitWatchCallbacks.set(token, { repoRoot, callback })
+    set.add(token)
+    return { token, repoRoot }
+  })
+
+  ipcMain.on('git:unwatchBranch', (event, token: string) => {
+    teardownGitWatchToken(token)
+    const set = gitWatchTokensByWebContents.get(event.sender.id)
+    if (set) set.delete(token)
+  })
+
+  // ── Worktrees ──────────────────────────────────────────────────────
+  // Track subscription tokens per webContents so we can clean up on reload/close.
+  const worktreeSubsByWebContents = new Map<number, Set<string>>()
+
+  ipcMain.handle('worktrees:list', (_event, repoRoot: string) => {
+    return worktreeService.list(repoRoot)
+  })
+
+  ipcMain.handle('worktrees:listBranches', (_event, repoRoot: string) => {
+    return worktreeService.listBranches(repoRoot)
+  })
+
+  ipcMain.handle('worktrees:create', (_event, opts: CreateWorktreeOptions) => {
+    return worktreeService.create(opts)
+  })
+
+  ipcMain.handle('worktrees:delete', (_event, opts: DeleteWorktreeOptions) => {
+    return worktreeService.remove(opts)
+  })
+
+  ipcMain.handle('worktrees:watchRepo', async (event, repoRoot: string) => {
+    const sender = event.sender
+    const wcId = sender.id
+
+    // Register the destroyed handler BEFORE awaiting so that if the
+    // webContents dies while watchRepo is resolving, the token we're about
+    // to create is still torn down.
+    let set = worktreeSubsByWebContents.get(wcId)
+    if (!set) {
+      set = new Set()
+      worktreeSubsByWebContents.set(wcId, set)
+      sender.once('destroyed', () => {
+        const tokens = worktreeSubsByWebContents.get(wcId)
+        worktreeSubsByWebContents.delete(wcId)
+        if (tokens) {
+          for (const t of tokens) worktreeService.unwatchRepo(t)
+        }
+      })
+    }
+
+    const result = await worktreeService.watchRepo(repoRoot, (payload) => {
+      if (!sender.isDestroyed()) {
+        sender.send('worktrees:changed', payload)
+      }
+    })
+    if (!result) return null
+
+    // If the webContents died during the await, unwatch immediately.
+    if (sender.isDestroyed()) {
+      worktreeService.unwatchRepo(result.token)
+      return null
+    }
+
+    set.add(result.token)
+    return result
+  })
+
+  ipcMain.on('worktrees:unwatchRepo', (event, token: string) => {
+    worktreeService.unwatchRepo(token)
+    const set = worktreeSubsByWebContents.get(event.sender.id)
+    if (set) set.delete(token)
+  })
+
+  ipcMain.handle('worktrees:refresh', (_event, repoRoot: string) => {
+    return worktreeService.refreshRepo(repoRoot)
+  })
+
+  ipcMain.handle('worktrees:reveal', async (_event, targetPath: string) => {
+    shell.showItemInFolder(targetPath)
+  })
+
+  ipcMain.handle(
+    'worktrees:recordSetupResult',
+    async (_event, repoRoot: string, worktreePath: string, exitCode: number) => {
+      await worktreeService.recordSetupResult(repoRoot, worktreePath, exitCode)
+    }
+  )
+
+  ipcMain.handle('worktrees:prepareSetupScript', async (_event, scriptBody: string) => {
+    const isWindows = process.platform === 'win32'
+    const ext = isWindows ? '.bat' : '.sh'
+    const tempPath = join(os.tmpdir(), `dplex-setup-${randomUUID()}${ext}`)
+    const body = isWindows
+      ? `@echo off\r\n${scriptBody.replace(/\r?\n/g, '\r\n')}\r\n`
+      : `#!/bin/sh\nset -e\n${scriptBody}\n`
+    await fs.promises.writeFile(tempPath, body, { mode: 0o700 })
+    // Windows cmd.exe /C parses outer quotes specially: if both the command
+    // and args are quoted, it strips the outermost pair. Wrap the path in a
+    // second pair so paths with spaces (e.g. C:\Users\John Doe\...) work.
+    const command = isWindows
+      ? `cmd /c ""${tempPath}""`
+      : `sh "${tempPath.replace(/"/g, '\\"')}"`
+    return { command, tempPath }
+  })
+
+  ipcMain.handle('worktrees:cleanupSetupScript', async (_event, tempPath: string) => {
+    try {
+      const tmpRoot = await fs.promises.realpath(os.tmpdir())
+      const resolved = await fs.promises.realpath(tempPath).catch(() => null)
+      if (!resolved) return
+      // Use path.relative for boundary-safe containment check — rejects paths
+      // that only share the tmpdir prefix as a string (e.g. /tmpfoo vs /tmp).
+      const rel = path.relative(tmpRoot, resolved)
+      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return
+      await fs.promises.unlink(resolved).catch(() => undefined)
+    } catch {
+      /* ignore */
     }
   })
 }
@@ -482,5 +627,6 @@ app.on('before-quit', () => {
     provider.stopWatching()
   }
   stopAllBranchWatchers()
+  worktreeService.stopAll()
   destroyAllPtys()
 })

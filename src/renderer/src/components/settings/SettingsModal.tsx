@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Settings, Palette, Terminal, Bot, Keyboard, BellRing } from 'lucide-react'
+import { X, Settings, Palette, Terminal, Bot, Keyboard, BellRing, GitBranch } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
@@ -12,7 +12,7 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type SettingsTab = 'appearance' | 'terminal' | 'ai-tools' | 'notifications' | 'shortcuts'
+type SettingsTab = 'appearance' | 'terminal' | 'ai-tools' | 'notifications' | 'worktrees' | 'shortcuts'
 
 const SHORTCUTS: { category: string; items: { keys: string; description: string }[] }[] = [
   {
@@ -46,6 +46,7 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
   { id: 'terminal', label: 'Terminal', icon: Terminal },
   { id: 'ai-tools', label: 'AI Tools', icon: Bot },
   { id: 'notifications', label: 'Notifications', icon: BellRing },
+  { id: 'worktrees', label: 'Worktrees', icon: GitBranch },
   { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard }
 ]
 
@@ -90,6 +91,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [isOpen, onClose])
+
+  useEffect(() => {
+    const handler = (e: Event): void => {
+      const detail = (e as CustomEvent<{ section?: string }>).detail
+      if (detail?.section === 'worktrees') {
+        setActiveTab('worktrees')
+      }
+    }
+    window.addEventListener('dplex:open-settings', handler)
+    return () => window.removeEventListener('dplex:open-settings', handler)
+  }, [])
 
   // Clear debounce timer on unmount to prevent stale writes
   useEffect(() => {
@@ -519,6 +531,116 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     </span>
                   </div>
                 </SettingItem>
+              </>
+            )}
+
+            {activeTab === 'worktrees' && (
+              <>
+                <SettingItem
+                  label="Location pattern"
+                  description="Where new worktrees are created. Supports {project} and {branch} placeholders."
+                >
+                  <input
+                    type="text"
+                    value={settings.worktreeDefaults.locationPattern}
+                    onChange={(e) =>
+                      applyDebounced({
+                        worktreeDefaults: {
+                          ...settings.worktreeDefaults,
+                          locationPattern: e.target.value
+                        }
+                      })
+                    }
+                    placeholder="../{project}-worktrees/{branch}"
+                    className="w-full rounded px-2 py-1 text-xs font-mono outline-none"
+                    style={{
+                      backgroundColor: 'var(--dplex-bg-alt)',
+                      border: '1px solid var(--dplex-border)',
+                      color: 'var(--dplex-text)'
+                    }}
+                  />
+                </SettingItem>
+
+                <SettingItem
+                  label="Env files to copy"
+                  description="Comma-separated relative paths (supports trailing wildcards like .env.*.local)."
+                >
+                  <input
+                    type="text"
+                    value={settings.worktreeDefaults.envFiles.join(', ')}
+                    onChange={(e) =>
+                      applyDebounced({
+                        worktreeDefaults: {
+                          ...settings.worktreeDefaults,
+                          envFiles: e.target.value
+                            .split(',')
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                        }
+                      })
+                    }
+                    placeholder=".env.local, .env.*.local"
+                    className="w-full rounded px-2 py-1 text-xs font-mono outline-none"
+                    style={{
+                      backgroundColor: 'var(--dplex-bg-alt)',
+                      border: '1px solid var(--dplex-border)',
+                      color: 'var(--dplex-text)'
+                    }}
+                  />
+                </SettingItem>
+
+                <SettingItem
+                  label="Setup script"
+                  description="Shell script to run after creating a worktree (e.g. npm install)."
+                >
+                  <textarea
+                    value={settings.worktreeDefaults.setupScript}
+                    onChange={(e) =>
+                      applyDebounced({
+                        worktreeDefaults: {
+                          ...settings.worktreeDefaults,
+                          setupScript: e.target.value
+                        }
+                      })
+                    }
+                    rows={3}
+                    placeholder="npm install"
+                    className="w-full rounded px-2 py-1 text-xs font-mono outline-none resize-y"
+                    style={{
+                      backgroundColor: 'var(--dplex-bg-alt)',
+                      border: '1px solid var(--dplex-border)',
+                      color: 'var(--dplex-text)'
+                    }}
+                  />
+                </SettingItem>
+
+                <SettingItem
+                  label="After creation"
+                  description="What to do once a worktree is ready."
+                >
+                  <select
+                    value={settings.worktreeDefaults.afterCreate}
+                    onChange={(e) =>
+                      applyNow({
+                        worktreeDefaults: {
+                          ...settings.worktreeDefaults,
+                          afterCreate: e.target.value as 'session' | 'terminal' | 'none'
+                        }
+                      })
+                    }
+                    className="w-full rounded px-2 py-1 text-xs outline-none"
+                    style={{
+                      backgroundColor: 'var(--dplex-bg-alt)',
+                      border: '1px solid var(--dplex-border)',
+                      color: 'var(--dplex-text)'
+                    }}
+                  >
+                    <option value="session">Start AI session</option>
+                    <option value="terminal">Open terminal</option>
+                    <option value="none">Do nothing</option>
+                  </select>
+                </SettingItem>
+
               </>
             )}
 

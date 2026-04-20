@@ -5,6 +5,7 @@ import {
   getOrCreateTerminal,
   updateTerminalFont,
   applyThemeToAll,
+  fireExitHandler,
   type TerminalEntry
 } from '../services/terminalRegistry'
 
@@ -95,9 +96,13 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         }
       })
 
-      const removeExitListener = window.dplex.pty.onExit((id, _exitCode) => {
+      const removeExitListener = window.dplex.pty.onExit((id, exitCode) => {
         if (id === ptyIdResolved) {
           entry.term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n')
+          // Notify any callers that registered a pending exit handler for
+          // this terminal (e.g. worktree setup-script flow) so they can
+          // record results and clean up resources without polling.
+          fireExitHandler(terminalId, exitCode)
         }
       })
 

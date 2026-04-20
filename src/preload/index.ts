@@ -1,6 +1,26 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { AttentionSnapshot } from './attentionTypes'
+import type {
+  CreateWorktreeOptions,
+  CreateWorktreeResult,
+  DeleteWorktreeOptions,
+  DeleteWorktreeResult,
+  WorktreeError,
+  WorktreeInfo,
+  WorktreesChangedPayload
+} from '../main/services/worktrees/types'
+
+export type {
+  CreateWorktreeOptions,
+  CreateWorktreeResult,
+  DeleteWorktreeOptions,
+  DeleteWorktreeResult,
+  WorktreeError,
+  WorktreeInfo,
+  WorktreesChangedPayload
+} from '../main/services/worktrees/types'
+
 
 export interface DplexAPI {
   pty: {
@@ -59,8 +79,18 @@ export interface DplexAPI {
   }
   git: {
     getBranch: (dirPath: string) => Promise<string | null>
-    watchBranch: (dirPath: string) => Promise<string | null>
-    unwatchBranch: (repoRoot: string) => void
+    inspectPath: (
+      dirPath: string
+    ) => Promise<{
+      topLevel: string
+      mainRepoPath: string
+      isWorktree: boolean
+      branch: string | null
+    } | null>
+    watchBranch: (
+      dirPath: string
+    ) => Promise<{ token: string; repoRoot: string } | null>
+    unwatchBranch: (token: string) => void
     onBranchChanged: (callback: (repoRoot: string, branch: string | null) => void) => () => void
   }
   attention: {
@@ -71,6 +101,35 @@ export interface DplexAPI {
     setActiveTab: (compositeId: string | null) => void
     onUpdated: (callback: (snapshot: AttentionSnapshot) => void) => () => void
     onFocusSession: (callback: (compositeId: string) => void) => () => void
+  }
+  worktrees: {
+    list: (repoRoot: string) => Promise<WorktreeInfo[]>
+    listBranches: (
+      repoRoot: string
+    ) => Promise<{ local: string[]; remote: string[]; defaultBase: string | null }>
+    create: (
+      opts: CreateWorktreeOptions
+    ) => Promise<CreateWorktreeResult | WorktreeError>
+    delete: (opts: DeleteWorktreeOptions) => Promise<DeleteWorktreeResult | WorktreeError>
+    watchRepo: (repoRoot: string) => Promise<{ token: string; repoRoot: string } | null>
+    unwatchRepo: (token: string) => void
+    refresh: (repoRoot: string) => Promise<void>
+    reveal: (path: string) => Promise<void>
+    recordSetupResult: (
+      repoRoot: string,
+      worktreePath: string,
+      exitCode: number
+    ) => Promise<void>
+    /**
+     * Write the given script body to a temporary file and return a shell
+     * command that executes it. Caller should create a PTY tab with that
+     * command. A follow-up `worktrees:cleanupSetupScript` removes the tmp file.
+     */
+    prepareSetupScript: (
+      scriptBody: string
+    ) => Promise<{ command: string; tempPath: string }>
+    cleanupSetupScript: (tempPath: string) => Promise<void>
+    onChanged: (callback: (payload: WorktreesChangedPayload) => void) => () => void
   }
 }
 
@@ -148,8 +207,9 @@ const dplexAPI: DplexAPI = {
   },
   git: {
     getBranch: (dirPath: string) => ipcRenderer.invoke('git:getBranch', dirPath),
+    inspectPath: (dirPath: string) => ipcRenderer.invoke('git:inspectPath', dirPath),
     watchBranch: (dirPath: string) => ipcRenderer.invoke('git:watchBranch', dirPath),
-    unwatchBranch: (repoRoot: string) => ipcRenderer.send('git:unwatchBranch', repoRoot),
+    unwatchBranch: (token: string) => ipcRenderer.send('git:unwatchBranch', token),
     onBranchChanged: (callback: (repoRoot: string, branch: string | null) => void) => {
       const handler = (
         _event: Electron.IpcRendererEvent,
@@ -177,6 +237,30 @@ const dplexAPI: DplexAPI = {
         callback(compositeId)
       ipcRenderer.on('attention:focusSession', handler)
       return () => ipcRenderer.removeListener('attention:focusSession', handler)
+    }
+  },
+  worktrees: {
+    list: (repoRoot) => ipcRenderer.invoke('worktrees:list', repoRoot),
+    listBranches: (repoRoot) => ipcRenderer.invoke('worktrees:listBranches', repoRoot),
+    create: (opts) => ipcRenderer.invoke('worktrees:create', opts),
+    delete: (opts) => ipcRenderer.invoke('worktrees:delete', opts),
+    watchRepo: (repoRoot) => ipcRenderer.invoke('worktrees:watchRepo', repoRoot),
+    unwatchRepo: (token) => ipcRenderer.send('worktrees:unwatchRepo', token),
+    refresh: (repoRoot) => ipcRenderer.invoke('worktrees:refresh', repoRoot),
+    reveal: (path) => ipcRenderer.invoke('worktrees:reveal', path),
+    recordSetupResult: (repoRoot, worktreePath, exitCode) =>
+      ipcRenderer.invoke('worktrees:recordSetupResult', repoRoot, worktreePath, exitCode),
+    prepareSetupScript: (scriptBody) =>
+      ipcRenderer.invoke('worktrees:prepareSetupScript', scriptBody),
+    cleanupSetupScript: (tempPath) =>
+      ipcRenderer.invoke('worktrees:cleanupSetupScript', tempPath),
+    onChanged: (callback) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        payload: WorktreesChangedPayload
+      ): void => callback(payload)
+      ipcRenderer.on('worktrees:changed', handler)
+      return () => ipcRenderer.removeListener('worktrees:changed', handler)
     }
   }
 }
