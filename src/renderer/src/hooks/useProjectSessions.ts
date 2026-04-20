@@ -1,15 +1,18 @@
 import { useMemo } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTerminalStore } from '../stores/terminalStore'
+import { useProjectStore } from '../stores/projectStore'
 import type { AISession, TerminalTab } from '../types'
 
 /**
  * Normalize a path for comparison: resolve separators, trim trailing slashes.
  * Case-fold only on case-insensitive platforms (macOS, Windows).
+ *
+ * Exported so that every code path that decides "is this the same project path"
+ * uses identical rules (dedup, orphan detection, session attribution).
  */
-function normalizePath(p: string): string {
+export function normalizePath(p: string): string {
   let normalized = p.replace(/\\/g, '/').replace(/\/+$/, '')
-  // Case-insensitive on macOS (darwin) and Windows (win32)
   if (typeof navigator !== 'undefined') {
     const platform = navigator.platform?.toLowerCase() ?? ''
     if (platform.includes('mac') || platform.includes('win')) {
@@ -19,11 +22,19 @@ function normalizePath(p: string): string {
   return normalized
 }
 
-/** Check if a CWD belongs to a project path (exact match or subdirectory). */
-function cwdMatchesProject(cwd: string, projectPath: string): boolean {
-  const normCwd = normalizePath(cwd)
-  const normProject = normalizePath(projectPath)
-  return normCwd === normProject || normCwd.startsWith(normProject + '/')
+/**
+ * Pick the registered project whose path is the longest prefix of cwd.
+ * Each worktree is registered as its own project in the new model, so
+ * we no longer need a worktree-aware remap layer — a plain path-prefix
+ * match is both sufficient and more predictable.
+ */
+function findMatchingProject(cwd: string, sortedProjects: string[]): string | null {
+  const norm = normalizePath(cwd)
+  for (const pp of sortedProjects) {
+    const n = normalizePath(pp)
+    if (norm === n || norm.startsWith(n + '/')) return pp
+  }
+  return null
 }
 
 export interface ProjectActivity {
@@ -41,7 +52,6 @@ export interface ProjectActivity {
 
 /**
  * Derives project activity from sessionStore + terminalStore.
- * Merges discovered sessions with open DPlex tabs, deduping by sessionId.
  *
  * NOTE: For O(1) per-project lookups, prefer getProjectSessionsFromIndex()
  * when rendering a list of projects. This hook is for individual project use.
@@ -49,10 +59,12 @@ export interface ProjectActivity {
 export function useProjectSessions(projectPath: string): ProjectActivity {
   const sessions = useSessionStore((s) => s.sessions)
   const groups = useTerminalStore((s) => s.groups)
+  const projects = useProjectStore((s) => s.projects)
+  const allProjectPaths = useMemo(() => projects.map((p) => p.path), [projects])
 
   return useMemo(() => {
-    return computeProjectActivity(sessions, groups, projectPath)
-  }, [sessions, groups, projectPath])
+    return computeProjectActivity(sessions, groups, projectPath, allProjectPaths)
+  }, [sessions, groups, projectPath, allProjectPaths])
 }
 
 /**
@@ -62,27 +74,30 @@ export function useProjectSessions(projectPath: string): ProjectActivity {
 export function computeProjectActivity(
   sessions: AISession[],
   groups: { id: string; tabs: TerminalTab[] }[],
-  projectPath: string
+  projectPath: string,
+  allProjectPaths: string[] = [projectPath]
 ): ProjectActivity {
-  // 1. Find discovered sessions matching this project
-  const matchedSessions = sessions.filter(
-    (s) => s.cwd && cwdMatchesProject(s.cwd, projectPath)
+  const sortedProjects = [...allProjectPaths].sort(
+    (a, b) => normalizePath(b).length - normalizePath(a).length
   )
+  const matchesThisProject = (cwd: string): boolean => {
+    return findMatchingProject(cwd, sortedProjects) === projectPath
+  }
 
-  // 2. Find open DPlex tabs matching this project
+  const matchedSessions = sessions.filter((s) => s.cwd && matchesThisProject(s.cwd))
+
+  // Any tab with a cwd that falls under the project counts — including plain
+  // terminals (no command) launched from inside the checkout.
   const matchedTabs = groups.flatMap((g) =>
     g.tabs
-      .filter((t) => t.command && t.cwd && cwdMatchesProject(t.cwd, projectPath))
+      .filter((t) => t.cwd && matchesThisProject(t.cwd))
       .map((t) => ({ ...t, groupId: g.id }))
   )
 
-  // 4. Compute activity metrics
   const activeSessions = matchedSessions.filter((s) => s.status === 'active')
-  // activeCount reflects sessions with known active status (not unresolved tabs)
   const activeCount = activeSessions.length
   const hasActive = activeCount > 0
 
-  // 5. Most recent activity across all matched sessions
   const lastActivity = matchedSessions.reduce<Date | undefined>((latest, s) => {
     const time = s.lastActivityTime ? new Date(s.lastActivityTime) : s.updatedAt
     return !latest || time > latest ? time : latest
@@ -107,12 +122,10 @@ export function buildProjectSessionIndex(
   groups: { id: string; tabs: TerminalTab[] }[],
   projectPaths: string[]
 ): Map<string, ProjectActivity> {
-  // Sort project paths by length descending — longest match wins
-  const sorted = [...projectPaths].sort((a, b) =>
-    normalizePath(b).length - normalizePath(a).length
+  const sorted = [...projectPaths].sort(
+    (a, b) => normalizePath(b).length - normalizePath(a).length
   )
 
-  // Assign each session to the longest matching project
   const sessionsByProject = new Map<string, AISession[]>()
   const tabsByProject = new Map<string, (TerminalTab & { groupId: string })[]>()
   for (const pp of projectPaths) {
@@ -120,36 +133,21 @@ export function buildProjectSessionIndex(
     tabsByProject.set(pp, [])
   }
 
-  const assignedSessionIds = new Set<string>()
   for (const s of sessions) {
-    if (!s.cwd || assignedSessionIds.has(s.id)) continue
-    for (const pp of sorted) {
-      if (cwdMatchesProject(s.cwd, pp)) {
-        sessionsByProject.get(pp)!.push(s)
-        assignedSessionIds.add(s.id)
-        break
-      }
-    }
+    if (!s.cwd) continue
+    const matched = findMatchingProject(s.cwd, sorted)
+    if (matched) sessionsByProject.get(matched)!.push(s)
   }
 
-  const assignedTabIds = new Set<string>()
   const allTabs = groups.flatMap((g) =>
-    g.tabs
-      .filter((t) => t.command && t.cwd)
-      .map((t) => ({ ...t, groupId: g.id }))
+    g.tabs.filter((t) => t.cwd).map((t) => ({ ...t, groupId: g.id }))
   )
   for (const tab of allTabs) {
-    if (!tab.cwd || assignedTabIds.has(tab.id)) continue
-    for (const pp of sorted) {
-      if (cwdMatchesProject(tab.cwd, pp)) {
-        tabsByProject.get(pp)!.push(tab)
-        assignedTabIds.add(tab.id)
-        break
-      }
-    }
+    if (!tab.cwd) continue
+    const matched = findMatchingProject(tab.cwd, sorted)
+    if (matched) tabsByProject.get(matched)!.push(tab)
   }
 
-  // Build activity for each project from its assigned sessions/tabs
   const index = new Map<string, ProjectActivity>()
   for (const pp of projectPaths) {
     const matchedSessions = sessionsByProject.get(pp)!

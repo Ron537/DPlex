@@ -94,6 +94,7 @@ interface TerminalState {
   restoreWorkspace: (groups: EditorGroup[], layout: LayoutNode, activeGroupId: string | null) => void
   setPid: (terminalId: string, pid: number) => void
   associateSessionId: (terminalId: string, sessionId: string) => void
+  setWorktreeMetadata: (terminalId: string, worktreePath: string, worktreeBranch: string | null) => void
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -381,6 +382,19 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
         tabs: g.tabs.map((t) => (t.id === terminalId ? { ...t, sessionId } : t))
       }))
     }))
+  },
+
+  setWorktreeMetadata: (terminalId, worktreePath, worktreeBranch) => {
+    set((state) => ({
+      groups: state.groups.map((g) => ({
+        ...g,
+        tabs: g.tabs.map((t) =>
+          t.id === terminalId
+            ? { ...t, worktreePath, worktreeBranch: worktreeBranch ?? undefined }
+            : t
+        )
+      }))
+    }))
   }
 }))
 
@@ -401,7 +415,9 @@ function serializeWorkspace(): unknown {
           cwd: t.cwd,
           command: t.command,
           sessionId: t.sessionId,
-          providerId: t.providerId
+          providerId: t.providerId,
+          worktreePath: t.worktreePath,
+          worktreeBranch: t.worktreeBranch
         })),
       activeTabId: g.activeTabId
     })),

@@ -11,6 +11,9 @@ export interface PersistedTab {
   cwd?: string
   command?: string
   sessionId?: string
+  providerId?: string
+  worktreePath?: string
+  worktreeBranch?: string
 }
 
 export interface PersistedGroup {

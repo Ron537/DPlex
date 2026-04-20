@@ -91,6 +91,12 @@ export function AppLayout(): React.JSX.Element {
   const themeId = useSettingsStore((s) => s.settings.theme)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  useEffect(() => {
+    const handler = (): void => setSettingsOpen(true)
+    window.addEventListener('dplex:open-settings', handler)
+    return () => window.removeEventListener('dplex:open-settings', handler)
+  }, [])
+
   const theme = getTheme(themeId)
 
   // Apply theme CSS variables (including status colors)

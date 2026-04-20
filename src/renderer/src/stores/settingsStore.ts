@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppSettings } from '../types'
+import type { AppSettings, WorktreeDefaults } from '../types'
 import { getTheme } from '../services/themes'
 
 // Read cached theme from localStorage synchronously to avoid flash
@@ -53,6 +53,13 @@ const cachedTheme = getCachedTheme()
 
 let sidebarWidthPersistTimer: ReturnType<typeof setTimeout> | null = null
 
+export const DEFAULT_WORKTREE_DEFAULTS: WorktreeDefaults = {
+  locationPattern: '../{project}-{branch}',
+  envFiles: ['.env', '.env.local', '.env.*.local'],
+  setupScript: '',
+  afterCreate: 'session'
+}
+
 const DEFAULT_SETTINGS: AppSettings = {
   defaultShell: '',
   defaultAITool: 'copilot-cli',
@@ -72,7 +79,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   dndFrom: null,
   dndTo: null,
   notificationCooldownSeconds: 30,
-  idleTooLongMinutes: 5
+  idleTooLongMinutes: 5,
+  worktreeDefaults: DEFAULT_WORKTREE_DEFAULTS
 }
 
 interface SettingsState {
@@ -90,8 +98,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   loadSettings: async () => {
     try {
-      const saved = await window.dplex.settings.getAll()
-      const merged = { ...DEFAULT_SETTINGS, ...saved }
+      const saved = (await window.dplex.settings.getAll()) as Partial<AppSettings>
+      const merged: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        ...saved,
+        worktreeDefaults: {
+          ...DEFAULT_WORKTREE_DEFAULTS,
+          ...(saved.worktreeDefaults ?? {})
+        }
+      }
       set({ settings: merged, loaded: true })
       cacheTheme(merged.theme)
     } catch {

@@ -7,6 +7,8 @@ export interface TerminalTab {
   sessionId?: string // AI tool session ID (e.g. copilot session dir name) for --resume on restore
   providerId?: string // AI provider id (e.g. 'copilot-cli') for composite attention identity
   pid?: number // PTY process PID, used for PID→session mapping
+  worktreePath?: string // Canonical worktree path if this tab was launched against a worktree
+  worktreeBranch?: string // Worktree branch at launch time (display hint, not authoritative)
 }
 
 export interface ShellInfo {
@@ -71,6 +73,26 @@ export interface AppSettings {
   dndTo: string | null
   notificationCooldownSeconds: number
   idleTooLongMinutes: number
+  /** Global defaults for worktree creation (inherited by per-project settings). */
+  worktreeDefaults: WorktreeDefaults
+}
+
+export interface WorktreeDefaults {
+  /** Path pattern — supports `{project}` and `{branch}` placeholders. */
+  locationPattern: string
+  /** Env files (repo-relative) to copy on create. Supports trailing `*`. */
+  envFiles: string[]
+  /** Setup script to run after creation (bash-style). Empty = none. */
+  setupScript: string
+  /** Default after-create behavior. */
+  afterCreate: 'session' | 'terminal' | 'none'
+}
+
+export interface ProjectWorktreeOverrides {
+  locationPattern?: string
+  envFiles?: string[] | null // null = inherit
+  setupScript?: string
+  afterCreate?: 'session' | 'terminal' | 'none'
 }
 
 export interface Project {
@@ -78,6 +100,17 @@ export interface Project {
   name: string
   path: string
   addedAt: string
+  worktreeOverrides?: ProjectWorktreeOverrides
+  /** If set, this project is a worktree of the project with this id. */
+  parentProjectId?: string
+  /** Display name of the parent repo at creation time — preserved so orphan
+      worktrees (parent project removed) can still show "branch (repo)". */
+  parentRepoName?: string
+  /** Absolute path of the parent repo (main checkout). Used to reconcile
+      parentProjectId when the origin is added later. */
+  parentRepoPath?: string
+  /** True when DPlex created the worktree (affects default "delete from disk" behavior). */
+  createdByDplexWorktree?: boolean
 }
 
 export interface ProviderInfo {

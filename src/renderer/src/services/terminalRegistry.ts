@@ -68,15 +68,57 @@ export function getTerminalEntry(terminalId: string): TerminalEntry | undefined 
   return registry.get(terminalId)
 }
 
+// ── Pending exit handlers ───────────────────────────────────────────────
+// Callers (e.g. worktree setup-script flow) may want to react to a
+// terminal's PTY exit without waiting for useTerminal to mount and resolve
+// the ptyId. Registering here is unconditional: the handler fires on the
+// first of (a) PTY exit reported by useTerminal, or (b) destroyTerminal()
+// for cases where the tab never mounted. After firing, it's cleared.
+
+type PendingExitHandler = (exitCode: number) => void
+const pendingExitHandlers = new Map<string, PendingExitHandler>()
+
+export function registerExitHandler(
+  terminalId: string,
+  handler: PendingExitHandler
+): () => void {
+  pendingExitHandlers.set(terminalId, handler)
+  return () => {
+    if (pendingExitHandlers.get(terminalId) === handler) {
+      pendingExitHandlers.delete(terminalId)
+    }
+  }
+}
+
+/** Invoke and clear any pending exit handler for a terminal. Idempotent. */
+export function fireExitHandler(terminalId: string, exitCode: number): void {
+  const handler = pendingExitHandlers.get(terminalId)
+  if (!handler) return
+  pendingExitHandlers.delete(terminalId)
+  try {
+    handler(exitCode)
+  } catch {
+    /* isolate handler errors */
+  }
+}
+
 export function destroyTerminal(terminalId: string): void {
   const entry = registry.get(terminalId)
-  if (!entry) return
+  if (!entry) {
+    // Even if the entry never got registered, fire any pending handler so
+    // callers waiting on an exit result get unblocked with a synthetic code.
+    fireExitHandler(terminalId, -1)
+    return
+  }
 
   if (entry.cleanupIpc) entry.cleanupIpc()
   if (entry.ptyId) window.dplex.pty.destroy(entry.ptyId)
   entry.term.dispose()
   entry.wrapperEl.remove()
   registry.delete(terminalId)
+  // If useTerminal hadn't yet wired pty:exit (fast destroy before PTY
+  // resolved), still fire pending handlers so tmp files get cleaned up.
+  fireExitHandler(terminalId, -1)
 }
 
 export function isTerminalRegistered(terminalId: string): boolean {
