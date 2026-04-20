@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parsePorcelain } from '../../src/main/services/worktrees/gitWorktree'
+import { parsePorcelain } from '../../src/main/services/worktrees/porcelain'
 
 describe('parsePorcelain', () => {
   it('returns an empty array for empty input', () => {
