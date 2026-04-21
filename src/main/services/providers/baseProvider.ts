@@ -25,10 +25,11 @@ function normalizePathForCompare(p: string): string {
  * child processes (child Node processes typically spawn AI tool subprocesses).
  * Returns true if the kill request was issued successfully.
  */
-function killProcess(pid: number): boolean {
+function killProcess(pid: number, signal: NodeJS.Signals = 'SIGTERM'): boolean {
   if (process.platform === 'win32') {
     try {
-      // /T kills the process tree, /F forces termination
+      // /T kills the process tree, /F forces termination. taskkill ignores the
+      // POSIX signal argument — it's always a forceful terminate.
       const result = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
         windowsHide: true,
         stdio: 'ignore'
@@ -42,11 +43,44 @@ function killProcess(pid: number): boolean {
     }
   }
   try {
-    process.kill(pid, 'SIGTERM')
+    // On Unix, prefer killing the process group so orphaned children (e.g.
+    // Copilot CLI's MCP/helper subprocesses) die with the parent. PTY-spawned
+    // processes run under `setsid`, which makes the child a process-group
+    // leader (pgid === pid). `process.kill(-pid, signal)` targets that group.
+    // Fall back to signaling the single PID if the group kill fails (ESRCH
+    // can mean the group doesn't exist because the process wasn't a leader).
+    try {
+      process.kill(-pid, signal)
+    } catch {
+      process.kill(pid, signal)
+    }
     return true
   } catch {
     return false
   }
+}
+
+/** Returns true if a process with the given PID is still alive. */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    // EPERM means the process exists but we can't signal it (different user
+    // or protected process). Treat as alive so we don't wrongly proceed to
+    // rmSync while something is still writing to the session directory.
+    return (err as NodeJS.ErrnoException)?.code === 'EPERM'
+  }
+}
+
+/** Wait until the given pids have all exited, or the timeout elapses. */
+async function waitForProcessesToExit(pids: number[], timeoutMs: number): Promise<boolean> {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    if (pids.every((pid) => !isProcessAlive(pid))) return true
+    await new Promise((r) => setTimeout(r, 50))
+  }
+  return pids.every((pid) => !isProcessAlive(pid))
 }
 
 /**
@@ -174,6 +208,25 @@ export abstract class BaseSessionProvider implements SessionProvider {
   async deleteSession(sessionId: string): Promise<void> {
     const fullPath = this.resolveAndValidateSessionPath(sessionId)
     if (!fullPath) throw new Error('Invalid session ID')
+
+    // If the session is currently active, terminate the owning process(es)
+    // BEFORE removing the directory. Otherwise the process keeps writing to
+    // the (just-deleted) directory, recreating it with stripped metadata —
+    // the "zombie session with same ID and no cwd" failure mode.
+    const pids = await this.getActivePidsForSession(fullPath)
+    if (pids.length > 0) {
+      for (const pid of pids) killProcess(pid, 'SIGTERM')
+      // Wait for graceful exit. SIGTERM lets the AI tool flush its logs; if
+      // it doesn't exit within the budget, escalate to SIGKILL.
+      const exited = await waitForProcessesToExit(pids, 1500)
+      if (!exited) {
+        for (const pid of pids) {
+          if (isProcessAlive(pid)) killProcess(pid, 'SIGKILL')
+        }
+        await waitForProcessesToExit(pids, 500)
+      }
+    }
+
     if (fs.existsSync(fullPath)) {
       fs.rmSync(fullPath, { recursive: true, force: true })
     }
@@ -181,6 +234,23 @@ export abstract class BaseSessionProvider implements SessionProvider {
     this.knownSessionIds.delete(sessionId)
     this.sessionCache.delete(sessionId)
     this.onSessionDeleted(fullPath)
+  }
+
+  /** Read the PIDs of processes currently holding this session. */
+  private async getActivePidsForSession(sessionPath: string): Promise<number[]> {
+    try {
+      const files = await fsp.readdir(sessionPath)
+      const pids: number[] = []
+      for (const f of files) {
+        const m = f.match(/^inuse\.(\d+)\.lock$/)
+        if (!m) continue
+        const pid = parseInt(m[1], 10)
+        if (!isNaN(pid) && pid > 0 && isProcessAlive(pid)) pids.push(pid)
+      }
+      return pids
+    } catch {
+      return []
+    }
   }
 
   /** Hook for subclasses to clean up provider-specific caches on session delete. */
