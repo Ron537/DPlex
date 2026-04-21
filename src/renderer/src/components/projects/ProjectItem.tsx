@@ -10,8 +10,7 @@ import {
   Copy,
   Trash2,
   GitFork,
-  Settings2,
-  FolderOpen
+  Settings2
 } from 'lucide-react'
 import type { Project, AISession, ProviderInfo, WorktreeDefaults } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
@@ -129,13 +128,6 @@ export function ProjectItem({
   const handleFocusTab = (tabId: string, groupId: string): void => {
     setActiveGroup(groupId)
     setActiveTerminalInGroup(groupId, tabId)
-  }
-
-  const focusOrigin = (): void => {
-    if (!parentProject) return
-    // Scroll the origin project into view and flash-highlight it.
-    const el = document.querySelector(`[data-project-id="${parentProject.id}"]`)
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }
 
   return (
@@ -367,22 +359,6 @@ export function ProjectItem({
                 style={{ color: 'var(--dplex-text)' }}
               >
                 <Settings2 size={11} /> Worktree defaults…
-              </button>
-              <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
-            </>
-          )}
-          {isWorktreeProject && parentProject && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  focusOrigin()
-                  setShowMenu(false)
-                }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                style={{ color: 'var(--dplex-text)' }}
-              >
-                <FolderOpen size={11} /> Open origin project
               </button>
               <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
             </>
