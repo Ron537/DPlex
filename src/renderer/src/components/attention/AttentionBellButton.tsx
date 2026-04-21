@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bell, Check, X } from 'lucide-react'
 import { useAttentionStore } from '../../stores/attentionStore'
-import { useTerminalStore } from '../../stores/terminalStore'
+import { focusSessionTab } from '../../utils/sessionTabs'
 import type { AttentionEvent, AttentionKind } from '../../../../preload/attentionTypes'
 
 const KIND_LABEL: Record<AttentionKind, string> = {
@@ -26,20 +26,6 @@ function formatAge(since: number): string {
   if (m < 60) return `${m}m`
   const h = Math.floor(m / 60)
   return `${h}h`
-}
-
-function focusSessionTab(providerId: string, sessionId: string): void {
-  const { groups, setActiveGroup, setActiveTerminalInGroup } = useTerminalStore.getState()
-  for (const group of groups) {
-    const tab = group.tabs.find(
-      (t) => t.sessionId === sessionId && (!t.providerId || t.providerId === providerId)
-    )
-    if (tab) {
-      setActiveGroup(group.id)
-      setActiveTerminalInGroup(group.id, tab.id)
-      return
-    }
-  }
 }
 
 export function AttentionBellButton(): React.JSX.Element {
@@ -72,7 +58,7 @@ export function AttentionBellButton(): React.JSX.Element {
   for (const e of visible) grouped[e.kind].push(e)
 
   const handleRowClick = (event: AttentionEvent): void => {
-    focusSessionTab(event.providerId, event.sessionId)
+    focusSessionTab(event.sessionId, event.providerId)
     if (event.kind === 'finished') acknowledge(event.compositeId)
     setOpen(false)
   }

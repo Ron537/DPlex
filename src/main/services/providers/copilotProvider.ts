@@ -52,7 +52,7 @@ export class CopilotProvider extends BaseSessionProvider {
         cwd: workspace.cwd,
         summary: displayName,
         branch: workspace.branch,
-        detailedStatus: parsed?.detailedStatus ?? (isActive ? 'thinking' : 'idle'),
+        detailedStatus: parsed?.detailedStatus ?? 'idle',
         messageCount: parsed?.messageCount ?? 0,
         toolCallCount: parsed?.toolCallCount ?? 0,
         lastActivityTime: parsed?.lastActivityTime ?? eventsMtimeMs

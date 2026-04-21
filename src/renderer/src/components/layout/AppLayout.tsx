@@ -11,6 +11,7 @@ import { AttentionBellButton } from '../attention/AttentionBellButton'
 import { useSessions } from '../../hooks/useSessions'
 import { getTheme } from '../../services/themes'
 import { MOD } from '../../utils/shortcuts'
+import { focusSessionTab } from '../../utils/sessionTabs'
 import type { TerminalTab, EditorGroup, LayoutNode } from '../../types'
 
 // Prune layout tree to only include groups that exist in the restored set
@@ -158,19 +159,7 @@ export function AppLayout(): React.JSX.Element {
       const [providerId, ...rest] = compositeId.split(':')
       const sessionId = rest.join(':')
       if (!providerId || !sessionId) return
-      const { groups, setActiveGroup, setActiveTerminalInGroup } = useTerminalStore.getState()
-      for (const group of groups) {
-        const tab = group.tabs.find(
-          (t) => t.sessionId === sessionId && (!t.providerId || t.providerId === providerId)
-        )
-        if (tab) {
-          setActiveGroup(group.id)
-          setActiveTerminalInGroup(group.id, tab.id)
-          // Auto-ack only `finished` is handled centrally via the active-tab
-          // subscription below; here we just focus.
-          return
-        }
-      }
+      focusSessionTab(sessionId, providerId)
     })
     return () => {
       unsub()

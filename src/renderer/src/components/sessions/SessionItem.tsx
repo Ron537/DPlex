@@ -17,6 +17,11 @@ import { useTerminalStore } from '../../stores/terminalStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { PopoverMenu } from '../common/PopoverMenu'
+import {
+  closeOpenTabsForSession,
+  focusSessionTab,
+  hasOpenTab
+} from '../../utils/sessionTabs'
 
 interface SessionItemProps {
   session: AISession
@@ -44,38 +49,6 @@ const STATUS_CONFIG: Record<
  * identity (providerId + sessionId) to avoid cross-provider ID collisions,
  * with a resume-command fallback for legacy tabs missing providerId.
  */
-function focusExistingTab(
-  sessionId: string,
-  providerId: string,
-  resumeCommand?: string
-): boolean {
-  const { groups, setActiveGroup, setActiveTerminalInGroup } = useTerminalStore.getState()
-  for (const group of groups) {
-    const tab = group.tabs.find(
-      (t) =>
-        (t.sessionId === sessionId &&
-          (t.providerId === providerId || t.providerId === undefined)) ||
-        (resumeCommand && t.command === resumeCommand)
-    )
-    if (tab) {
-      setActiveGroup(group.id)
-      setActiveTerminalInGroup(group.id, tab.id)
-      return true
-    }
-  }
-  return false
-}
-
-function hasOpenTab(sessionId: string, providerId: string): boolean {
-  const { groups } = useTerminalStore.getState()
-  return groups.some((g) =>
-    g.tabs.some(
-      (t) =>
-        t.sessionId === sessionId &&
-        (t.providerId === providerId || t.providerId === undefined)
-    )
-  )
-}
 
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
@@ -106,7 +79,7 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
 
   const handleResume = async (): Promise<void> => {
     const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
-    if (focusExistingTab(session.id, session.aiTool, cmd ?? undefined)) {
+    if (focusSessionTab(session.id, session.aiTool, cmd ?? undefined)) {
       setShowMenu(false)
       return
     }
@@ -281,10 +254,19 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
         </button>
         {session.status === 'active' && (
           <button
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation()
-              closeSession(session.id)
               setShowMenu(false)
+              // Try to close the corresponding tab(s) — include legacy tabs
+              // that only match by their resume command.
+              const cmd = await window.dplex.sessions
+                .getResumeCommand(session.aiTool, session.id)
+                .catch(() => null)
+              closeOpenTabsForSession(session.id, session.aiTool, cmd ?? undefined)
+              // Always close the on-disk session too: legacy tabs without
+              // providerId aren't killed by closeTerminal's guarded path, and
+              // sessions.close is idempotent for already-dead sessions.
+              closeSession(session.id)
             }}
             className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
             style={{ color: 'var(--dplex-text)' }}
@@ -343,10 +325,16 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
         )}
         <div style={{ borderTop: '1px solid var(--dplex-border)' }} className="my-1" />
         <button
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation()
-            onDelete(session.id)
             setShowMenu(false)
+            // Close the corresponding tab(s) — include legacy tabs matched
+            // by resume command. onDelete handles the on-disk teardown.
+            const cmd = await window.dplex.sessions
+              .getResumeCommand(session.aiTool, session.id)
+              .catch(() => null)
+            closeOpenTabsForSession(session.id, session.aiTool, cmd ?? undefined)
+            onDelete(session.id)
           }}
           className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-[var(--dplex-hover)]"
         >
