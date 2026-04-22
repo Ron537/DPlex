@@ -6,6 +6,7 @@ import { PromptsDialog } from './PromptsDialog'
 import { Loader2, ChevronRight, ChevronDown } from 'lucide-react'
 import type { AISession } from '../../types'
 import type { SessionGroupMode } from '../layout/SidePanel'
+import { filterSessions } from '../../utils/sessionFilters'
 
 interface SessionListProps {
   groupMode: SessionGroupMode
@@ -84,42 +85,12 @@ export function SessionList({
   const listRef = useRef<HTMLDivElement>(null)
 
   const { active, groups, flatList } = useMemo(() => {
-    const q = searchQuery.toLowerCase()
-    let filtered = q
-      ? sessions.filter(
-          (s) =>
-            s.displayName.toLowerCase().includes(q) ||
-            s.id.toLowerCase().includes(q) ||
-            (s.summary && s.summary.toLowerCase().includes(q)) ||
-            (s.cwd && s.cwd.toLowerCase().includes(q)) ||
-            (s.branch && s.branch.toLowerCase().includes(q))
-        )
-      : sessions
-
-    // Provider filter
-    if (providerFilter !== 'all') {
-      filtered = filtered.filter((s) => s.aiTool === providerFilter)
-    }
-
-    // Status filter (multi-select with grouped statuses)
-    if (!statusFilters.has('all')) {
-      filtered = filtered.filter((s) => {
-        const detailed = s.detailedStatus ?? (s.status === 'active' ? 'thinking' : 'idle')
-        if (statusFilters.has('active') && s.status === 'active') return true
-        if (statusFilters.has('idle') && detailed === 'idle') return true
-        if (statusFilters.has('running') && (detailed === 'thinking' || detailed === 'executingTool')) return true
-        if (statusFilters.has('waiting') && (detailed === 'awaitingApproval' || detailed === 'waitingForUser')) return true
-        return false
-      })
-    }
-
-    // Hide empty idle sessions (setting). Active sessions are always shown
-    // because the user may be mid-prompt before the first message is recorded.
-    if (hideEmptySessions) {
-      filtered = filtered.filter(
-        (s) => s.status === 'active' || (s.messageCount ?? 0) > 0
-      )
-    }
+    const filtered = filterSessions(sessions, {
+      searchQuery,
+      providerFilter,
+      statusFilters,
+      hideEmptySessions
+    })
 
     const idle = filtered.filter((s) => s.status === 'idle')
     const activeList = filtered.filter((s) => s.status === 'active')
