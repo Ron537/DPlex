@@ -70,6 +70,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   sidebarVisible: true,
   sessionPollIntervalMs: 5000,
   sessionMaxAgeDays: 7,
+  hideEmptySessions: true,
   notificationsEnabled: true,
   notifyOnApproval: true,
   notifyOnInput: true,

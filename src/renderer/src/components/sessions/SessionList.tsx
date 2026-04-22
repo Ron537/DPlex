@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { useSessionStore } from '../../stores/sessionStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { SessionItem } from './SessionItem'
 import { PromptsDialog } from './PromptsDialog'
 import { Loader2, ChevronRight, ChevronDown } from 'lucide-react'
@@ -76,6 +77,7 @@ export function SessionList({
   const loading = useSessionStore((s) => s.loading)
   const error = useSessionStore((s) => s.error)
   const deleteSession = useSessionStore((s) => s.deleteSession)
+  const hideEmptySessions = useSettingsStore((s) => s.settings.hideEmptySessions)
 
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [promptsSession, setPromptsSession] = useState<AISession | null>(null)
@@ -111,6 +113,14 @@ export function SessionList({
       })
     }
 
+    // Hide empty idle sessions (setting). Active sessions are always shown
+    // because the user may be mid-prompt before the first message is recorded.
+    if (hideEmptySessions) {
+      filtered = filtered.filter(
+        (s) => s.status === 'active' || (s.messageCount ?? 0) > 0
+      )
+    }
+
     const idle = filtered.filter((s) => s.status === 'idle')
     const activeList = filtered.filter((s) => s.status === 'active')
     const groupedIdle =
@@ -127,7 +137,7 @@ export function SessionList({
       groups: groupedIdle,
       flatList: flat
     }
-  }, [sessions, searchQuery, groupMode, providerFilter, statusFilters])
+  }, [sessions, searchQuery, groupMode, providerFilter, statusFilters, hideEmptySessions])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {

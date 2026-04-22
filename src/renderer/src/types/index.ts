@@ -62,6 +62,8 @@ export interface AppSettings {
   sidebarVisible: boolean
   sessionPollIntervalMs: number
   sessionMaxAgeDays: number
+  /** Hide idle sessions that have no messages yet. Active sessions are always shown. */
+  hideEmptySessions: boolean
   // Attention inbox / notifications
   notificationsEnabled: boolean
   notifyOnApproval: boolean

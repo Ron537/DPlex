@@ -317,6 +317,23 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>days</span>
                   </div>
                 </SettingItem>
+
+                <SettingItem
+                  label="Hide empty sessions"
+                  description="Hide idle sessions that have no messages yet. Active sessions are always shown."
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.hideEmptySessions}
+                      onChange={(e) => applyNow({ hideEmptySessions: e.target.checked })}
+                      className="accent-[var(--dplex-accent)]"
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                      Hide sessions with no messages
+                    </span>
+                  </label>
+                </SettingItem>
               </>
             )}
 
