@@ -186,16 +186,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   startAISession: async (project, providerId?) => {
     const settings = useSettingsStore.getState().settings
-    const pid = providerId ?? settings.defaultAITool
+    const configuredPid = providerId ?? settings.defaultAITool
 
-    const [cmd, providers] = await Promise.all([
-      window.dplex.sessions.getNewSessionCommand(pid),
-      window.dplex.sessions.getProviders()
-    ])
+    const providers = (await window.dplex.sessions.getProviders()) ?? []
+    // Fall back to the first registered provider if the configured default
+    // isn't registered (e.g. user had a provider that's since been removed).
+    const resolved = providers.find((p) => p.id === configuredPid) ?? providers[0]
+    if (!resolved) return null
+    const pid = resolved.id
 
-    const command = cmd || (pid === 'copilot-cli' ? 'copilot' : pid)
-    const providerName = providers?.find((p) => p.id === pid)?.name ?? 'AI'
-    const title = `${providerName} · ${folderName(project.path)}`
+    const cmd = await window.dplex.sessions.getNewSessionCommand(pid)
+    const command = cmd || resolved.command || pid
+    const title = `${resolved.name} · ${folderName(project.path)}`
 
     const tabId = useTerminalStore.getState().createTerminal(
       undefined,

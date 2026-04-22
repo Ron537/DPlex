@@ -2,9 +2,11 @@ import { useEffect, useCallback } from 'react'
 import { AppLayout } from './components/layout/AppLayout'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTerminalStore } from './stores/terminalStore'
+import { useProvidersStore } from './stores/providersStore'
 
 function App(): React.JSX.Element {
   const loadSettings = useSettingsStore((s) => s.loadSettings)
+  const loadProviders = useProvidersStore((s) => s.load)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeTerminal = useTerminalStore((s) => s.closeTerminal)
@@ -13,7 +15,8 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     loadSettings()
-  }, [loadSettings])
+    loadProviders()
+  }, [loadSettings, loadProviders])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {

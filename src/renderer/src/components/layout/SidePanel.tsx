@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useProvidersStore } from '../../stores/providersStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
@@ -46,6 +47,7 @@ export function SidePanel(): React.JSX.Element | null {
   const setSidebarWidth = useSettingsStore((s) => s.setSidebarWidth)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const addProject = useProjectStore((s) => s.addProject)
+  const getProviderLabel = useProvidersStore((s) => s.getLabel)
   const [activeTab, setActiveTab] = useState<SidebarTab>('projects')
   const [groupMode, setGroupMode] = useState<SessionGroupMode>('time')
   const [providerFilter, setProviderFilter] = useState('all')
@@ -66,11 +68,10 @@ export function SidePanel(): React.JSX.Element | null {
       { id: 'all', label: 'All Providers', count: sessions.length }
     ]
     for (const [id, count] of counts) {
-      const label = id === 'copilot-cli' ? 'Copilot' : id
-      options.push({ id, label, count })
+      options.push({ id, label: getProviderLabel(id), count })
     }
     return options
-  }, [sessions])
+  }, [sessions, getProviderLabel])
 
   const hasActiveFilters =
     !statusFilters.has('all') || providerFilter !== 'all' || groupMode !== 'time'

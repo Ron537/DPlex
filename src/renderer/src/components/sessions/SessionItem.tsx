@@ -16,6 +16,7 @@ import type { AISession, SessionStatus } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
+import { useProvidersStore } from '../../stores/providersStore'
 import { PopoverMenu } from '../common/PopoverMenu'
 import {
   closeOpenTabsForSession,
@@ -70,6 +71,7 @@ function folderName(p?: string): string {
 export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick }: SessionItemProps): React.JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeSession = useSessionStore((s) => s.closeSession)
+  const providerLabel = useProvidersStore((s) => s.getLabel(session.aiTool))
   const [showMenu, setShowMenu] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
 
@@ -169,7 +171,7 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
               border: '1px solid var(--dplex-border)'
             }}
           >
-            {session.aiTool === 'copilot-cli' ? 'Copilot' : session.aiTool}
+            {providerLabel}
           </span>
 
           {/* Branch */}
