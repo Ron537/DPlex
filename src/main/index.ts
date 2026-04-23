@@ -207,9 +207,38 @@ function createWindow(): void {
     }
   })
 
+  // Harden external link handling: shell.openExternal will happily dispatch
+  // any URL scheme to the OS handler — including dangerous ones like `file:`,
+  // `javascript:`, or OS-registered protocol handlers (e.g. `ms-excel:`) that
+  // can trigger arbitrary file reads or code execution. Restrict to HTTP(S)
+  // and mailto so a stray link surfaced by xterm.js or a renderer XSS can't
+  // escalate to local-code execution.
+  const isSafeExternalUrl = (rawUrl: string): boolean => {
+    try {
+      const u = new URL(rawUrl)
+      return u.protocol === 'https:' || u.protocol === 'http:' || u.protocol === 'mailto:'
+    } catch {
+      return false
+    }
+  }
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    if (isSafeExternalUrl(details.url)) {
+      shell.openExternal(details.url)
+    }
     return { action: 'deny' }
+  })
+
+  // Block in-window navigation entirely. The renderer should never leave the
+  // app bundle — any `target=_self` link or accidental `window.location`
+  // assignment must not navigate the main window away from the app.
+  mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
+    const currentUrl = mainWindow?.webContents.getURL() ?? ''
+    if (targetUrl === currentUrl) return
+    event.preventDefault()
+    if (isSafeExternalUrl(targetUrl)) {
+      shell.openExternal(targetUrl)
+    }
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: dplex
+appId: dev.dplex.app
+productName: DPlex
 directories:
   buildResources: build
 files:
@@ -51,11 +51,12 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: Ron Borysowski <roni537@gmail.com>
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: Ron537
+  repo: DPlex

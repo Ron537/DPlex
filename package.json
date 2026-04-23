@@ -1,10 +1,34 @@
 {
   "name": "dplex",
-  "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "version": "0.1.0",
+  "description": "A terminal multiplexer built for AI-assisted development. Manage multiple AI CLI sessions (Copilot, Claude, and more) alongside regular terminals in one window.",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": {
+    "name": "Ron Borysowski",
+    "email": "roni537@gmail.com",
+    "url": "https://github.com/Ron537"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/Ron537/DPlex#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ron537/DPlex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ron537/DPlex/issues"
+  },
+  "keywords": [
+    "terminal",
+    "multiplexer",
+    "electron",
+    "ai",
+    "copilot",
+    "claude",
+    "claude-code",
+    "ai-cli",
+    "developer-tools",
+    "productivity"
+  ],
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
