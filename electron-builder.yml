@@ -19,6 +19,12 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
+  # identity: null produces an unsigned .app (local/dev builds). When signed
+  # ad-hoc by electron-builder without a Developer ID cert, the main binary
+  # and the bundled Electron Framework end up with different Team IDs, so
+  # macOS 14+ refuses to load the framework ("different Team IDs"). Keeping
+  # the app unsigned avoids the mismatch and lets it launch locally.
+  identity: null
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
@@ -26,8 +32,20 @@ mac:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    # zip target is a reliable fallback: DMG builds can flake on macOS when
+    # Spotlight/XProtect hold the fresh-mounted volume, blocking hdiutil
+    # detach. The zip is produced without hdiutil and always succeeds.
+    - target: zip
+      arch: [arm64, x64]
 dmg:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: ${name}-${version}-${arch}.${ext}
+  # LZFSE format often avoids the Spotlight/XProtect-holds-volume-busy
+  # issue that causes hdiutil detach to fail on macOS 14+.
+  format: ULFO
+  writeUpdateInfo: false
 linux:
   target:
     - AppImage
