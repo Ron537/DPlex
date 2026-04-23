@@ -68,7 +68,7 @@ jobs:
       # Always upload build artifacts so a dry run still produces
       # downloadable installers for local testing before cutting a tag.
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dplex-${{ matrix.os }}
           path: |
