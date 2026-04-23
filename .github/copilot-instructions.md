@@ -92,3 +92,42 @@ After every major change (project refactors, new features, architectural changes
    - **Design patterns** — proper separation of concerns, DRY, extensibility
 3. Wait for both reviews to complete, then **fix all genuine issues** before committing.
 4. Report a summary of findings and fixes to the user.
+
+## Versioning and Changelog Policy
+
+Before every push to `main` (or any release branch), bump the version in
+`package.json` according to [Semantic Versioning](https://semver.org/) and
+add a matching entry to `CHANGELOG.md`. **Skip the bump only when the user
+explicitly says so** (e.g. "don't bump the version", "infra-only commit",
+"WIP push"); otherwise treat it as part of every push.
+
+Bump rules:
+
+- **PATCH** (`0.1.0 → 0.1.1`) — bug fixes, internal refactors, doc-only or
+  CI-only changes, dependency bumps without behavior changes, performance
+  improvements with no API change.
+- **MINOR** (`0.1.0 → 0.2.0`) — new user-visible features, new providers,
+  new IPC channels, new settings, new keyboard shortcuts. Anything a user
+  would notice or write a release note about.
+- **MAJOR** (`0.x → 1.0`, then `1.x → 2.0`) — breaking changes to user
+  data formats, IPC contracts, settings shape, or provider interfaces.
+  Pre-1.0 (`0.x.y`), per semver, breaking changes can land in MINOR bumps —
+  but call them out explicitly in the changelog.
+
+Workflow before pushing:
+
+1. Determine the appropriate bump from the staged changes.
+2. Update `package.json`'s `version` field.
+3. Update `CHANGELOG.md`:
+   - Move the relevant entries from `[Unreleased]` into a new dated
+     section (`## [x.y.z] — YYYY-MM-DD`).
+   - Add the comparison link at the bottom of the file.
+   - Re-create an empty `[Unreleased]` section above it.
+4. Include the version bump in the same commit as the changes (don't
+   make a separate "bump version" commit unless the user requests one).
+5. After pushing a release-worthy version (anything that should ship to
+   end users), suggest tagging the commit `vX.Y.Z` so the release
+   workflow publishes signed binaries to GitHub Releases.
+
+The changelog is maintained by the agent as part of the same commit —
+the user should not have to remember to update it.

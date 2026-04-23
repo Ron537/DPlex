@@ -28,6 +28,7 @@ import {
   setActiveCompositeId
 } from './services/notifications'
 import * as attentionService from './services/attentionService'
+import { initAutoUpdater } from './services/autoUpdater'
 import { makeCompositeId } from '../preload/attentionTypes'
 import {
   getBranch,
@@ -639,6 +640,8 @@ app.whenReady().then(() => {
 
   registerIpcHandlers()
   createWindow()
+  // Auto-update is a no-op in dev / unpackaged builds.
+  initAutoUpdater(() => mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

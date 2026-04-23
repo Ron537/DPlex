@@ -1,0 +1,33 @@
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    groups:
+      # Group routine minor/patch bumps into a single PR to cut review overhead.
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    # Keep major bumps as individual PRs so they can be reviewed carefully
+    # (Electron, React, Vite, Tailwind majors tend to have breaking changes).
+    labels:
+      - dependencies
+
+  # GitHub Actions workflow versions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    labels:
+      - dependencies
+      - github-actions

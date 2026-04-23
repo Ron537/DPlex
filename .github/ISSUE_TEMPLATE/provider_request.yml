@@ -1,0 +1,72 @@
+name: New AI provider request
+description: Request support for a new AI CLI tool (Cursor Agent, Aider, Goose, Gemini CLI, etc.).
+title: "[Provider]: "
+labels: ["provider-request", "enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DPlex is built around a pluggable provider interface — see
+        [CONTRIBUTING.md](../../CONTRIBUTING.md) and
+        [docs/providers.md](../../docs/providers.md). The information below
+        helps implementation (or lets you send a PR yourself!).
+
+  - type: input
+    id: tool-name
+    attributes:
+      label: Tool name
+      placeholder: "Aider"
+    validations:
+      required: true
+
+  - type: input
+    id: tool-url
+    attributes:
+      label: Tool homepage / repo
+      placeholder: "https://github.com/Aider-AI/aider"
+    validations:
+      required: true
+
+  - type: input
+    id: cli-command
+    attributes:
+      label: CLI binary name
+      description: What's the command name on the user's PATH?
+      placeholder: "aider"
+    validations:
+      required: true
+
+  - type: textarea
+    id: start-command
+    attributes:
+      label: Start and resume commands
+      description: The exact CLI invocations to start a new session and to resume an existing one (with session/thread id placeholder).
+      placeholder: |
+        New:    aider
+        Resume: aider --restore-chat-history <id>
+    validations:
+      required: true
+
+  - type: textarea
+    id: session-storage
+    attributes:
+      label: Where does the tool persist session data?
+      description: File paths, formats, and how session IDs are referenced. DPlex uses this to discover past sessions.
+      placeholder: |
+        ~/.aider/chat-history/*.md — session id encoded in filename
+    validations:
+      required: true
+
+  - type: textarea
+    id: active-detection
+    attributes:
+      label: How can we detect an active session?
+      description: Lock files, PID files, sockets, or inspection of the process tree?
+
+  - type: checkboxes
+    id: willingness
+    attributes:
+      label: Can you help?
+      options:
+        - label: I am willing to test a beta implementation.
+        - label: I am willing to submit a PR implementing this provider.

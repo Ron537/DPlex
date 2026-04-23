@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/Ron537/DPlex/discussions
+    about: Have a question, idea, or want to show something off? Start a discussion.
+  - name: Security vulnerability
+    url: https://github.com/Ron537/DPlex/security/advisories/new
+    about: Please report security issues privately, not via public issues.

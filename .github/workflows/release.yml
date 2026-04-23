@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Manual trigger for dry runs (builds artifacts without publishing).
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Build only (no publish)"
+        required: false
+        default: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # macOS signing + notarization: populated from repository secrets
+      # when available. Missing secrets produce an unsigned .app / .dmg
+      # (fine for personal use, but users will see the Gatekeeper prompt).
+      - name: Build macOS
+        if: matrix.os == 'macos-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run build:mac -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
+
+      - name: Build Windows
+        if: matrix.os == 'windows-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: npm run build:win -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
+
+      - name: Build Linux
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build:linux -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
+
+      # Always upload build artifacts so a dry run still produces
+      # downloadable installers for local testing before cutting a tag.
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dplex-${{ matrix.os }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.msi
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.snap
+            dist/latest*.yml
+          if-no-files-found: ignore
+          retention-days: 14

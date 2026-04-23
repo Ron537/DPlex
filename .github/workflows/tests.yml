@@ -10,7 +10,28 @@ permissions:
   contents: read
 
 jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck
+        run: npm run typecheck
+
   unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -30,9 +51,13 @@ jobs:
         run: npm run test:unit
 
   e2e-tests:
+    name: E2E + monkey tests (Linux)
+    # E2E runs on Linux only for now: headful Electron across three OS in CI
+    # is flaky and slow, and the renderer logic is platform-agnostic. The
+    # matrixed unit-tests job catches most platform-specific regressions.
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: unit-tests
+    needs: [typecheck, unit-tests]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,3 +79,4 @@ jobs:
 
       - name: Run monkey tests
         run: npm run test:monkey
+

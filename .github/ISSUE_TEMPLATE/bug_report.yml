@@ -1,0 +1,98 @@
+name: Bug report
+description: Something in DPlex is broken, crashes, or misbehaves.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report. A short screen recording
+        or GIF is worth a thousand words — please include one if you can.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, what did you see instead?
+      placeholder: |
+        When I click X, I expect Y. Instead, Z happens.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: The shortest path to reproduce the bug.
+      placeholder: |
+        1. Open DPlex
+        2. Add project at /path/to/repo
+        3. Click "Start Copilot"
+        4. See error
+    validations:
+      required: true
+
+  - type: input
+    id: dplex-version
+    attributes:
+      label: DPlex version
+      description: See the Settings → About panel, or package.json if running from source.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: "macOS 14.5 / Windows 11 23H2 / Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: AI provider involved
+      description: Which AI CLI tool is involved (if any)?
+      options:
+        - Not specific to a provider
+        - Copilot CLI
+        - Claude Code
+        - Codex CLI
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or console output
+      description: Paste relevant output from the terminal, DevTools console, or `~/Library/Logs/DPlex/` (macOS) / equivalent.
+      render: shell
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Screenshots / recordings
+      description: Drag and drop images or short screen recordings here.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I am running the latest released version (or noted the version above).
+          required: true
