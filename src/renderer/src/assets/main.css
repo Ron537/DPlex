@@ -131,3 +131,16 @@ body {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(0.85); }
 }
+
+/* Subtle pulse for the "live session" dot on project rows. Uses a dedicated
+   class so tests can assert it and theme hover rules don't interact. */
+@keyframes dplex-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.dplex-pulse-dot {
+  animation: dplex-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dplex-pulse-dot { animation: none; }
+}

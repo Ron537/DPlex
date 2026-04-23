@@ -77,6 +77,8 @@ export interface AppSettings {
   idleTooLongMinutes: number
   /** Global defaults for worktree creation (inherited by per-project settings). */
   worktreeDefaults: WorktreeDefaults
+  /** Show the health footer bar at the bottom of the Projects panel. */
+  projectPanelShowFooter: boolean
 }
 
 export interface WorktreeDefaults {
@@ -113,6 +115,8 @@ export interface Project {
   parentRepoPath?: string
   /** True when DPlex created the worktree (affects default "delete from disk" behavior). */
   createdByDplexWorktree?: boolean
+  /** Pinned projects render in a dedicated section at the top of the panel. */
+  pinned?: boolean
 }
 
 export interface ProviderInfo {

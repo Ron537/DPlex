@@ -21,6 +21,7 @@ import { useProvidersStore } from '../../stores/providersStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
+import { ProjectPanelFooter } from '../projects/ProjectPanelFooter'
 
 type SidebarTab = 'projects' | 'sessions'
 export type SessionGroupMode = 'time' | 'workspace'
@@ -44,6 +45,8 @@ export function SidePanel(): React.JSX.Element | null {
   const sessions = useSessionStore((s) => s.sessions)
   const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
   const sidebarWidth = useSettingsStore((s) => s.settings.sidebarWidth)
+  const showFooter = useSettingsStore((s) => s.settings.projectPanelShowFooter)
+  const updateSettings = useSettingsStore((s) => s.updateSettings)
   const setSidebarWidth = useSettingsStore((s) => s.setSidebarWidth)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const addProject = useProjectStore((s) => s.addProject)
@@ -234,6 +237,30 @@ export function SidePanel(): React.JSX.Element | null {
                     >
                       Active Only
                       {projectActiveOnly && (
+                        <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                      )}
+                    </button>
+
+                    <div
+                      className="my-1"
+                      style={{ borderTop: '1px solid var(--dplex-border)' }}
+                    />
+                    <div
+                      className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
+                      style={{ color: 'var(--dplex-text-muted)' }}
+                    >
+                      Appearance
+                    </div>
+                    <button
+                      onClick={() =>
+                        updateSettings({ projectPanelShowFooter: !showFooter })
+                      }
+                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                      style={{ color: 'var(--dplex-text)' }}
+                      title="Show live/terminal count at the bottom of the panel"
+                    >
+                      Show Footer
+                      {showFooter && (
                         <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
                       )}
                     </button>
@@ -441,6 +468,9 @@ export function SidePanel(): React.JSX.Element | null {
           />
         )}
       </div>
+
+      {/* Project panel footer — live/terminal health summary. */}
+      {activeTab === 'projects' && showFooter && <ProjectPanelFooter />}
 
       {/* Resize handle */}
       <div

@@ -29,6 +29,7 @@ interface ProjectState {
   removeProject: (id: string) => void
   reorderProject: (draggedId: string, targetId: string, position: 'above' | 'below') => void
   toggleExpanded: (id: string) => void
+  togglePin: (id: string) => void
   startAISession: (project: Project, providerId?: string) => Promise<string | null>
   updateProjectWorktreeOverrides: (
     projectId: string,
@@ -154,6 +155,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== id)
     }))
+    get().persistProjects()
+  },
+
+  togglePin: (id) => {
+    set((state) => {
+      const target = state.projects.find((p) => p.id === id)
+      if (!target) return {}
+      const willBePinned = !target.pinned
+      const updated = state.projects.map((p) =>
+        p.id === id ? { ...p, pinned: willBePinned } : p
+      )
+      if (!willBePinned) {
+        // Unpin in place — the project stays where it is in raw order, it just
+        // falls out of the Pinned section in the rendered list.
+        return { projects: updated }
+      }
+      // Pinning: move the target to the top of the pinned group so the UX
+      // matches the "Pin to top" menu label. The pinned group always renders
+      // before the unpinned group, so inserting at index 0 achieves that.
+      const pinnedTarget = updated.find((p) => p.id === id)!
+      const without = updated.filter((p) => p.id !== id)
+      return { projects: [pinnedTarget, ...without] }
+    })
     get().persistProjects()
   },
 

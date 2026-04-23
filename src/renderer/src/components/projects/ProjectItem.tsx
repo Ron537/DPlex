@@ -1,16 +1,19 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   ChevronRight,
   ChevronDown,
   Play,
   GitBranch,
-  GripVertical,
   MoreVertical,
   Terminal,
   Copy,
   Trash2,
   GitFork,
-  Settings2
+  Settings2,
+  Pin,
+  PinOff,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
 import type { Project, AISession, ProviderInfo, WorktreeDefaults } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
@@ -20,6 +23,10 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useGitBranch } from '../../hooks/useGitBranch'
 import { useWorktrees } from '../../hooks/useWorktrees'
 import { STATUS_ACTIVE_COLOR, STATUS_ACTIVE_BG } from '../../utils/statusColors'
+import {
+  getAvatarColor,
+  getAvatarInitials
+} from '../../utils/projectStatus'
 import { SessionItem } from '../sessions/SessionItem'
 import { PromptsDialog } from '../sessions/PromptsDialog'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
@@ -35,8 +42,6 @@ interface ProjectItemProps {
   project: Project
   activity: ProjectActivity
   providers: ProviderInfo[]
-  isDragging: boolean
-  dragOverPosition: 'above' | 'below' | null
   /** Nesting depth (0 = origin, 1 = worktree-project). Drives the indent. */
   indent?: number
   /** Parent project record — used by "Open origin". */
@@ -45,63 +50,75 @@ interface ProjectItemProps {
   childProjects?: Project[]
   /** Resolves activity for a child project path. */
   getActivity?: (path: string) => ProjectActivity
-  onDragStart: (id: string) => void
-  onDragOver: (id: string, e: React.DragEvent) => void
-  onDrop: (id: string) => void
-  onDragEnd: () => void
+  /** Id of the previous top-level sibling in the same pinned group (for "Move up"). */
+  moveUpTargetId?: string | null
+  /** Id of the next top-level sibling in the same pinned group (for "Move down"). */
+  moveDownTargetId?: string | null
 }
 
-function relativeTime(date: Date | undefined): string {
+/**
+ * Compact relative-time label for the right edge of project rows (mirrors
+ * the "3h / 2d / 15m" look from the redesign mockup). Suffix-free and
+ * tabular-friendly so rows stack cleanly.
+ */
+function relativeTimeShort(date: Date | undefined): string {
   if (!date) return ''
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (seconds < 60) return 'just now'
+  if (seconds < 60) return 'now'
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 60) return `${minutes}m`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return `${hours}h`
   const days = Math.floor(hours / 24)
-  return `${days}d ago`
+  return `${days}d`
 }
 
 export function ProjectItem({
   project,
   activity,
   providers,
-  isDragging,
-  dragOverPosition,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
   indent = 0,
   parentProject,
   childProjects,
-  getActivity
+  getActivity,
+  moveUpTargetId = null,
+  moveDownTargetId = null
 }: ProjectItemProps): React.JSX.Element {
   const expandedIds = useProjectStore((s) => s.expandedProjectIds)
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
   const removeProject = useProjectStore((s) => s.removeProject)
+  const togglePin = useProjectStore((s) => s.togglePin)
+  const reorderProject = useProjectStore((s) => s.reorderProject)
   const startAISession = useProjectStore((s) => s.startAISession)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const deleteSession = useSessionStore((s) => s.deleteSession)
   const globalDefaults = useSettingsStore((s) => s.settings.worktreeDefaults)
-  const [canDrag, setCanDrag] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [promptsSession, setPromptsSession] = useState<AISession | null>(null)
   const [newWtOpen, setNewWtOpen] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [defaultsOpen, setDefaultsOpen] = useState(false)
   const [removeWtOpen, setRemoveWtOpen] = useState(false)
-  const dragHandleRef = useRef<HTMLSpanElement>(null)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
+  // Virtual anchor for right-click context menu — positioned at the cursor
+  // so the menu opens where the user clicked (not next to the ⋯ button).
+  const contextAnchorRef = useRef<HTMLDivElement>(null)
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null)
+  // Once the menu closes (via any item click or outside click), reset the
+  // cursor anchor so a subsequent click on the ⋯ button re-anchors there.
+  useEffect(() => {
+    if (!showMenu) setContextMenuPos(null)
+  }, [showMenu])
 
   const isWorktreeProject = Boolean(project.parentProjectId || project.parentRepoPath)
   // Only subscribe to worktree info when we actually need it (for the modal
   // or for disk-deletion) — avoids a watcher for every worktree-project.
   const needWtWatch = newWtOpen || manageOpen || removeWtOpen
-  const watchPath = isWorktreeProject ? (parentProject?.path ?? project.parentRepoPath ?? project.path) : project.path
+  const watchPath = isWorktreeProject
+    ? (parentProject?.path ?? project.parentRepoPath ?? project.path)
+    : project.path
   const { repoRoot } = useWorktrees(needWtWatch ? watchPath : undefined)
 
   const isExpanded = expandedIds.has(project.id)
@@ -110,6 +127,11 @@ export function ProjectItem({
   // Worktree children render compactly: a single-line row with a left thread
   // line connecting them to the origin project. Sessions hang off that thread.
   const isCompact = isWorktreeProject && indent > 0
+  const avatarColor = !isCompact ? getAvatarColor(project.id) : null
+  const avatarInitials = avatarColor ? getAvatarInitials(project.name) : null
+  // Only top-level origin projects can be pinned. Worktree children ride with
+  // their parent — pinning a child has no defined semantics.
+  const canPin = !isWorktreeProject
 
   const defaults: WorktreeDefaults = (() => {
     const override = project.worktreeOverrides
@@ -130,15 +152,31 @@ export function ProjectItem({
     setActiveTerminalInGroup(groupId, tabId)
   }
 
+  // Neighbor sibling ids for "Move up / Move down" are supplied by the parent
+  // ProjectList, which already knows the rendered top-level order (and thus
+  // correctly skips hidden worktree children). Computing here would subscribe
+  // the whole list to store changes and could target invisible rows.
+
   return (
     <div
       data-reorderable-id={project.id}
-      className={isCompact ? 'relative' : 'mb-2 rounded-sm overflow-hidden'}
+      className={
+        isCompact
+          ? 'relative'
+          : isExpanded
+            ? 'mb-1.5 rounded-lg overflow-hidden relative'
+            : 'mb-0.5 rounded-lg relative'
+      }
       style={{
-        opacity: isDragging ? 0.4 : 1,
         marginLeft: indent ? indent * 16 : undefined,
-        backgroundColor: isCompact ? undefined : 'var(--dplex-bg-alt)',
-        border: isCompact ? undefined : '1px solid var(--dplex-border)'
+        // Collapsed rows blend with the container; only expanded cards get a
+        // subtle gradient + border to stand out (mirrors the mockup).
+        background: isCompact
+          ? undefined
+          : isExpanded
+            ? 'linear-gradient(180deg, color-mix(in srgb, var(--dplex-status-active-bg) 10%, var(--dplex-bg)) 0%, var(--dplex-bg) 50%, var(--dplex-bg-alt) 100%)'
+            : undefined,
+        border: isCompact ? undefined : isExpanded ? '1px solid var(--dplex-border)' : undefined
       }}
     >
       {/* Thread line connecting the worktree row to the parent project. */}
@@ -167,59 +205,42 @@ export function ProjectItem({
         </>
       )}
 
-      {/* Drop indicator above */}
-      {dragOverPosition === 'above' && (
-        <div className="mx-2 h-0.5 rounded" style={{ backgroundColor: 'var(--dplex-accent)' }} />
-      )}
-
       {/* Project section header */}
       <div
         data-project-id={project.id}
         className={
           isCompact
             ? 'group flex items-center gap-1.5 pl-4 pr-2 py-1 cursor-pointer relative rounded-sm hover:bg-[var(--dplex-hover)]'
-            : 'group flex items-center gap-1.5 px-2 py-1.5 cursor-pointer relative'
+            : isExpanded
+              ? 'group flex items-center gap-2.5 pl-3 pr-2.5 py-2 cursor-pointer relative'
+              : 'group flex items-center gap-2.5 pl-3 pr-2.5 py-2 cursor-pointer relative rounded-lg hover:bg-[var(--dplex-hover)]'
         }
         style={
           isCompact || !isExpanded ? undefined : { borderBottom: '1px solid var(--dplex-border)' }
         }
-        draggable={canDrag}
-        onDragStart={(e) => {
-          e.dataTransfer.effectAllowed = 'move'
-          onDragStart(project.id)
-        }}
-        onDragOver={(e) => {
-          e.preventDefault()
-          e.dataTransfer.dropEffect = 'move'
-          onDragOver(project.id, e)
-        }}
-        onDrop={(e) => {
-          e.preventDefault()
-          onDrop(project.id)
-        }}
-        onDragEnd={() => {
-          setCanDrag(false)
-          onDragEnd()
-        }}
         onClick={() => toggleExpanded(project.id)}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setContextMenuPos({ x: e.clientX, y: e.clientY })
+          setShowMenu(true)
+        }}
       >
-        {/* Drag handle — hidden for worktree children (they stay with parent). */}
-        {!isCompact && (
+        {/* Rich-mode avatar (origin rows only). Deterministic color per project id. */}
+        {avatarColor && avatarInitials && (
           <span
-            ref={dragHandleRef}
-            className="flex-shrink-0 cursor-grab opacity-0 group-hover:opacity-40 hover:!opacity-80 transition-opacity"
-            style={{ color: 'var(--dplex-text-muted)' }}
-            onMouseDown={() => setCanDrag(true)}
-            onClick={(e) => e.stopPropagation()}
+            aria-hidden
+            className="flex-shrink-0 flex items-center justify-center rounded-md text-[10.5px] font-bold leading-none"
+            style={{
+              width: 26,
+              height: 26,
+              backgroundColor: avatarColor.bg,
+              color: avatarColor.fg
+            }}
           >
-            <GripVertical size={11} />
+            {avatarInitials}
           </span>
         )}
-
-        {/* Chevron */}
-        <span style={{ color: 'var(--dplex-accent)' }} className="flex-shrink-0">
-          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        </span>
 
         {/* Branch icon — only for worktree children, where the name IS the branch. */}
         {isCompact && (
@@ -230,37 +251,123 @@ export function ProjectItem({
           />
         )}
 
-        {/* Name + count */}
-        <span
-          className={
-            isCompact ? 'text-[11px] font-medium truncate' : 'text-[11px] font-semibold truncate'
-          }
-          style={{ color: 'var(--dplex-text)' }}
-        >
-          {project.name}
-          {isWorktreeProject && !parentProject && project.parentRepoName && (
+        {/* Compact (worktree child) rows stay single-line. Origin rows use a
+            two-line layout: name on top, metadata subline below. */}
+        {isCompact ? (
+          <>
             <span
-              className="ml-1 font-normal"
-              style={{ color: 'var(--dplex-text-muted)', opacity: 0.7 }}
+              className="text-[11px] font-medium truncate"
+              style={{ color: 'var(--dplex-text)' }}
             >
-              ({project.parentRepoName})
+              {project.name}
+              {isWorktreeProject && !parentProject && project.parentRepoName && (
+                <span
+                  className="ml-1 font-normal"
+                  style={{ color: 'var(--dplex-text-muted)', opacity: 0.7 }}
+                >
+                  ({project.parentRepoName})
+                </span>
+              )}
             </span>
-          )}
-        </span>
-        {activeCount > 0 && (
-          <span
-            className="text-[10px] font-semibold flex-shrink-0 min-w-[16px] text-center px-1 rounded-full"
-            style={{ color: STATUS_ACTIVE_COLOR, backgroundColor: STATUS_ACTIVE_BG }}
-          >
-            {activeCount}
-          </span>
+            {hasActive && (
+              <>
+                <span
+                  aria-hidden
+                  className="flex-shrink-0 rounded-full dplex-pulse-dot"
+                  style={{
+                    width: 6,
+                    height: 6,
+                    backgroundColor: STATUS_ACTIVE_COLOR,
+                    boxShadow: `0 0 0 3px ${STATUS_ACTIVE_BG}`
+                  }}
+                />
+                {activeCount > 0 && (
+                  <span
+                    className="text-[10px] font-semibold flex-shrink-0 min-w-[16px] text-center px-1 rounded-full"
+                    style={{ color: STATUS_ACTIVE_COLOR, backgroundColor: STATUS_ACTIVE_BG }}
+                  >
+                    {activeCount}
+                  </span>
+                )}
+              </>
+            )}
+            <div className="flex-1" />
+          </>
+        ) : (
+          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+            {/* Line 1: project name + pulse dot when live */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span
+                className="text-[13px] font-semibold truncate tracking-tight"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                {project.name}
+              </span>
+              {hasActive && (
+                <span
+                  aria-hidden
+                  className="flex-shrink-0 rounded-full dplex-pulse-dot"
+                  style={{
+                    width: 7,
+                    height: 7,
+                    backgroundColor: STATUS_ACTIVE_COLOR
+                  }}
+                  title={`${activeCount} live session${activeCount === 1 ? '' : 's'}`}
+                />
+              )}
+            </div>
+
+            {/* Line 2: metadata subline — branch · session summary · last activity */}
+            <div
+              className="flex items-center gap-1.5 min-w-0 text-[11px]"
+              style={{ color: 'var(--dplex-text-muted)' }}
+            >
+              {branch && (
+                <span className="flex items-center gap-1 min-w-0">
+                  <GitBranch size={9} className="flex-shrink-0" />
+                  <span className="truncate">{branch}</span>
+                </span>
+              )}
+              {branch && <span style={{ opacity: 0.5 }}>·</span>}
+              <span className="truncate">
+                {hasActive
+                  ? `${activeCount} session${activeCount === 1 ? '' : 's'}`
+                  : sessions.length > 0
+                    ? 'idle'
+                    : 'no active'}
+              </span>
+              {lastActivity && (() => {
+                const rel = relativeTimeShort(lastActivity)
+                return (
+                  <>
+                    <span style={{ opacity: 0.5 }}>·</span>
+                    <span className="tabular-nums flex-shrink-0">
+                      {rel === 'now' ? 'just now' : `${rel} ago`}
+                    </span>
+                  </>
+                )
+              })()}
+            </div>
+          </div>
         )}
 
-        {/* Spacer */}
-        <div className="flex-1" />
+        {/* Chevron — right-aligned, grey. Hides on hover so action buttons
+            can take the space without crowding. */}
+        <span
+          style={{ color: 'var(--dplex-text-muted)' }}
+          className="flex-shrink-0 opacity-100 group-hover:opacity-0 transition-opacity"
+        >
+          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </span>
 
-        {/* Action buttons — always visible */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        {/* Action buttons — overlay on hover so they don't reserve space when hidden. */}
+        <div
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md px-0.5 py-0.5"
+          style={{
+            backgroundColor: 'var(--dplex-bg)',
+            boxShadow: '0 0 6px 2px var(--dplex-bg-alt)'
+          }}
+        >
           {providers.map((p) => (
             <button
               key={p.id}
@@ -289,11 +396,32 @@ export function ProjectItem({
           </button>
         </div>
 
+        {/* Virtual anchor for right-click context menu. Positioned at the
+            cursor so the PopoverMenu opens where the user clicked. */}
+        {contextMenuPos && (
+          <div
+            ref={contextAnchorRef}
+            aria-hidden
+            style={{
+              position: 'fixed',
+              left: contextMenuPos.x,
+              top: contextMenuPos.y,
+              width: 1,
+              height: 1,
+              pointerEvents: 'none'
+            }}
+          />
+        )}
+
         {/* Context menu */}
         <PopoverMenu
-          anchorRef={menuAnchorRef}
+          anchorRef={contextMenuPos ? contextAnchorRef : menuAnchorRef}
+          align={contextMenuPos ? 'left' : 'right'}
           open={showMenu}
-          onClose={() => setShowMenu(false)}
+          onClose={() => {
+            setShowMenu(false)
+            setContextMenuPos(null)
+          }}
           className="min-w-[160px]"
         >
           {providers.map((p) => (
@@ -389,6 +517,55 @@ export function ProjectItem({
             </button>
           )}
 
+          {canPin && (
+            <>
+              <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  togglePin(project.id)
+                  setShowMenu(false)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                {project.pinned ? (
+                  <>
+                    <PinOff size={11} /> Unpin
+                  </>
+                ) : (
+                  <>
+                    <Pin size={11} /> Pin to top
+                  </>
+                )}
+              </button>
+              <button
+                disabled={!moveUpTargetId}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (moveUpTargetId) reorderProject(project.id, moveUpTargetId, 'above')
+                  setShowMenu(false)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                <ArrowUp size={11} /> Move up
+              </button>
+              <button
+                disabled={!moveDownTargetId}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (moveDownTargetId) reorderProject(project.id, moveDownTargetId, 'below')
+                  setShowMenu(false)
+                }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                <ArrowDown size={11} /> Move down
+              </button>
+            </>
+          )}
+
           <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
 
           <button
@@ -419,28 +596,6 @@ export function ProjectItem({
             marginLeft: isCompact ? 18 : undefined
           }}
         >
-          {/* Branch + last activity info — origin only. For worktree children
-              the branch IS the name and the time sits on the collapsed row. */}
-          {!isCompact && (branch || lastActivity) && (
-            <div
-              className="flex items-center gap-1.5 px-3 py-1 text-[10px]"
-              style={{ color: 'var(--dplex-text-muted)' }}
-            >
-              {branch && (
-                <span className="flex items-center gap-0.5">
-                  <GitBranch size={10} className="flex-shrink-0" />
-                  <span className="truncate">{branch}</span>
-                </span>
-              )}
-              {lastActivity && (
-                <>
-                  {branch && <span style={{ opacity: 0.4 }}>·</span>}
-                  <span className="flex-shrink-0">{relativeTime(lastActivity)}</span>
-                </>
-              )}
-            </div>
-          )}
-
           {!hasActive && openTabs.length === 0 ? (
             <div
               className="px-3 py-1.5 text-[10px]"
@@ -524,12 +679,6 @@ export function ProjectItem({
                   indent={1}
                   activity={getActivity(child.path)}
                   providers={providers}
-                  isDragging={false}
-                  dragOverPosition={null}
-                  onDragStart={onDragStart}
-                  onDragOver={onDragOver}
-                  onDrop={onDrop}
-                  onDragEnd={onDragEnd}
                 />
               ))}
             </div>
@@ -579,10 +728,7 @@ export function ProjectItem({
       )}
 
       {defaultsOpen && (
-        <ProjectWorktreeDefaultsModal
-          project={project}
-          onClose={() => setDefaultsOpen(false)}
-        />
+        <ProjectWorktreeDefaultsModal project={project} onClose={() => setDefaultsOpen(false)} />
       )}
 
       {removeWtOpen && (
@@ -592,11 +738,6 @@ export function ProjectItem({
           onClose={() => setRemoveWtOpen(false)}
           onRemoved={() => setRemoveWtOpen(false)}
         />
-      )}
-
-      {/* Drop indicator below */}
-      {dragOverPosition === 'below' && (
-        <div className="mx-2 h-0.5 rounded" style={{ backgroundColor: 'var(--dplex-accent)' }} />
       )}
     </div>
   )

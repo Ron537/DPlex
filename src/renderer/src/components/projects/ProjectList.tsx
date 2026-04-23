@@ -1,10 +1,9 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useProjectStore } from '../../stores/projectStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { ProjectItem } from './ProjectItem'
-import { FolderPlus } from 'lucide-react'
-import { useReorderable } from '../../hooks/useReorderable'
+import { FolderPlus, Pin } from 'lucide-react'
 import { buildProjectSessionIndex } from '../../hooks/useProjectSessions'
 import type { Project, ProviderInfo } from '../../types'
 
@@ -13,11 +12,15 @@ interface ProjectListProps {
   activeOnly?: boolean
 }
 
+interface ProjectEntry {
+  project: Project
+  children?: Project[]
+}
+
 export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): React.JSX.Element {
   const projects = useProjectStore((s) => s.projects)
   const loaded = useProjectStore((s) => s.loaded)
   const loadProjects = useProjectStore((s) => s.loadProjects)
-  const reorderProject = useProjectStore((s) => s.reorderProject)
   const sessions = useSessionStore((s) => s.sessions)
   const groups = useTerminalStore((s) => s.groups)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
@@ -53,11 +56,17 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
     return m
   }, [projects])
 
+  const hasFilter = Boolean(searchQuery) || Boolean(activeOnly)
+
   // Render-order projects. Only top-level origins render directly here — their
   // worktree children render INSIDE the parent's expanded body (so they share
   // the parent's contrasted background container). Orphans whose parent was
   // removed still get surfaced at top level.
-  const filtered = useMemo(() => {
+  //
+  // The result is split into { pinned, rest } so the Pinned section renders
+  // its own header. Filter mode collapses the split to avoid confusing hidden
+  // context (a match in "rest" under a hidden pinned header would read wrong).
+  const { pinned, rest } = useMemo(() => {
     const q = searchQuery?.toLowerCase() ?? ''
     const matchesFilter = (p: Project): boolean => {
       if (q && !p.name.toLowerCase().includes(q)) return false
@@ -70,8 +79,8 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
       Boolean(p.parentProjectId) && !idSet.has(p.parentProjectId!)
     const isTopLevel = (p: Project): boolean => !p.parentProjectId || isOrphan(p)
 
-    const hasFilter = Boolean(q) || Boolean(activeOnly)
-    const result: { project: Project; children?: Project[] }[] = []
+    const pinnedOut: ProjectEntry[] = []
+    const restOut: ProjectEntry[] = []
 
     for (const p of projects) {
       if (!isTopLevel(p)) continue
@@ -81,39 +90,56 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
       const parentMatches = matchesFilter(p)
 
       if (hasFilter) {
-        // When filtering, surface any matching item at top level (flat) so
-        // matches aren't hidden by a collapsed parent. Parent gets no children
-        // in filter mode — matching children appear as their own top-level rows.
-        if (parentMatches) result.push({ project: p })
-        for (const kid of visibleKids) result.push({ project: kid })
+        // Flat match list while filtering — pinning ignored for clarity.
+        if (parentMatches) restOut.push({ project: p })
+        for (const kid of visibleKids) restOut.push({ project: kid })
       } else {
-        result.push({ project: p, children: kids })
+        const entry: ProjectEntry = { project: p, children: kids }
+        if (p.pinned) pinnedOut.push(entry)
+        else restOut.push(entry)
       }
     }
-    return result
-  }, [projects, childrenByParent, searchQuery, activeOnly, sessionIndex])
+    return { pinned: pinnedOut, rest: restOut }
+  }, [projects, childrenByParent, searchQuery, activeOnly, sessionIndex, hasFilter])
 
-  const handleReorder = useCallback(
-    (draggedId: string, targetId: string, position: 'above' | 'below') => {
-      reorderProject(draggedId, targetId, position)
-    },
-    [reorderProject]
+  const totalVisible = pinned.length + rest.length
+
+  const renderEntry = (
+    { project, children }: ProjectEntry,
+    index: number,
+    list: ProjectEntry[]
+  ): React.JSX.Element => (
+    <ProjectItem
+      key={project.id}
+      project={project}
+      childProjects={children}
+      getActivity={(path) =>
+        sessionIndex.get(path) ?? {
+          sessions: [],
+          openTabs: [],
+          activeCount: 0,
+          hasActive: false,
+          lastActivity: undefined
+        }
+      }
+      activity={
+        sessionIndex.get(project.path) ?? {
+          sessions: [],
+          openTabs: [],
+          activeCount: 0,
+          hasActive: false,
+          lastActivity: undefined
+        }
+      }
+      providers={providers}
+      moveUpTargetId={index > 0 ? list[index - 1].project.id : null}
+      moveDownTargetId={index < list.length - 1 ? list[index + 1].project.id : null}
+    />
   )
 
-  const { handlers, isDragging, dragOverPosition } = useReorderable(handleReorder)
-
   return (
-    <div
-      className="flex flex-col min-h-full pt-1"
-      onDragOver={(e) =>
-        handlers.onContainerDragOver(
-          e,
-          filtered.map((r) => r.project)
-        )
-      }
-      onDrop={(e) => handlers.onContainerDrop(e)}
-    >
-      {filtered.length === 0 && (
+    <div className="flex flex-col min-h-full pt-1 px-2">
+      {totalVisible === 0 && (
         <div className="px-4 py-8 text-center" style={{ color: 'var(--dplex-text-muted)' }}>
           {projects.length === 0 ? (
             <div className="flex flex-col items-center gap-2">
@@ -131,38 +157,38 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
         </div>
       )}
 
-      {filtered.map(({ project, children }) => (
-        <ProjectItem
-          key={project.id}
-          project={project}
-          childProjects={children}
-          getActivity={(path) =>
-            sessionIndex.get(path) ?? {
-              sessions: [],
-              openTabs: [],
-              activeCount: 0,
-              hasActive: false,
-              lastActivity: undefined
-            }
-          }
-          activity={
-            sessionIndex.get(project.path) ?? {
-              sessions: [],
-              openTabs: [],
-              activeCount: 0,
-              hasActive: false,
-              lastActivity: undefined
-            }
-          }
-          providers={providers}
-          isDragging={isDragging(project.id)}
-          dragOverPosition={dragOverPosition(project.id)}
-          onDragStart={handlers.onDragStart}
-          onDragOver={handlers.onDragOver}
-          onDrop={handlers.onDrop}
-          onDragEnd={handlers.onDragEnd}
-        />
-      ))}
+      {pinned.length > 0 && (
+        <>
+          <div
+            className="flex items-center gap-1 px-1 pt-1 pb-1 text-[9px] font-semibold uppercase tracking-[0.14em]"
+            style={{ color: 'var(--dplex-text-muted)' }}
+          >
+            <Pin size={8} style={{ transform: 'rotate(45deg)' }} />
+            <span>Pinned</span>
+          </div>
+          {pinned.map(renderEntry)}
+          {rest.length > 0 && (
+            <div
+              className="mx-1 my-1"
+              style={{ borderTop: '1px solid var(--dplex-border)', opacity: 0.7 }}
+            />
+          )}
+        </>
+      )}
+
+      {/* When we have a pinned section AND other projects, label the remainder
+          "All projects" so the two groups read as a clear hierarchy. When no
+          projects are pinned, the list is flat and needs no header. */}
+      {pinned.length > 0 && rest.length > 0 && (
+        <div
+          className="px-1 pt-1 pb-1 text-[9px] font-semibold uppercase tracking-[0.14em]"
+          style={{ color: 'var(--dplex-text-muted)' }}
+        >
+          All projects
+        </div>
+      )}
+
+      {rest.map(renderEntry)}
     </div>
   )
 }

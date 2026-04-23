@@ -81,7 +81,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   dndTo: null,
   notificationCooldownSeconds: 30,
   idleTooLongMinutes: 5,
-  worktreeDefaults: DEFAULT_WORKTREE_DEFAULTS
+  worktreeDefaults: DEFAULT_WORKTREE_DEFAULTS,
+  projectPanelShowFooter: true
 }
 
 interface SettingsState {
