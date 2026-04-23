@@ -49,7 +49,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run build:mac -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
+        run: npm run build:mac:ci -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
 
       - name: Build Windows
         if: matrix.os == 'windows-latest'

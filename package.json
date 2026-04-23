@@ -1,6 +1,6 @@
 {
   "name": "dplex",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A terminal multiplexer built for AI-assisted development. Manage multiple AI CLI sessions (Copilot, Claude, and more) alongside regular terminals in one window.",
   "main": "./out/main/index.js",
   "author": {
@@ -48,6 +48,7 @@
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "electron-vite build && node scripts/detach-stale-dmg.js && CUSTOM_DMGBUILD_PATH=scripts/dmgbuild-wrapper.sh electron-builder --mac",
+    "build:mac:ci": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux"
   },
   "dependencies": {

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-04-23
+
+### Fixed
+
+- Release workflow: the macOS build no longer uses the local
+  `dmgbuild-wrapper.sh` (which patches around a Spotlight-holds-DMG-open
+  flake that only occurs on developer machines). CI now uses a
+  dedicated `build:mac:ci` script that lets electron-builder use its
+  bundled dmgbuild directly.
+
 ## [0.2.0] — 2026-04-23
 
 ### Added
@@ -64,6 +74,7 @@ AI-assisted development.
 - Eight built-in themes across dark and light variants.
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Ron537/DPlex/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Ron537/DPlex/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Ron537/DPlex/releases/tag/v0.1.0
