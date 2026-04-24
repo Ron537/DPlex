@@ -4,6 +4,7 @@ import { persistWorkspaceNow } from '../../stores/terminalStore'
 import { useSettingsStore, applyCssVarsSync } from '../../stores/settingsStore'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { SidePanel } from './SidePanel'
+import { ActivityBar } from './ActivityBar'
 import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
@@ -88,7 +89,6 @@ export function AppLayout(): React.JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
   const layout = useTerminalStore((s) => s.layout)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
-  const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
   const themeId = useSettingsStore((s) => s.settings.theme)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -212,7 +212,8 @@ export function AppLayout(): React.JSX.Element {
       </div>
 
       <div className="flex flex-1 min-h-0">
-        {sidebarVisible && <SidePanel />}
+        <ActivityBar onOpenSettings={() => setSettingsOpen(true)} />
+        <SidePanel />
 
         <div className="flex flex-col flex-1 min-w-0">
           <div className="flex-1 min-h-0">

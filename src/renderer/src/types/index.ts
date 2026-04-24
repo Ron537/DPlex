@@ -60,6 +60,10 @@ export interface AppSettings {
   theme: string
   sidebarWidth: number
   sidebarVisible: boolean
+  /** Which sidebar tab is active in the activity bar. */
+  sidebarActiveTab: 'projects' | 'sessions'
+  /** When true, the panel portion of the sidebar is collapsed (activity bar still visible). */
+  sidebarPanelCollapsed: boolean
   sessionPollIntervalMs: number
   sessionMaxAgeDays: number
   /** Hide idle sessions that have no messages yet. Active sessions are always shown. */

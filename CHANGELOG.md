@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-24
+
+### Changed
+
+- Sidebar redesigned in VS Code style: a vertical activity bar (44 px
+  icon strip) now sits on the far left and is always visible. Clicking
+  the active icon collapses the panel (icons remain); clicking another
+  icon switches tabs. The panel header shows the tab title
+  (`PROJECTS` / `SESSIONS`) with action icons aligned right. The
+  Settings gear moved to the bottom of the activity bar.
+- `⌘B` now toggles only the side panel; the activity bar stays visible.
+- New settings `sidebarActiveTab` and `sidebarPanelCollapsed` persist
+  the active tab and collapsed state across restarts.
+
 ## [0.2.1] — 2026-04-23
 
 ### Fixed
@@ -74,7 +88,8 @@ AI-assisted development.
 - Eight built-in themes across dark and light variants.
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Ron537/DPlex/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Ron537/DPlex/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Ron537/DPlex/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Ron537/DPlex/releases/tag/v0.1.0

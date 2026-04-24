@@ -13,7 +13,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
   const activeGroup = groups.find((g) => g.id === activeGroupId)
   const activeTab = activeGroup?.tabs.find((t) => t.id === activeGroup.activeTabId)
   const totalTerminals = groups.reduce((sum, g) => sum + g.tabs.length, 0)
-  const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
+  const panelCollapsed = useSettingsStore((s) => s.settings.sidebarPanelCollapsed)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
 
   return (
@@ -22,9 +22,9 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         <button
           onClick={toggleSidebar}
           className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-          title={sidebarVisible ? `Hide sidebar (${MOD}B)` : `Show sidebar (${MOD}B)`}
+          title={panelCollapsed ? `Show panel (${MOD}B)` : `Hide panel (${MOD}B)`}
         >
-          {sidebarVisible ? <PanelLeftClose size={12} /> : <PanelLeftOpen size={12} />}
+          {panelCollapsed ? <PanelLeftOpen size={12} /> : <PanelLeftClose size={12} />}
         </button>
       </div>
       <div className="flex items-center gap-3 pr-1">

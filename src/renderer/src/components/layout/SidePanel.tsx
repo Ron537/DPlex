@@ -4,13 +4,9 @@ import {
   useRef,
   useState
 } from 'react'
-import { MOD } from '../../utils/shortcuts'
 import {
   Search,
-  PanelLeftClose,
   RefreshCw,
-  FolderKanban,
-  MessagesSquare,
   SlidersHorizontal,
   Check,
   Plus
@@ -23,7 +19,6 @@ import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
 import { ProjectPanelFooter } from '../projects/ProjectPanelFooter'
 
-type SidebarTab = 'projects' | 'sessions'
 export type SessionGroupMode = 'time' | 'workspace'
 
 const STATUS_OPTIONS: { id: string; label: string }[] = [
@@ -45,13 +40,13 @@ export function SidePanel(): React.JSX.Element | null {
   const sessions = useSessionStore((s) => s.sessions)
   const sidebarVisible = useSettingsStore((s) => s.settings.sidebarVisible)
   const sidebarWidth = useSettingsStore((s) => s.settings.sidebarWidth)
+  const activeTab = useSettingsStore((s) => s.settings.sidebarActiveTab)
+  const panelCollapsed = useSettingsStore((s) => s.settings.sidebarPanelCollapsed)
   const showFooter = useSettingsStore((s) => s.settings.projectPanelShowFooter)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
   const setSidebarWidth = useSettingsStore((s) => s.setSidebarWidth)
-  const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const addProject = useProjectStore((s) => s.addProject)
   const getProviderLabel = useProvidersStore((s) => s.getLabel)
-  const [activeTab, setActiveTab] = useState<SidebarTab>('projects')
   const [groupMode, setGroupMode] = useState<SessionGroupMode>('time')
   const [providerFilter, setProviderFilter] = useState('all')
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set(['all']))
@@ -126,7 +121,7 @@ export function SidePanel(): React.JSX.Element | null {
     [sidebarWidth, setSidebarWidth]
   )
 
-  if (!sidebarVisible) {
+  if (!sidebarVisible || panelCollapsed) {
     return null
   }
 
@@ -139,43 +134,17 @@ export function SidePanel(): React.JSX.Element | null {
         borderRight: '1px solid var(--dplex-border)'
       }}
     >
-      {/* Header with tab toggle */}
+      {/* Header: panel title + actions (VS Code style) */}
       <div
-        className="flex items-center justify-between px-2 h-9"
+        className="flex items-center justify-between px-3 h-9"
         style={{ borderBottom: '1px solid var(--dplex-border)' }}
       >
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => setActiveTab('projects')}
-            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold tracking-wide transition-colors"
-            style={{
-              color:
-                activeTab === 'projects'
-                  ? 'var(--dplex-text)'
-                  : 'var(--dplex-text-muted)',
-              backgroundColor:
-                activeTab === 'projects' ? 'var(--dplex-bg)' : 'transparent'
-            }}
-          >
-            <FolderKanban size={11} />
-            PROJECTS
-          </button>
-          <button
-            onClick={() => setActiveTab('sessions')}
-            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold tracking-wide transition-colors"
-            style={{
-              color:
-                activeTab === 'sessions'
-                  ? 'var(--dplex-text)'
-                  : 'var(--dplex-text-muted)',
-              backgroundColor:
-                activeTab === 'sessions' ? 'var(--dplex-bg)' : 'transparent'
-            }}
-          >
-            <MessagesSquare size={11} />
-            SESSIONS
-          </button>
-        </div>
+        <span
+          className="text-[11px] font-semibold tracking-wider uppercase select-none"
+          style={{ color: 'var(--dplex-text-muted)' }}
+        >
+          {activeTab === 'projects' ? 'Projects' : 'Sessions'}
+        </span>
         <div className="flex items-center gap-0.5">
           {activeTab === 'projects' && (
             <>
@@ -413,14 +382,6 @@ export function SidePanel(): React.JSX.Element | null {
               </button>
             </>
           )}
-          <button
-            onClick={toggleSidebar}
-            className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-            style={{ color: 'var(--dplex-text-muted)' }}
-            title={`Hide sidebar (${MOD}B)`}
-          >
-            <PanelLeftClose size={12} />
-          </button>
         </div>
       </div>
 

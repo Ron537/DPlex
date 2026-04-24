@@ -68,6 +68,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: cachedTheme,
   sidebarWidth: 260,
   sidebarVisible: true,
+  sidebarActiveTab: 'projects',
+  sidebarPanelCollapsed: false,
   sessionPollIntervalMs: 5000,
   sessionMaxAgeDays: 7,
   hideEmptySessions: true,
@@ -126,9 +128,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   toggleSidebar: () => {
     const current = get().settings
-    const next = !current.sidebarVisible
-    set({ settings: { ...current, sidebarVisible: next } })
-    get().updateSettings({ sidebarVisible: next })
+    const next = !current.sidebarPanelCollapsed
+    set({ settings: { ...current, sidebarPanelCollapsed: next } })
+    get().updateSettings({ sidebarPanelCollapsed: next })
   },
 
   setSidebarWidth: (width) => {
