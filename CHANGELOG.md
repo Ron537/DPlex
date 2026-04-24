@@ -15,6 +15,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   input. If the panel is collapsed, it auto-expands first. Works for
   any future search-enabled panel via the `dplex:focus-search` custom
   event.
+- The most recently expanded project card is now emphasized with an
+  accent border and subtle glow, making it easy to tell which project
+  you're currently focused on when several are expanded at once.
+- Terminal and AI-session tabs whose working directory matches the
+  focused project (or any of its worktree children) now share the
+  project's deterministic avatar color via a subtle background tint and
+  a thin left strip — the active tab remains the most prominent and
+  also picks up a stronger tint of the same project color.
+- New `setLastExpanded` action on the project store that promotes an
+  already-expanded project to be the emphasized one without toggling
+  its expansion state.
+
+### Changed
+
+- Clicking an already-expanded project card that isn't the emphasized
+  one now promotes it to "focused" instead of collapsing it. The
+  chevron control still toggles expansion directly.
+- The project-card chevron is now a proper `<button>` with an
+  `aria-label` (`Expand project` / `Collapse project`).
 
 ## [0.3.0] — 2026-04-24
 

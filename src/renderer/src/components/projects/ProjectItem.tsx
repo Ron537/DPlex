@@ -86,6 +86,7 @@ export function ProjectItem({
 }: ProjectItemProps): React.JSX.Element {
   const expandedIds = useProjectStore((s) => s.expandedProjectIds)
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
+  const setLastExpanded = useProjectStore((s) => s.setLastExpanded)
   const removeProject = useProjectStore((s) => s.removeProject)
   const togglePin = useProjectStore((s) => s.togglePin)
   const reorderProject = useProjectStore((s) => s.reorderProject)
@@ -122,6 +123,8 @@ export function ProjectItem({
   const { repoRoot } = useWorktrees(needWtWatch ? watchPath : undefined)
 
   const isExpanded = expandedIds.has(project.id)
+  const lastExpandedId = useProjectStore((s) => s.lastExpandedProjectId)
+  const isLastExpanded = isExpanded && lastExpandedId === project.id
   const branch = useGitBranch(project.path)
   const { sessions, openTabs, activeCount, hasActive, lastActivity } = activity
   // Worktree children render compactly: a single-line row with a left thread
@@ -171,12 +174,23 @@ export function ProjectItem({
         marginLeft: indent ? indent * 16 : undefined,
         // Collapsed rows blend with the container; only expanded cards get a
         // subtle gradient + border to stand out (mirrors the mockup).
+        // The most recently expanded project gets a stronger accent border
+        // + subtle glow so the user can tell which one they just opened.
         background: isCompact
           ? undefined
           : isExpanded
             ? 'linear-gradient(180deg, color-mix(in srgb, var(--dplex-status-active-bg) 10%, var(--dplex-bg)) 0%, var(--dplex-bg) 50%, var(--dplex-bg-alt) 100%)'
             : undefined,
-        border: isCompact ? undefined : isExpanded ? '1px solid var(--dplex-border)' : undefined
+        border: isCompact
+          ? undefined
+          : isLastExpanded
+            ? '1px solid color-mix(in srgb, var(--dplex-accent) 55%, var(--dplex-border))'
+            : isExpanded
+              ? '1px solid var(--dplex-border)'
+              : undefined,
+        boxShadow: isLastExpanded
+          ? '0 0 0 1px color-mix(in srgb, var(--dplex-accent) 20%, transparent)'
+          : undefined
       }}
     >
       {/* Thread line connecting the worktree row to the parent project. */}
@@ -218,7 +232,15 @@ export function ProjectItem({
         style={
           isCompact || !isExpanded ? undefined : { borderBottom: '1px solid var(--dplex-border)' }
         }
-        onClick={() => toggleExpanded(project.id)}
+        onClick={() => {
+          // Clicking an already-expanded card that isn't the emphasized one
+          // promotes it instead of collapsing. Chevron still toggles.
+          if (isExpanded && !isLastExpanded) {
+            setLastExpanded(project.id)
+          } else {
+            toggleExpanded(project.id)
+          }
+        }}
         onContextMenu={(e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -351,14 +373,20 @@ export function ProjectItem({
           </div>
         )}
 
-        {/* Chevron — right-aligned, grey. Hides on hover so action buttons
-            can take the space without crowding. */}
-        <span
+        {/* Chevron — right-aligned, grey. Clicking always toggles expansion,
+            even when the card click is being reinterpreted as "promote". */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleExpanded(project.id)
+          }}
           style={{ color: 'var(--dplex-text-muted)' }}
-          className="flex-shrink-0 opacity-100 group-hover:opacity-0 transition-opacity"
+          className="flex-shrink-0 opacity-100 group-hover:opacity-0 transition-opacity cursor-pointer"
+          aria-label={isExpanded ? 'Collapse project' : 'Expand project'}
         >
           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </span>
+        </button>
 
         {/* Action buttons — overlay on hover so they don't reserve space when hidden. */}
         <div

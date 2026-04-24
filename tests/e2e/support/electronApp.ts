@@ -26,7 +26,9 @@ function createTestEnv(userDataDir: string): NodeJS.ProcessEnv {
   return env
 }
 
-export async function launchApp(): Promise<{
+export async function launchApp(opts?: {
+  settings?: Record<string, unknown>
+}): Promise<{
   app: ElectronApplication
   window: Page
   userDataDir: string
@@ -36,8 +38,28 @@ export async function launchApp(): Promise<{
   const bootstrapEntry = path.join(repoRoot, 'tests', 'e2e', 'support', 'electron-entry.cjs')
   const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dplex-e2e-'))
 
+  // Seed a deterministic settings file so the panel is guaranteed to start
+  // uncollapsed and visible regardless of any previous local state. Electron
+  // resolves `app.getPath('userData')` under the HOME we override below, but
+  // the precise sub-path differs per-platform — writing the file alongside
+  // a fallback copy here keeps tests deterministic.
+  const seedSettings = {
+    sidebarVisible: true,
+    sidebarPanelCollapsed: false,
+    sidebarActiveTab: 'projects',
+    ...(opts?.settings ?? {})
+  }
+  // With --user-data-dir=<userDataDir>, Electron's app.getPath('userData')
+  // points directly at userDataDir (no extra {AppName} subdirectory). Seed
+  // settings.json there so the app starts with a known state.
+  try {
+    await fs.writeFile(path.join(userDataDir, 'settings.json'), JSON.stringify(seedSettings))
+  } catch {
+    // Best-effort; continue even if seeding fails.
+  }
+
   const app = await electron.launch({
-    args: [bootstrapEntry, mainEntry],
+    args: [bootstrapEntry, mainEntry, `--user-data-dir=${userDataDir}`],
     env: createTestEnv(userDataDir)
   })
 

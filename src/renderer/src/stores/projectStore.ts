@@ -16,6 +16,8 @@ function folderName(folderPath: string): string {
 interface ProjectState {
   projects: Project[]
   expandedProjectIds: Set<string>
+  /** Id of the most recently expanded project. Used to visually emphasize it. */
+  lastExpandedProjectId: string | null
   loaded: boolean
 
   loadProjects: () => Promise<void>
@@ -29,6 +31,7 @@ interface ProjectState {
   removeProject: (id: string) => void
   reorderProject: (draggedId: string, targetId: string, position: 'above' | 'below') => void
   toggleExpanded: (id: string) => void
+  setLastExpanded: (id: string) => void
   togglePin: (id: string) => void
   startAISession: (project: Project, providerId?: string) => Promise<string | null>
   updateProjectWorktreeOverrides: (
@@ -41,6 +44,7 @@ interface ProjectState {
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   expandedProjectIds: new Set(),
+  lastExpandedProjectId: null,
   loaded: false,
 
   loadProjects: async () => {
@@ -152,9 +156,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   removeProject: (id) => {
-    set((state) => ({
-      projects: state.projects.filter((p) => p.id !== id)
-    }))
+    set((state) => {
+      const nextExpanded = new Set(state.expandedProjectIds)
+      nextExpanded.delete(id)
+      return {
+        projects: state.projects.filter((p) => p.id !== id),
+        expandedProjectIds: nextExpanded,
+        lastExpandedProjectId:
+          state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId
+      }
+    })
     get().persistProjects()
   },
 
@@ -201,10 +212,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const next = new Set(state.expandedProjectIds)
       if (next.has(id)) {
         next.delete(id)
-      } else {
-        next.add(id)
+        // Collapsing the currently-emphasized project clears emphasis; if other
+        // projects remain expanded the emphasis simply disappears until the
+        // next expand.
+        const nextLast =
+          state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId
+        return { expandedProjectIds: next, lastExpandedProjectId: nextLast }
       }
-      return { expandedProjectIds: next }
+      next.add(id)
+      return { expandedProjectIds: next, lastExpandedProjectId: id }
+    })
+  },
+
+  // Promote an already-expanded project to be the emphasized one without
+  // toggling its expansion state. If the project is not yet expanded, this
+  // expands it too (same semantics as toggleExpanded on a collapsed id).
+  setLastExpanded: (id) => {
+    set((state) => {
+      if (state.lastExpandedProjectId === id && state.expandedProjectIds.has(id)) {
+        return state
+      }
+      const next = new Set(state.expandedProjectIds)
+      next.add(id)
+      return { expandedProjectIds: next, lastExpandedProjectId: id }
     })
   },
 
