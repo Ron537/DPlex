@@ -21,7 +21,8 @@ const SHORTCUTS: { category: string; items: { keys: string; description: string 
       { keys: `${MOD}T`, description: 'New terminal' },
       { keys: `${MOD}W`, description: 'Close terminal' },
       { keys: `${MOD},`, description: 'Open settings' },
-      { keys: `${MOD}B`, description: 'Toggle sidebar' }
+      { keys: `${MOD}B`, description: 'Toggle sidebar' },
+      { keys: `${MOD}F`, description: 'Focus panel search' }
     ]
   },
   {

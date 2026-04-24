@@ -39,6 +39,19 @@ function App(): React.JSX.Element {
         toggleSidebar()
       }
 
+      if (meta && e.key === 'f') {
+        e.preventDefault()
+        // Expand the panel if it's collapsed so the search input is mounted.
+        const settings = useSettingsStore.getState().settings
+        if (settings.sidebarPanelCollapsed) {
+          useSettingsStore.getState().updateSettings({ sidebarPanelCollapsed: false })
+        }
+        // Defer to next frame so the input exists in the DOM before we focus.
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new CustomEvent('dplex:focus-search'))
+        })
+      }
+
       if (meta && e.key === ',') {
         e.preventDefault()
         window.dispatchEvent(new CustomEvent('dplex:open-settings'))

@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState
@@ -11,6 +12,7 @@ import {
   Check,
   Plus
 } from 'lucide-react'
+import { MOD } from '../../utils/shortcuts'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useProvidersStore } from '../../stores/providersStore'
@@ -55,6 +57,20 @@ export function SidePanel(): React.JSX.Element | null {
   const [projectActiveOnly, setProjectActiveOnly] = useState(false)
   const [showProjectFilterMenu, setShowProjectFilterMenu] = useState(false)
   const resizing = useRef(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Focus + select the search input when Cmd/Ctrl+F is pressed anywhere.
+  // Covers both "open panel and focus search" and "re-focus while already open".
+  useEffect(() => {
+    const handler = (): void => {
+      const input = searchInputRef.current
+      if (!input) return
+      input.focus()
+      input.select()
+    }
+    window.addEventListener('dplex:focus-search', handler)
+    return () => window.removeEventListener('dplex:focus-search', handler)
+  }, [])
 
   // Compute available providers and counts
   const providerOptions = useMemo(() => {
@@ -400,6 +416,7 @@ export function SidePanel(): React.JSX.Element | null {
             className="flex-shrink-0"
           />
           <input
+            ref={searchInputRef}
             type="text"
             placeholder={activeTab === 'projects' ? 'Search projects...' : 'Search sessions...'}
             value={activeTab === 'projects' ? projectSearchQuery : searchQuery}
@@ -411,6 +428,17 @@ export function SidePanel(): React.JSX.Element | null {
             className="bg-transparent text-xs placeholder-zinc-600 outline-none w-full"
             style={{ color: 'var(--dplex-text)' }}
           />
+          <kbd
+            className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded select-none"
+            style={{
+              color: 'var(--dplex-text-muted)',
+              backgroundColor: 'var(--dplex-bg-alt)',
+              border: '1px solid var(--dplex-border)'
+            }}
+            title={`Focus search (${MOD}F)`}
+          >
+            {MOD}F
+          </kbd>
         </div>
       </div>
 
