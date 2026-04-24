@@ -20,14 +20,14 @@ test.describe('DPlex Electron app', () => {
   test('renders main layout and status controls', async () => {
     if (!window) throw new Error('Window not available')
     await expect(window.getByText('DPlex')).toBeVisible()
-    await expect(window.getByRole('button', { name: 'PROJECTS', exact: true })).toBeVisible()
+    await expect(window.getByRole('button', { name: 'Projects', exact: true })).toBeVisible()
     await expect(window.getByPlaceholder('Search projects...')).toBeVisible()
     await expect(window.getByText(/terminals? · \d+ groups?/)).toBeVisible()
   })
 
   test('opens settings and navigates tabs', async () => {
     if (!window) throw new Error('Window not available')
-    await window.getByTitle(/Settings/).click()
+    await window.getByTitle('Settings', { exact: true }).click()
     await expect(window.getByText('Settings')).toBeVisible()
 
     await window.getByRole('button', { name: 'Notifications' }).click()

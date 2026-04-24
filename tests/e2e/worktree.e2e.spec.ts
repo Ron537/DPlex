@@ -20,7 +20,7 @@ test.describe('DPlex worktree settings', () => {
   test('Worktrees tab in Settings shows defaults form and persists changes', async () => {
     if (!window) throw new Error('Window not available')
 
-    await window.getByTitle(/Settings/).click()
+    await window.getByTitle('Settings', { exact: true }).click()
     await expect(window.getByText('Settings')).toBeVisible()
 
     await window.getByRole('button', { name: 'Worktrees' }).click()
@@ -44,7 +44,7 @@ test.describe('DPlex worktree settings', () => {
     // Allow the debounced settings save (~250ms) to flush.
     await window.waitForTimeout(500)
 
-    await window.getByTitle(/Settings/).click()
+    await window.getByTitle('Settings', { exact: true }).click()
     await window.getByRole('button', { name: 'Worktrees' }).click()
     const reloaded = window.locator('input[placeholder*="{project}"]').first()
     await expect(reloaded).toHaveValue('../wt/{project}-{branch}')
