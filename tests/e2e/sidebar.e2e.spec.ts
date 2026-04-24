@@ -62,14 +62,12 @@ test.describe('DPlex sidebar interactions', () => {
   test('Cmd/Ctrl+F uncollapses the panel before focusing search', async () => {
     if (!window) throw new Error('Window not available')
 
-    // Ensure the panel is rendered first — gives the keydown listener time to attach.
+    // Ensure the panel is rendered first.
     await expect(window.getByPlaceholder('Search projects...')).toBeVisible()
 
-    // Click the body so the keyboard events are dispatched to the page.
-    await window.evaluate(() => (document.body as HTMLElement).focus())
-
-    // Collapse the side panel with Cmd/Ctrl+B.
-    await window.keyboard.press('ControlOrMeta+b')
+    // Collapse via the status-bar toggle — deterministic on every platform
+    // (the keyboard shortcut path is covered elsewhere).
+    await window.getByTitle(/Hide panel/).click()
     await expect(window.getByPlaceholder('Search projects...')).not.toBeVisible()
 
     // Cmd+F should uncollapse the panel and focus the now-visible input.
