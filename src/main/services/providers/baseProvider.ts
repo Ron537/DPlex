@@ -1,7 +1,6 @@
 import * as fs from 'fs'
 import * as fsp from 'fs/promises'
 import * as path from 'path'
-import { spawn } from 'child_process'
 import type {
   SessionProvider,
   DiscoveredSession,
@@ -10,83 +9,52 @@ import type {
   SessionPrompt,
   ParsedSessionData
 } from './types'
+import {
+  killProcess,
+  isProcessAlive,
+  waitForProcessesToExit
+} from './processUtils'
 
 // Filesystems on macOS and Windows are case-insensitive by default; Linux is case-sensitive.
 const FS_CASE_SENSITIVE = process.platform !== 'darwin' && process.platform !== 'win32'
 
 /** Normalize a path for equality comparison, honoring filesystem case sensitivity. */
-function normalizePathForCompare(p: string): string {
+export function normalizePathForCompare(p: string): string {
   const unified = p.replace(/\\/g, '/').replace(/\/+$/, '')
   return FS_CASE_SENSITIVE ? unified : unified.toLowerCase()
 }
 
 /**
- * Terminate a process by PID. On Windows, uses `taskkill /T /F` to also terminate
- * child processes (child Node processes typically spawn AI tool subprocesses).
- * Returns true if the kill request was issued successfully.
+ * One discovered session entry (a file or a directory, depending on the
+ * provider's storage convention). `id` is the session identifier; `path` is
+ * the absolute filesystem path to the entry; `mtimeMs` / `birthtimeMs` are
+ * filesystem timestamps used for cutoff filtering.
  */
-function killProcess(pid: number, signal: NodeJS.Signals = 'SIGTERM'): boolean {
-  if (process.platform === 'win32') {
-    try {
-      // /T kills the process tree, /F forces termination. taskkill ignores the
-      // POSIX signal argument — it's always a forceful terminate.
-      const result = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
-        windowsHide: true,
-        stdio: 'ignore'
-      })
-      result.on('error', () => {
-        // Ignore — process may already be gone
-      })
-      return true
-    } catch {
-      return false
-    }
-  }
-  try {
-    // On Unix, prefer killing the process group so orphaned children (e.g.
-    // Copilot CLI's MCP/helper subprocesses) die with the parent. PTY-spawned
-    // processes run under `setsid`, which makes the child a process-group
-    // leader (pgid === pid). `process.kill(-pid, signal)` targets that group.
-    // Fall back to signaling the single PID if the group kill fails (ESRCH
-    // can mean the group doesn't exist because the process wasn't a leader).
-    try {
-      process.kill(-pid, signal)
-    } catch {
-      process.kill(pid, signal)
-    }
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Returns true if a process with the given PID is still alive. */
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (err) {
-    // EPERM means the process exists but we can't signal it (different user
-    // or protected process). Treat as alive so we don't wrongly proceed to
-    // rmSync while something is still writing to the session directory.
-    return (err as NodeJS.ErrnoException)?.code === 'EPERM'
-  }
-}
-
-/** Wait until the given pids have all exited, or the timeout elapses. */
-async function waitForProcessesToExit(pids: number[], timeoutMs: number): Promise<boolean> {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    if (pids.every((pid) => !isProcessAlive(pid))) return true
-    await new Promise((r) => setTimeout(r, 50))
-  }
-  return pids.every((pid) => !isProcessAlive(pid))
+export interface SessionEntry {
+  id: string
+  path: string
+  mtimeMs: number
+  birthtimeMs: number
 }
 
 /**
  * Abstract base class for AI session providers.
- * Handles generic behavior: file watching, discovery, session resolution, active detection.
- * Concrete providers override format-specific parsing methods.
+ * Handles generic behavior: file watching, discovery, session resolution.
+ *
+ * Concrete providers override:
+ *   • {@link getSessionDir} — root directory containing sessions.
+ *   • {@link parseSession} — parse a single entry into a `DiscoveredSession`.
+ *   • {@link parseEventsIncremental} / {@link extractPromptsFromEvents} — events parsing.
+ *   • {@link getResumeCommand} / {@link getNewSessionCommand} — CLI invocation.
+ *
+ * Optional overrides for providers that don't follow Copilot's conventions
+ * (one directory per session + `inuse.<PID>.lock` lock files):
+ *   • {@link listSessionEntries} — custom discovery layout (e.g. files, nested).
+ *   • {@link getEntryForSessionId} — `sessionId` → entry-path resolution.
+ *   • {@link getActivePidForEntry} / {@link getActivePidsForEntry} — active-PID detection.
+ *   • {@link findSessionEntryByPid} — fast PID → session lookup.
+ *   • {@link removeSessionData} — disk cleanup on delete.
+ *   • {@link sessionIdFromWatchPath} — relative-path → sessionId mapping.
  */
 export abstract class BaseSessionProvider implements SessionProvider {
   abstract readonly id: string
@@ -99,6 +67,10 @@ export abstract class BaseSessionProvider implements SessionProvider {
   private watchCallbacks: WatcherCallbacks | null = null
   private knownSessionIds = new Set<string>()
   private sessionCache = new Map<string, DiscoveredSession>()
+  /** Cache of `sessionId → entry path`, populated by discovery and watcher.
+   *  Used to avoid re-walking the session tree to resolve a sessionId to its
+   *  filesystem entry on every operation. */
+  private entryPathCache = new Map<string, string>()
   private watchGeneration = 0
 
   private static readonly DEBOUNCE_MS = 300
@@ -115,131 +87,135 @@ export abstract class BaseSessionProvider implements SessionProvider {
 
   // ── Abstract methods — each provider implements these ────────────
 
-  /** Base directory where sessions are stored (e.g., ~/.copilot/session-state/) */
+  /** Base directory where sessions are stored (e.g. `~/.copilot/session-state/`). */
   protected abstract getSessionDir(): string
 
-  /** Parse a single session directory into a DiscoveredSession. Return null to skip. */
-  protected abstract parseSessionDir(
-    dirPath: string,
-    dirName: string
+  /** Parse a single session entry into a `DiscoveredSession`. Return null to skip. */
+  protected abstract parseSession(
+    entry: SessionEntry
   ): Promise<DiscoveredSession | null>
 
   /** Incrementally parse events to get current status/counts. */
   protected abstract parseEventsIncremental(
-    filePath: string
+    entryPath: string
   ): Promise<ParsedSessionData | null>
 
-  /** Extract user prompts from events file. */
+  /** Extract user prompts from a session's events. */
   protected abstract extractPromptsFromEvents(
-    filePath: string,
+    entryPath: string,
     limit: number
   ): Promise<SessionPrompt[]>
 
   abstract getResumeCommand(sessionId: string): string
   abstract getNewSessionCommand(): string
 
-  // ── Discovery ────────────────────────────────────────────────────
+  // ── Default storage layout (Copilot convention) ──────────────────
+  // Override these for providers that don't store one directory per session.
 
-  async discoverSessions(): Promise<DiscoveredSession[]> {
+  /**
+   * List all session entries under `getSessionDir()`. Default implementation
+   * returns immediate sub-directories; override for nested or file-based
+   * layouts (e.g. Claude Code's `<projects>/<slug>/<id>.jsonl`).
+   */
+  protected async listSessionEntries(): Promise<SessionEntry[]> {
     const sessionDir = this.getSessionDir()
     if (!(await this.dirExists(sessionDir))) return []
 
+    const out: SessionEntry[] = []
     try {
       const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
-      const sessions: DiscoveredSession[] = []
-      const cutoff = Date.now() - BaseSessionProvider.maxAgeDays * 86400000
-
       for (const entry of entries) {
         if (!entry.isDirectory()) continue
         const fullPath = path.join(sessionDir, entry.name)
-
         try {
           const stat = await fsp.stat(fullPath)
-          // Fast-path skip: if dir mtime is older than cutoff, actual session
-          // activity is guaranteed to be older too.
-          if (stat.mtimeMs < cutoff) continue
-
-          const session = await this.parseSessionDir(fullPath, entry.name)
-          if (!session) continue
-
-          // Filter by the session's reported updatedAt (events activity),
-          // which can be older than dir mtime (lock files touch the dir).
-          if (new Date(session.updatedAt).getTime() < cutoff) continue
-
-          sessions.push(session)
+          out.push({
+            id: entry.name,
+            path: fullPath,
+            mtimeMs: stat.mtimeMs,
+            birthtimeMs: stat.birthtimeMs
+          })
         } catch {
-          // Skip unreadable sessions
+          // Skip unreadable entries
         }
       }
-
-      return sessions.sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      )
     } catch {
-      return []
+      // ignore
     }
+    return out
   }
 
-  // ── Session Lifecycle ────────────────────────────────────────────
+  /**
+   * Look up the on-disk entry for a session id. Default joins `sessionId` to
+   * `getSessionDir()` (Copilot convention). Providers with a more complex
+   * layout (e.g. nested directories) should override or rely on the entry
+   * cache populated during discovery.
+   */
+  protected async getEntryForSessionId(sessionId: string): Promise<SessionEntry | null> {
+    if (!this.validateSessionId(sessionId)) return null
 
-  async closeSession(sessionId: string): Promise<boolean> {
-    const fullPath = this.resolveAndValidateSessionPath(sessionId)
-    if (!fullPath) return false
-
-    try {
-      const files = await fsp.readdir(fullPath)
-      const lockFiles = files.filter((f) => /^inuse\.\d+\.lock$/.test(f))
-      if (lockFiles.length === 0) return false
-
-      let killed = false
-      for (const lockFile of lockFiles) {
-        const match = lockFile.match(/^inuse\.(\d+)\.lock$/)
-        if (!match) continue
-        const pid = parseInt(match[1], 10)
-        if (isNaN(pid) || pid <= 0) continue
-        if (killProcess(pid)) killed = true
-      }
-      return killed
-    } catch {
-      return false
-    }
-  }
-
-  async deleteSession(sessionId: string): Promise<void> {
-    const fullPath = this.resolveAndValidateSessionPath(sessionId)
-    if (!fullPath) throw new Error('Invalid session ID')
-
-    // If the session is currently active, terminate the owning process(es)
-    // BEFORE removing the directory. Otherwise the process keeps writing to
-    // the (just-deleted) directory, recreating it with stripped metadata —
-    // the "zombie session with same ID and no cwd" failure mode.
-    const pids = await this.getActivePidsForSession(fullPath)
-    if (pids.length > 0) {
-      for (const pid of pids) killProcess(pid, 'SIGTERM')
-      // Wait for graceful exit. SIGTERM lets the AI tool flush its logs; if
-      // it doesn't exit within the budget, escalate to SIGKILL.
-      const exited = await waitForProcessesToExit(pids, 1500)
-      if (!exited) {
-        for (const pid of pids) {
-          if (isProcessAlive(pid)) killProcess(pid, 'SIGKILL')
+    const cachedPath = this.entryPathCache.get(sessionId)
+    if (cachedPath) {
+      try {
+        const stat = await fsp.stat(cachedPath)
+        return {
+          id: sessionId,
+          path: cachedPath,
+          mtimeMs: stat.mtimeMs,
+          birthtimeMs: stat.birthtimeMs
         }
-        await waitForProcessesToExit(pids, 500)
+      } catch {
+        this.entryPathCache.delete(sessionId)
       }
     }
 
-    if (fs.existsSync(fullPath)) {
-      fs.rmSync(fullPath, { recursive: true, force: true })
+    const fullPath = path.join(this.getSessionDir(), sessionId)
+    const resolved = path.resolve(fullPath)
+    if (!resolved.startsWith(path.resolve(this.getSessionDir()) + path.sep)) return null
+
+    try {
+      const stat = await fsp.stat(resolved)
+      this.entryPathCache.set(sessionId, resolved)
+      return {
+        id: sessionId,
+        path: resolved,
+        mtimeMs: stat.mtimeMs,
+        birthtimeMs: stat.birthtimeMs
+      }
+    } catch {
+      // Fall back to a slow scan via listSessionEntries — supports providers
+      // whose entries don't live directly under sessionDir.
+      const entries = await this.listSessionEntries()
+      for (const e of entries) {
+        if (e.id === sessionId) {
+          this.entryPathCache.set(sessionId, e.path)
+          return e
+        }
+      }
+      return null
     }
-    // Clean up internal watcher state
-    this.knownSessionIds.delete(sessionId)
-    this.sessionCache.delete(sessionId)
-    this.onSessionDeleted(fullPath)
   }
 
-  /** Read the PIDs of processes currently holding this session. */
-  private async getActivePidsForSession(sessionPath: string): Promise<number[]> {
+  /**
+   * Active-PID detection for a single entry. Default reads `inuse.<PID>.lock`
+   * files inside an entry directory (Copilot convention). Override for
+   * providers that publish liveness elsewhere (e.g. a pidfile registry).
+   */
+  protected async getActivePidForEntry(entry: SessionEntry): Promise<number | null> {
+    const pids = await this.getActivePidsForEntry(entry)
+    return pids[0] ?? null
+  }
+
+  /**
+   * Returns all live PIDs that own a session. Default scans `inuse.<PID>.lock`
+   * files inside the entry directory and verifies each PID is alive. Override
+   * for providers that publish liveness elsewhere.
+   */
+  protected async getActivePidsForEntry(entry: SessionEntry): Promise<number[]> {
     try {
-      const files = await fsp.readdir(sessionPath)
+      const stat = await fsp.stat(entry.path)
+      if (!stat.isDirectory()) return []
+      const files = await fsp.readdir(entry.path)
       const pids: number[] = []
       for (const f of files) {
         const m = f.match(/^inuse\.(\d+)\.lock$/)
@@ -253,81 +229,170 @@ export abstract class BaseSessionProvider implements SessionProvider {
     }
   }
 
+  /**
+   * Fast lookup: which session does this PID belong to?
+   * Default walks all entries looking for an `inuse.<PID>.lock` file.
+   */
+  protected async findSessionEntryByPid(pid: number): Promise<SessionEntry | null> {
+    if (!isProcessAlive(pid)) return null
+    const lockFileName = `inuse.${pid}.lock`
+    const entries = await this.listSessionEntries()
+    for (const entry of entries) {
+      try {
+        const stat = await fsp.stat(entry.path)
+        if (!stat.isDirectory()) continue
+        const files = await fsp.readdir(entry.path)
+        if (files.includes(lockFileName)) return entry
+      } catch {
+        // Skip
+      }
+    }
+    return null
+  }
+
+  /**
+   * Remove a session's on-disk data. Default recursively deletes the entry
+   * (Copilot's per-session directory). Override for providers that store
+   * each session as a single file plus optional sidecars.
+   */
+  protected async removeSessionData(entry: SessionEntry): Promise<void> {
+    if (fs.existsSync(entry.path)) {
+      fs.rmSync(entry.path, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * Map a relative path (from the recursive watcher) to a sessionId.
+   * Default returns the first path segment (Copilot convention).
+   * Return null to ignore the change.
+   */
+  protected sessionIdFromWatchPath(relativePath: string): string | null {
+    const parts = relativePath.replace(/\\/g, '/').split('/')
+    return parts[0] || null
+  }
+
+  // ── Discovery ────────────────────────────────────────────────────
+
+  async discoverSessions(): Promise<DiscoveredSession[]> {
+    const cutoff = Date.now() - BaseSessionProvider.maxAgeDays * 86400000
+    const entries = await this.listSessionEntries()
+    const sessions: DiscoveredSession[] = []
+
+    for (const entry of entries) {
+      if (!this.validateSessionId(entry.id)) continue
+      // Fast-path skip: if entry mtime is older than cutoff, actual session
+      // activity is guaranteed to be older too.
+      if (entry.mtimeMs < cutoff) continue
+
+      try {
+        const session = await this.parseSession(entry)
+        if (!session) continue
+
+        // Filter by the session's reported updatedAt (events activity),
+        // which can be older than entry mtime (lock files touch the dir).
+        if (new Date(session.updatedAt).getTime() < cutoff) continue
+
+        this.entryPathCache.set(session.id, entry.path)
+        sessions.push(session)
+      } catch {
+        // Skip unreadable sessions
+      }
+    }
+
+    return sessions.sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )
+  }
+
+  // ── Session Lifecycle ────────────────────────────────────────────
+
+  async closeSession(sessionId: string): Promise<boolean> {
+    const entry = await this.getEntryForSessionId(sessionId)
+    if (!entry) return false
+
+    const pids = await this.getActivePidsForEntry(entry)
+    if (pids.length === 0) return false
+
+    let killed = false
+    for (const pid of pids) {
+      if (killProcess(pid)) killed = true
+    }
+    return killed
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    const entry = await this.getEntryForSessionId(sessionId)
+    if (!entry) throw new Error('Invalid session ID')
+
+    // If the session is currently active, terminate the owning process(es)
+    // BEFORE removing on-disk data. Otherwise the process keeps writing to
+    // the (just-deleted) location, recreating it with stripped metadata.
+    const pids = await this.getActivePidsForEntry(entry)
+    if (pids.length > 0) {
+      for (const pid of pids) killProcess(pid, 'SIGTERM')
+      const exited = await waitForProcessesToExit(pids, 1500)
+      if (!exited) {
+        for (const pid of pids) {
+          if (isProcessAlive(pid)) killProcess(pid, 'SIGKILL')
+        }
+        await waitForProcessesToExit(pids, 500)
+      }
+    }
+
+    await this.removeSessionData(entry)
+
+    // Clean up internal watcher state
+    this.knownSessionIds.delete(sessionId)
+    this.sessionCache.delete(sessionId)
+    this.entryPathCache.delete(sessionId)
+    this.onSessionDeleted(entry)
+  }
+
   /** Hook for subclasses to clean up provider-specific caches on session delete. */
-  protected onSessionDeleted(_sessionDir: string): void {
+  protected onSessionDeleted(entry: SessionEntry): void {
+    void entry
     // Override in subclasses if needed
   }
 
   // ── Session Resolution ───────────────────────────────────────────
 
   async resolveSessionByPid(pid: number): Promise<ResolvedSession | null> {
-    const sessionDir = this.getSessionDir()
-    const lockFileName = `inuse.${pid}.lock`
+    const entry = await this.findSessionEntryByPid(pid)
+    if (!entry) return null
 
+    this.entryPathCache.set(entry.id, entry.path)
+    let displayName = entry.id.slice(0, 12)
     try {
-      process.kill(pid, 0)
+      const session = await this.parseSession(entry)
+      if (session) displayName = session.displayName
     } catch {
-      return null
+      // Ignore parse errors and fall back to the truncated id
     }
-
-    try {
-      const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const fullPath = path.join(sessionDir, entry.name)
-        try {
-          const files = await fsp.readdir(fullPath)
-          if (files.includes(lockFileName)) {
-            const session = await this.parseSessionDir(fullPath, entry.name)
-            return {
-              sessionId: entry.name,
-              displayName: session?.displayName ?? entry.name.slice(0, 12)
-            }
-          }
-        } catch {
-          // Skip unreadable dirs
-        }
-      }
-    } catch {
-      // Session directory doesn't exist
-    }
-
-    return null
+    return { sessionId: entry.id, displayName }
   }
 
   async resolveSessionByCwd(cwd: string): Promise<ResolvedSession | null> {
-    const sessionDir = this.getSessionDir()
     const normalizedCwd = normalizePathForCompare(cwd)
-    if (!(await this.dirExists(sessionDir))) return null
-
+    const entries = await this.listSessionEntries()
     let bestMatch: { id: string; mtime: number; session: DiscoveredSession } | null = null
 
-    try {
-      const entries = await fsp.readdir(sessionDir, { withFileTypes: true })
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const fullPath = path.join(sessionDir, entry.name)
+    for (const entry of entries) {
+      try {
+        const pid = await this.getActivePidForEntry(entry)
+        if (pid === null) continue
 
-        try {
-          const pid = await this.getActivePid(fullPath)
-          if (pid === null) continue
+        const session = await this.parseSession(entry)
+        if (!session?.cwd) continue
 
-          const session = await this.parseSessionDir(fullPath, entry.name)
-          if (!session?.cwd) continue
+        if (normalizePathForCompare(session.cwd) !== normalizedCwd) continue
 
-          const sessionCwd = normalizePathForCompare(session.cwd)
-          if (sessionCwd !== normalizedCwd) continue
-
-          const stat = await fsp.stat(fullPath)
-          if (!bestMatch || stat.mtimeMs > bestMatch.mtime) {
-            bestMatch = { id: entry.name, mtime: stat.mtimeMs, session }
-          }
-        } catch {
-          // Skip
+        if (!bestMatch || entry.mtimeMs > bestMatch.mtime) {
+          bestMatch = { id: entry.id, mtime: entry.mtimeMs, session }
+          this.entryPathCache.set(entry.id, entry.path)
         }
+      } catch {
+        // Skip
       }
-    } catch {
-      // ignore
     }
 
     if (!bestMatch) return null
@@ -342,7 +407,11 @@ export abstract class BaseSessionProvider implements SessionProvider {
     const generation = ++this.watchGeneration
 
     const sessionDir = this.getSessionDir()
-    if (!fs.existsSync(sessionDir)) return
+    if (!fs.existsSync(sessionDir)) {
+      // Defer the watcher until the directory exists. Common case: fresh
+      // installs where the AI tool hasn't created its data dir yet.
+      return
+    }
 
     // Populate known sessions before starting watcher to avoid spurious onAdded calls
     const sessions = await this.discoverSessions()
@@ -392,14 +461,36 @@ export abstract class BaseSessionProvider implements SessionProvider {
     this.watchCallbacks = null
     this.knownSessionIds.clear()
     this.sessionCache.clear()
+    this.entryPathCache.clear()
+  }
+
+  /**
+   * Hook used by subclasses (e.g. `ClaudeCodeProvider` integrating with the
+   * pidfile registry) to push a session update through the same watcher
+   * pipeline that the filesystem watcher uses. Centralizing the push avoids
+   * duplicating the dedup / cache-update logic.
+   */
+  protected pushSessionUpdate(session: DiscoveredSession): void {
+    if (!this.watchCallbacks) return
+    if (this.knownSessionIds.has(session.id)) {
+      const prev = this.sessionCache.get(session.id)
+      if (!prev || this.hasSessionChanged(prev, session)) {
+        this.sessionCache.set(session.id, session)
+        this.watchCallbacks.onUpdated(session)
+      }
+    } else {
+      this.knownSessionIds.add(session.id)
+      this.sessionCache.set(session.id, session)
+      this.watchCallbacks.onAdded(session)
+    }
   }
 
   // ── Prompts ──────────────────────────────────────────────────────
 
   async getPrompts(sessionId: string, limit = 20): Promise<SessionPrompt[]> {
-    const fullPath = this.resolveAndValidateSessionPath(sessionId)
-    if (!fullPath) return []
-    return this.extractPromptsFromEvents(fullPath, limit)
+    const entry = await this.getEntryForSessionId(sessionId)
+    if (!entry) return []
+    return this.extractPromptsFromEvents(entry.path, limit)
   }
 
   // ── Protected Helpers ────────────────────────────────────────────
@@ -413,55 +504,27 @@ export abstract class BaseSessionProvider implements SessionProvider {
     }
   }
 
-  protected async getActivePid(sessionDir: string): Promise<number | null> {
-    try {
-      const files = await fsp.readdir(sessionDir)
-      const lockFile = files.find((f) => f.startsWith('inuse.') && f.endsWith('.lock'))
-      if (!lockFile) return null
-
-      const pidStr = lockFile.replace('inuse.', '').replace('.lock', '')
-      const pid = parseInt(pidStr, 10)
-      if (isNaN(pid)) return null
-
-      try {
-        process.kill(pid, 0)
-        return pid
-      } catch {
-        return null
-      }
-    } catch {
-      return null
-    }
-  }
-
+  /**
+   * Validate a session id is safe to use in shell commands and filesystem
+   * paths. Session ids come from filesystem entry names (filenames or
+   * directory names), so a tarball / malicious project that ships a
+   * crafted `.claude/` or `.copilot/` directory could otherwise plant
+   * shell metacharacters that fire when the user clicks Resume.
+   *
+   * Both Copilot and Claude session ids are UUID/hex-shaped — restrict
+   * to a strict, shell-safe charset.
+   */
   protected validateSessionId(sessionId: string): boolean {
-    if (
-      !sessionId ||
-      sessionId.includes('/') ||
-      sessionId.includes('\\') ||
-      sessionId.includes('..')
-    ) {
-      return false
-    }
-    return true
-  }
-
-  protected resolveAndValidateSessionPath(sessionId: string): string | null {
-    if (!this.validateSessionId(sessionId)) return null
-    const targetPath = path.join(this.getSessionDir(), sessionId)
-    const resolved = path.resolve(targetPath)
-    if (!resolved.startsWith(path.resolve(this.getSessionDir()) + path.sep)) return null
-    return resolved
+    if (!sessionId) return false
+    if (sessionId.length > 128) return false
+    return /^[A-Za-z0-9_-]+$/.test(sessionId)
   }
 
   // ── Private Watcher Helpers ──────────────────────────────────────
 
   private handleFileChange(filename: string): void {
-    // filename is relative to session dir, e.g. "uuid/events.jsonl" or "uuid"
-    const parts = filename.replace(/\\/g, '/').split('/')
-    if (parts.length === 0) return
-
-    const sessionId = parts[0]
+    const sessionId = this.sessionIdFromWatchPath(filename)
+    if (!sessionId) return
 
     // Debounce per session
     const existing = this.debounceTimers.get(sessionId)
@@ -479,35 +542,24 @@ export abstract class BaseSessionProvider implements SessionProvider {
   private async processSessionChange(sessionId: string): Promise<void> {
     if (!this.watchCallbacks) return
 
-    const fullPath = path.join(this.getSessionDir(), sessionId)
+    const entry = await this.getEntryForSessionId(sessionId)
 
-    try {
-      await fsp.access(fullPath)
-    } catch {
-      // Directory removed
+    if (!entry) {
+      // Entry removed
       if (this.knownSessionIds.has(sessionId)) {
         this.knownSessionIds.delete(sessionId)
         this.sessionCache.delete(sessionId)
+        this.entryPathCache.delete(sessionId)
         this.watchCallbacks?.onRemoved(sessionId, this.id)
       }
       return
     }
 
     try {
-      const session = await this.parseSessionDir(fullPath, sessionId)
+      const session = await this.parseSession(entry)
       if (!session || !this.watchCallbacks) return
-
-      if (this.knownSessionIds.has(sessionId)) {
-        const prev = this.sessionCache.get(sessionId)
-        if (prev && this.hasSessionChanged(prev, session)) {
-          this.sessionCache.set(sessionId, session)
-          this.watchCallbacks?.onUpdated(session)
-        }
-      } else {
-        this.knownSessionIds.add(sessionId)
-        this.sessionCache.set(sessionId, session)
-        this.watchCallbacks?.onAdded(session)
-      }
+      this.entryPathCache.set(session.id, entry.path)
+      this.pushSessionUpdate(session)
     } catch {
       // Parse error — ignore
     }
@@ -529,12 +581,12 @@ export abstract class BaseSessionProvider implements SessionProvider {
     for (const [sessionId, session] of this.sessionCache.entries()) {
       if (!this.watchCallbacks) return
       if (session.detailedStatus && session.detailedStatus !== 'idle') {
-        const fullPath = path.join(this.getSessionDir(), sessionId)
+        const entry = await this.getEntryForSessionId(sessionId)
+        if (!entry) continue
         try {
-          const stat = await fsp.stat(fullPath)
-          const age = Date.now() - stat.mtimeMs
+          const age = Date.now() - entry.mtimeMs
           if (age > 30000) {
-            const updated = await this.parseSessionDir(fullPath, sessionId)
+            const updated = await this.parseSession(entry)
             if (updated && this.hasSessionChanged(session, updated)) {
               this.sessionCache.set(sessionId, updated)
               this.watchCallbacks?.onUpdated(updated)
@@ -547,3 +599,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
     }
   }
 }
+
+// Re-export so existing imports `import { ... } from './baseProvider'`
+// keep working if any non-provider code referenced the helpers.
+export { killProcess, isProcessAlive, waitForProcessesToExit }

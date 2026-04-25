@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Claude Code provider.** DPlex now discovers, monitors, resumes,
+  closes, and deletes sessions from the `claude` CLI alongside Copilot
+  CLI. Sessions live at `~/.claude/projects/<slug-of-cwd>/<id>.jsonl`,
+  and live status is read from the per-process pidfile registry at
+  `~/.claude/sessions/<pid>.json`. Live status maps to dplex's existing
+  status taxonomy: `waiting` + `approve …` → awaitingApproval, `busy` +
+  tool detail → executingTool, `busy` (no tool) → thinking, `idle` →
+  idle, and `tempo: blocked` → waitingForUser. `approve AskUserQuestion`
+  is treated as `waitingForUser` since it's an interactive question
+  rather than a side-effecting permission gate.
+- New `processUtils` module sharing `killProcess`, `isProcessAlive`,
+  and `waitForProcessesToExit` between providers.
+
+### Changed
+
+- **`BaseSessionProvider` refactor** to support providers whose storage
+  shape doesn't match Copilot CLI's "one directory per session + lock
+  files" convention. New `SessionEntry` abstraction and overridable
+  hooks (`listSessionEntries`, `getEntryForSessionId`,
+  `getActivePidsForEntry`, `parseSession`, `removeSessionData`,
+  `sessionIdFromWatchPath`, `pushSessionUpdate`) allow alternative
+  storage layouts. Copilot provider behavior is unchanged.
+
+### Security
+
+- **Tightened `validateSessionId`** to a strict `[A-Za-z0-9_-]+`
+  charset (max 128 chars). Previously only `/`, `\`, and `..` were
+  rejected, leaving shell metacharacters (`;`, `$()`, backticks, `|`,
+  `&&`, whitespace) free to slip through. A malicious tarball or
+  project that planted a crafted filename under `~/.claude/projects/`
+  or `~/.copilot/` could otherwise execute arbitrary shell when the
+  user clicked Resume. Discovered entries with invalid ids are now
+  filtered out at discovery time as well as at resolve time.
+
 ## [0.4.0] — 2026-04-24
 
 ### Added

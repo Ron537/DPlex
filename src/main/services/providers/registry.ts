@@ -81,8 +81,21 @@ export class ProviderRegistry {
     }
   }
 
-  /** Resolve a session by PID — tries all providers until one matches. */
-  async resolveSessionByPid(pid: number): Promise<ResolvedSession | null> {
+  /** Resolve a session by PID — tries all providers until one matches.
+   *  When `providerHint` is supplied, query ONLY that provider; do not fall
+   *  back to others. Returning `null` here is safer than returning a wrong-
+   *  provider session, which is what caused tabs to get cross-contaminated
+   *  sessionIds during simultaneous startup of mixed-provider workspaces.
+   */
+  async resolveSessionByPid(
+    pid: number,
+    providerHint?: string
+  ): Promise<ResolvedSession | null> {
+    if (providerHint) {
+      const provider = this.providers.get(providerHint)
+      if (!provider) return null
+      return provider.resolveSessionByPid(pid)
+    }
     for (const provider of this.providers.values()) {
       const result = await provider.resolveSessionByPid(pid)
       if (result) return result
@@ -90,8 +103,18 @@ export class ProviderRegistry {
     return null
   }
 
-  /** Resolve a session by CWD — tries all providers, returns best match. */
-  async resolveSessionByCwd(cwd: string): Promise<ResolvedSession | null> {
+  /** Resolve a session by CWD — tries all providers, returns best match.
+   *  When `providerHint` is supplied, query ONLY that provider.
+   */
+  async resolveSessionByCwd(
+    cwd: string,
+    providerHint?: string
+  ): Promise<ResolvedSession | null> {
+    if (providerHint) {
+      const provider = this.providers.get(providerHint)
+      if (!provider) return null
+      return provider.resolveSessionByCwd(cwd)
+    }
     for (const provider of this.providers.values()) {
       const result = await provider.resolveSessionByCwd(cwd)
       if (result) return result

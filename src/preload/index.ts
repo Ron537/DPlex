@@ -43,7 +43,11 @@ export interface DplexAPI {
     loadWorkspace: () => Promise<unknown | null>
     saveWorkspace: (data: unknown) => Promise<void>
     saveWorkspaceSync: (data: unknown) => void
-    resolveSessionId: (pid: number, cwd?: string) => Promise<{ sessionId: string; displayName: string } | null>
+    resolveSessionId: (
+      pid: number,
+      cwd?: string,
+      providerId?: string
+    ) => Promise<{ sessionId: string; displayName: string } | null>
     getResumeCommand: (providerId: string, sessionId: string) => Promise<string | null>
     getNewSessionCommand: (providerId: string) => Promise<string | null>
     getProviders: () => Promise<{ id: string; name: string; command: string; icon?: string }[]>
@@ -163,7 +167,8 @@ const dplexAPI: DplexAPI = {
     loadWorkspace: () => ipcRenderer.invoke('sessions:loadWorkspace'),
     saveWorkspace: (data) => ipcRenderer.invoke('sessions:saveWorkspace', data),
     saveWorkspaceSync: (data) => ipcRenderer.sendSync('sessions:saveWorkspaceSync', data),
-    resolveSessionId: (pid, cwd?) => ipcRenderer.invoke('sessions:resolveSessionId', pid, cwd),
+    resolveSessionId: (pid, cwd?, providerId?) =>
+      ipcRenderer.invoke('sessions:resolveSessionId', pid, cwd, providerId),
     getResumeCommand: (providerId, sessionId) => ipcRenderer.invoke('sessions:getResumeCommand', providerId, sessionId),
     getNewSessionCommand: (providerId) => ipcRenderer.invoke('sessions:getNewSessionCommand', providerId),
     getProviders: () => ipcRenderer.invoke('sessions:getProviders'),

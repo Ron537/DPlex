@@ -28,6 +28,7 @@ import {
   getAvatarInitials
 } from '../../utils/projectStatus'
 import { SessionItem } from '../sessions/SessionItem'
+import { PendingSessionItem } from '../sessions/PendingSessionItem'
 import { PromptsDialog } from '../sessions/PromptsDialog'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
 import { normalizePath } from '../../hooks/useProjectSessions'
@@ -96,6 +97,11 @@ export function ProjectItem({
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const deleteSession = useSessionStore((s) => s.deleteSession)
   const globalDefaults = useSettingsStore((s) => s.settings.worktreeDefaults)
+  const defaultAITool = useSettingsStore((s) => s.settings.defaultAITool)
+  // Resolve the provider for the inline action button. Falls back to the
+  // first registered provider so the button still works if the configured
+  // default has been removed.
+  const primaryProvider = providers.find((p) => p.id === defaultAITool) ?? providers[0]
   const [showMenu, setShowMenu] = useState(false)
   const [promptsSession, setPromptsSession] = useState<AISession | null>(null)
   const [newWtOpen, setNewWtOpen] = useState(false)
@@ -396,20 +402,20 @@ export function ProjectItem({
             boxShadow: '0 0 6px 2px var(--dplex-bg-alt)'
           }}
         >
-          {providers.map((p) => (
+          {primaryProvider && (
             <button
-              key={p.id}
+              key={primaryProvider.id}
               onClick={(e) => {
                 e.stopPropagation()
-                startAISession(project, p.id)
+                startAISession(project, primaryProvider.id)
               }}
               className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
               style={{ color: 'var(--dplex-text-muted)' }}
-              title={`Start ${p.name}`}
+              title={`Start ${primaryProvider.name}`}
             >
               <Play size={11} />
             </button>
-          ))}
+          )}
           <button
             ref={menuAnchorRef}
             onClick={(e) => {
@@ -633,26 +639,44 @@ export function ProjectItem({
             </div>
           ) : (
             (() => {
-              // Pair each open tab to an AI session. First by explicit sessionId,
-              // then fall back to CWD + provider when the resolver hasn't caught
-              // up yet (avoids rendering a placeholder + the session separately).
+              // Pair each open tab to an AI session. First by explicit sessionId
+              // (with provider verification — sessionId alone is unsafe across
+              // providers since Claude/Copilot have independent UUID spaces and
+              // a buggy resolver could otherwise let a same-id collision pair
+              // a Claude tab to a Copilot session). Then fall back to CWD +
+              // provider when the resolver hasn't caught up yet (avoids
+              // rendering a placeholder + the session separately).
               const claimed = new Set<string>()
+              const sessionKey = (s: AISession): string => `${s.aiTool}:${s.id}`
               const pairs = openTabs.map((tab) => {
-                let match = tab.sessionId ? sessions.find((s) => s.id === tab.sessionId) : undefined
+                let match = tab.sessionId
+                  ? sessions.find(
+                      (s) =>
+                        s.id === tab.sessionId &&
+                        // Only require provider equality when the tab
+                        // declares one — legacy tabs without providerId
+                        // keep best-effort matching.
+                        (!tab.providerId || s.aiTool === tab.providerId) &&
+                        !claimed.has(sessionKey(s))
+                    )
+                  : undefined
                 if (!match) {
                   match = sessions.find((s) => {
-                    if (claimed.has(s.id)) return false
+                    if (claimed.has(sessionKey(s))) return false
                     if (s.status !== 'active') return false
                     if (!s.cwd || !tab.cwd) return false
                     if (normalizePath(s.cwd) !== normalizePath(tab.cwd)) return false
+                    if (tab.providerId && s.aiTool !== tab.providerId) return false
                     const cmd = tab.command?.toLowerCase() ?? ''
                     return cmd.length === 0 || cmd.includes(s.aiTool.toLowerCase())
                   })
                 }
-                if (match) claimed.add(match.id)
+                if (match) claimed.add(sessionKey(match))
                 return { tab, match }
               })
-              const unpaired = sessions.filter((s) => s.status === 'active' && !claimed.has(s.id))
+              const unpaired = sessions.filter(
+                (s) => s.status === 'active' && !claimed.has(sessionKey(s))
+              )
               return (
                 <>
                   {pairs.map(({ tab, match }) =>
@@ -663,6 +687,20 @@ export function ProjectItem({
                         onDelete={deleteSession}
                         onShowPrompts={setPromptsSession}
                         compact
+                        onClick={() => handleFocusTab(tab.id, tab.groupId)}
+                      />
+                    ) : tab.providerId ? (
+                      // AI session tab whose backing session file hasn't
+                      // appeared yet (e.g. Claude only writes its JSONL
+                      // after the first user message). Render a "starting"
+                      // placeholder styled like a real session card so the
+                      // user immediately sees it as an AI session, not a
+                      // generic terminal item.
+                      <PendingSessionItem
+                        key={tab.id}
+                        providerLabel={
+                          providers.find((p) => p.id === tab.providerId)?.name ?? tab.providerId
+                        }
                         onClick={() => handleFocusTab(tab.id, tab.groupId)}
                       />
                     ) : (

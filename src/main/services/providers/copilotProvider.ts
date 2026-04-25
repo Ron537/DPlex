@@ -2,7 +2,7 @@ import * as fsp from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import type { DiscoveredSession, ParsedSessionData, SessionPrompt } from './types'
-import { BaseSessionProvider } from './baseProvider'
+import { BaseSessionProvider, type SessionEntry } from './baseProvider'
 import { parseCopilotEvents, extractCopilotPrompts, clearCopilotParseCache } from './copilotEventsParser'
 
 export class CopilotProvider extends BaseSessionProvider {
@@ -17,20 +17,17 @@ export class CopilotProvider extends BaseSessionProvider {
     return path.join(os.homedir(), '.copilot', 'session-state')
   }
 
-  protected async parseSessionDir(
-    dirPath: string,
-    dirName: string
-  ): Promise<DiscoveredSession | null> {
+  protected async parseSession(entry: SessionEntry): Promise<DiscoveredSession | null> {
+    const { id: dirName, path: dirPath } = entry
     try {
-      const stat = await fsp.stat(dirPath)
       const workspace = await this.parseWorkspaceYaml(dirPath)
       const displayName = await this.getDisplayName(dirPath, dirName)
-      const isActive = (await this.getActivePid(dirPath)) !== null
+      const isActive = (await this.getActivePidForEntry(entry)) !== null
 
       // Parse events for enriched data
       const eventsPath = path.join(dirPath, 'events.jsonl')
       let parsed: ParsedSessionData | null = null
-      let eventsMtimeMs = stat.mtimeMs
+      let eventsMtimeMs = entry.mtimeMs
       try {
         const eventsStat = await fsp.stat(eventsPath)
         eventsMtimeMs = eventsStat.mtimeMs
@@ -47,7 +44,7 @@ export class CopilotProvider extends BaseSessionProvider {
         displayName,
         status: isActive ? 'active' : 'idle',
         aiTool: this.id,
-        createdAt: stat.birthtime.toISOString(),
+        createdAt: new Date(entry.birthtimeMs).toISOString(),
         updatedAt,
         cwd: workspace.cwd,
         summary: displayName,
@@ -81,8 +78,8 @@ export class CopilotProvider extends BaseSessionProvider {
     return 'copilot'
   }
 
-  protected onSessionDeleted(sessionDir: string): void {
-    clearCopilotParseCache(path.join(sessionDir, 'events.jsonl'))
+  protected onSessionDeleted(entry: SessionEntry): void {
+    clearCopilotParseCache(path.join(entry.path, 'events.jsonl'))
   }
 
   // ── Private Helpers ──────────────────────────────────────────────

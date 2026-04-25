@@ -380,13 +380,21 @@ function registerIpcHandlers(): void {
     saveWorkspace(data)
     event.returnValue = true
   })
-  ipcMain.handle('sessions:resolveSessionId', async (_event, pid: number, cwd?: string) => {
-    // Try PID match first (most reliable), then CWD fallback — across all providers
-    const pidResult = await providerRegistry.resolveSessionByPid(pid)
-    if (pidResult) return pidResult
-    if (cwd) return providerRegistry.resolveSessionByCwd(cwd)
-    return null
-  })
+  ipcMain.handle(
+    'sessions:resolveSessionId',
+    async (_event, pid: number, cwd?: string, providerId?: string) => {
+      // Try PID match first (most reliable), then CWD fallback. When the
+      // caller knows the tab's providerId, we scope the lookup to that
+      // provider only — preventing a Claude tab from being associated with
+      // a Copilot session (or vice versa) when both providers have active
+      // sessions in the same cwd. Cross-provider contamination produced
+      // duplicate rows + wrong tab focus in the project list.
+      const pidResult = await providerRegistry.resolveSessionByPid(pid, providerId)
+      if (pidResult) return pidResult
+      if (cwd) return providerRegistry.resolveSessionByCwd(cwd, providerId)
+      return null
+    }
+  )
 
   // Settings
   ipcMain.handle('settings:getAll', () => loadSettings())

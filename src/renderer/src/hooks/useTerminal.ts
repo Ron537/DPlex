@@ -16,10 +16,25 @@ function tabExists(terminalId: string): boolean {
   return useTerminalStore.getState().groups.some((g) => g.tabs.some((t) => t.id === terminalId))
 }
 
-async function resolveSessionIdForTab(terminalId: string, pid: number, cwd: string | undefined, attempt = 0): Promise<void> {
+async function resolveSessionIdForTab(
+  terminalId: string,
+  pid: number,
+  cwd: string | undefined,
+  providerId: string | undefined,
+  attempt = 0
+): Promise<void> {
   if (!tabExists(terminalId)) return
+  // Already resolved — never overwrite. The persisted sessionId is
+  // authoritative on restore, and overwriting it during slow PID lookups
+  // would let CWD fallback misassign a session from a different running
+  // instance (or, before the providerId hint, from a different provider).
+  const currentTab = useTerminalStore
+    .getState()
+    .groups.flatMap((g) => g.tabs)
+    .find((t) => t.id === terminalId)
+  if (currentTab?.sessionId) return
   try {
-    const result = await window.dplex.sessions.resolveSessionId(pid, cwd)
+    const result = await window.dplex.sessions.resolveSessionId(pid, cwd, providerId)
     if (result) {
       if (tabExists(terminalId)) {
         const store = useTerminalStore.getState()
@@ -33,7 +48,10 @@ async function resolveSessionIdForTab(terminalId: string, pid: number, cwd: stri
   }
   // Retry if not resolved yet (AI tool may still be initializing)
   if (attempt < SESSION_RESOLVE_MAX_RETRIES) {
-    setTimeout(() => resolveSessionIdForTab(terminalId, pid, cwd, attempt + 1), SESSION_RESOLVE_RETRY_MS)
+    setTimeout(
+      () => resolveSessionIdForTab(terminalId, pid, cwd, providerId, attempt + 1),
+      SESSION_RESOLVE_RETRY_MS
+    )
   }
 }
 
@@ -114,6 +132,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       const tabShell = tab?.shell
       const tabCwd = tab?.cwd
       const tabCommand = tab?.command
+      const tabProviderId = tab?.providerId
       const defaultShell = useSettingsStore.getState().settings.defaultShell
       const shellToUse = tabShell || defaultShell || undefined
       window.dplex.pty.create(shellToUse, tabCwd, tabCommand).then(({ id: ptyId, pid }) => {
@@ -173,7 +192,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         // For AI sessions, resolve the session ID after a delay
         if (tabCommand && pid) {
           setTimeout(() => {
-            resolveSessionIdForTab(terminalId, pid, tabCwd)
+            resolveSessionIdForTab(terminalId, pid, tabCwd, tabProviderId)
           }, 3000)
         }
 

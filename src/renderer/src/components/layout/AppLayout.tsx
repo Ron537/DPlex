@@ -42,19 +42,45 @@ async function loadPersistedWorkspace(): Promise<{
     } | null
     if (!data || !data.groups || !data.layout) return null
 
-    // Filter to only AI tabs (have command) and rebuild groups
+    // Filter to only AI tabs (have command) and rebuild groups. Resume
+    // commands are looked up per-provider (Copilot uses `--resume=<id>`,
+    // Claude uses `--resume <id>` — the previous hardcoded `--resume=` form
+    // mangled Claude restores).
     const restoredGroups: EditorGroup[] = []
     for (const g of data.groups) {
       const aiTabs = (g.tabs || []).filter((t) => t.command)
       if (aiTabs.length === 0) continue
 
-      // For tabs with sessionId, rewrite command to --resume
-      const preparedTabs: TerminalTab[] = aiTabs.map((t) => {
-        if (t.sessionId && t.command && !t.command.includes('--resume')) {
-          return { ...t, command: `${t.command} --resume=${t.sessionId}` }
-        }
-        return { ...t }
-      })
+      const preparedTabs: TerminalTab[] = await Promise.all(
+        aiTabs.map(async (t) => {
+          if (!t.sessionId) return { ...t }
+          // When we know the providerId + sessionId, prefer the canonical
+          // resume command from the provider — don't trust the persisted
+          // `command` shape, which may have been written by a previous
+          // version of dplex with the wrong syntax.
+          if (t.providerId) {
+            try {
+              const cmd = await window.dplex.sessions.getResumeCommand(
+                t.providerId,
+                t.sessionId
+              )
+              if (cmd) return { ...t, command: cmd }
+            } catch {
+              // Provider lookup failed transiently. Preserve the persisted
+              // command as-is rather than blindly applying Copilot's
+              // `--resume=<id>` shape, which is wrong for other providers.
+            }
+            return { ...t }
+          }
+          // Legacy fallback for tabs without providerId: keep the prior
+          // behavior so we don't break already-saved Copilot workspaces
+          // from versions before providerId was persisted.
+          if (t.command && !t.command.includes('--resume')) {
+            return { ...t, command: `${t.command} --resume=${t.sessionId}` }
+          }
+          return { ...t }
+        })
+      )
 
       restoredGroups.push({
         id: g.id,
