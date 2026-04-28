@@ -18,11 +18,7 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useProvidersStore } from '../../stores/providersStore'
 import { PopoverMenu } from '../common/PopoverMenu'
-import {
-  closeOpenTabsForSession,
-  focusSessionTab,
-  hasOpenTab
-} from '../../utils/sessionTabs'
+import { closeOpenTabsForSession, focusSessionTab, hasOpenTab } from '../../utils/sessionTabs'
 
 interface SessionItemProps {
   session: AISession
@@ -34,10 +30,7 @@ interface SessionItemProps {
   onClick?: () => void
 }
 
-const STATUS_CONFIG: Record<
-  SessionStatus,
-  { color: string; label: string; pulse: boolean }
-> = {
+const STATUS_CONFIG: Record<SessionStatus, { color: string; label: string; pulse: boolean }> = {
   idle: { color: 'var(--dplex-status-idle)', label: 'Idle', pulse: false },
   thinking: { color: 'var(--dplex-status-thinking)', label: 'Thinking', pulse: true },
   executingTool: { color: 'var(--dplex-status-executing)', label: 'Running tool', pulse: true },
@@ -68,7 +61,13 @@ function folderName(p?: string): string {
   return parts[parts.length - 1] || p
 }
 
-export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick }: SessionItemProps): React.JSX.Element {
+export function SessionItem({
+  session,
+  onDelete,
+  onShowPrompts,
+  compact,
+  onClick
+}: SessionItemProps): React.JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeSession = useSessionStore((s) => s.closeSession)
   const providerLabel = useProvidersStore((s) => s.getLabel(session.aiTool))
@@ -86,7 +85,14 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
       return
     }
     if (!cmd) return
-    createTerminal(undefined, `↻ ${session.displayName}`, cmd, undefined, session.cwd, session.aiTool)
+    createTerminal(
+      undefined,
+      `↻ ${session.displayName}`,
+      cmd,
+      undefined,
+      session.cwd,
+      session.aiTool
+    )
     setShowMenu(false)
   }
 
@@ -124,16 +130,16 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
       <div className="flex-1 min-w-0">
         {/* Row 1: name + badges */}
         <div className="flex items-center gap-1.5">
-          <span
-            className="text-xs font-medium truncate"
-            style={{ color: 'var(--dplex-text)' }}
-          >
+          <span className="text-xs font-medium truncate" style={{ color: 'var(--dplex-text)' }}>
             {session.displayName}
           </span>
           {isOpen && (
             <span
               className="text-[8px] font-bold px-1 rounded flex-shrink-0"
-              style={{ color: 'var(--dplex-accent)', backgroundColor: 'color-mix(in srgb, var(--dplex-accent) 15%, transparent)' }}
+              style={{
+                color: 'var(--dplex-accent)',
+                backgroundColor: 'color-mix(in srgb, var(--dplex-accent) 15%, transparent)'
+              }}
             >
               OPEN
             </span>
@@ -142,10 +148,7 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
 
         {/* Row 2: CWD subtitle */}
         {!compact && session.cwd && (
-          <div
-            className="text-[10px] truncate mt-0.5"
-            style={{ color: 'var(--dplex-text-muted)' }}
-          >
+          <div className="text-[10px] truncate mt-0.5" style={{ color: 'var(--dplex-text-muted)' }}>
             {folderName(session.cwd)}
           </div>
         )}
@@ -154,10 +157,7 @@ export function SessionItem({ session, onDelete, onShowPrompts, compact, onClick
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           {/* Status label (only when non-idle) */}
           {status !== 'idle' && (
-            <span
-              className="text-[9px] font-medium"
-              style={{ color: config.color }}
-            >
+            <span className="text-[9px] font-medium" style={{ color: config.color }}>
               {config.label}
             </span>
           )}

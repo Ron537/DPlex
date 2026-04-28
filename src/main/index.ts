@@ -18,7 +18,11 @@ import {
 } from './services/ptyManager'
 import { createDefaultRegistry } from './services/providers'
 import { BaseSessionProvider } from './services/providers/baseProvider'
-import { loadWorkspace, saveWorkspace, type PersistedWorkspace } from './services/sessionPersistence'
+import {
+  loadWorkspace,
+  saveWorkspace,
+  type PersistedWorkspace
+} from './services/sessionPersistence'
 import {
   applyNotificationSettings,
   clearNotificationState,
@@ -32,16 +36,38 @@ import { initAutoUpdater } from './services/autoUpdater'
 import { makeCompositeId } from '../preload/attentionTypes'
 import {
   getBranch,
+  getRepoRoot,
   watchBranch,
   unwatchBranch,
   stopAllBranchWatchers,
-  inspectPath
+  inspectPath,
+  listLocalBranches,
+  listRemoteBranches,
+  resolveDefaultBaseBranch
 } from './services/gitService'
 import * as worktreeService from './services/worktrees'
-import type {
-  CreateWorktreeOptions,
-  DeleteWorktreeOptions
-} from './services/worktrees/types'
+import {
+  fileDiffContent as diffFileContent,
+  getRepoStatus as diffGetRepoStatus,
+  listChanges as diffListChanges,
+  resolveBranchBase
+} from './services/diff/diffService'
+import {
+  applyHunkPatch,
+  deleteUntracked,
+  discardFile,
+  revertFile,
+  sanitizeGitPath,
+  stageFile,
+  unstageFile
+} from './services/diff/scmMutations'
+import {
+  subscribeChanges as subscribeDiffChanges,
+  unsubscribeChanges as unsubscribeDiffChanges,
+  type ChangesSubscriptionToken
+} from './services/diff/changesWatcher'
+import type { DiffScope, FileDiffRequest, HunkMutationRequest } from './services/diff/types'
+import type { CreateWorktreeOptions, DeleteWorktreeOptions } from './services/worktrees/types'
 
 const providerRegistry = createDefaultRegistry()
 
@@ -142,12 +168,12 @@ function createWindow(): void {
   const savedTheme = (savedSettings.theme as string) || 'dplex'
   // Map theme ID to its UI background color
   const themeBgMap: Record<string, string> = {
-    'dplex': '#131313',
+    dplex: '#131313',
     'dplex-light': '#fafafa',
-    'midnight': '#1a1a2e',
-    'dracula': '#282a36',
-    'monokai': '#272822',
-    'nord': '#2e3440',
+    midnight: '#1a1a2e',
+    dracula: '#282a36',
+    monokai: '#272822',
+    nord: '#2e3440',
     'solarized-dark': '#002b36',
     'github-dark': '#0d1117',
     'github-light': '#ffffff',
@@ -599,9 +625,7 @@ function registerIpcHandlers(): void {
     // Windows cmd.exe /C parses outer quotes specially: if both the command
     // and args are quoted, it strips the outermost pair. Wrap the path in a
     // second pair so paths with spaces (e.g. C:\Users\John Doe\...) work.
-    const command = isWindows
-      ? `cmd /c ""${tempPath}""`
-      : `sh "${tempPath.replace(/"/g, '\\"')}"`
+    const command = isWindows ? `cmd /c ""${tempPath}""` : `sh "${tempPath.replace(/"/g, '\\"')}"`
     return { command, tempPath }
   })
 
@@ -618,6 +642,319 @@ function registerIpcHandlers(): void {
     } catch {
       /* ignore */
     }
+  })
+
+  registerDiffHandlers()
+}
+
+/** Map of webContents.id → set of diff subscription tokens for cleanup. */
+const diffSubsByWebContents = new Map<number, Set<ChangesSubscriptionToken>>()
+const diffTokensById = new Map<string, ChangesSubscriptionToken>()
+
+function isPlainObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null && !Array.isArray(x)
+}
+
+/**
+ * Realpath + sanity-check a renderer-supplied repo root. Resolves the input
+ * to the *containing* repo's top-level directory so projects added as a
+ * subfolder of a repo (e.g. a monorepo package) still work for diff/listChanges/
+ * subscribe. Returns `null` for paths not under any git repo.
+ */
+async function safeRepoRoot(input: unknown): Promise<string | null> {
+  if (typeof input !== 'string' || input.length === 0) return null
+  try {
+    const real = await fs.promises.realpath(input)
+    const stat = await fs.promises.stat(real)
+    if (!stat.isDirectory()) return null
+    // Fast path: the input itself is the repo root (regular repo or
+    // worktree — both have a `.git` entry, file or dir).
+    const gitStat = await fs.promises.stat(path.join(real, '.git')).catch(() => null)
+    if (gitStat) return real
+    // Slow path: project is a subfolder of a repo. Climb up via git CLI.
+    const root = await getRepoRoot(real)
+    if (!root) return null
+    return await fs.promises.realpath(root).catch(() => root)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Looser variant of {@link safeRepoRoot} for repo-status probing.
+ * Accepts any existing directory (including non-git ones), so the renderer
+ * can ask "is this even a git repo?" and get a structured answer back.
+ * Returns null only for invalid/non-existent paths.
+ */
+async function safeExistingDir(input: unknown): Promise<string | null> {
+  if (typeof input !== 'string' || input.length === 0) return null
+  try {
+    const real = await fs.promises.realpath(input)
+    const stat = await fs.promises.stat(real)
+    if (!stat.isDirectory()) return null
+    return real
+  } catch {
+    return null
+  }
+}
+
+function safeScope(input: unknown): DiffScope | null {
+  if (!isPlainObject(input)) return null
+  if (input.kind === 'workingTree') return { kind: 'workingTree' }
+  if (input.kind === 'branch' && typeof input.base === 'string' && input.base.length > 0) {
+    // Defense-in-depth: reject ref names that begin with `-` or contain NUL —
+    // git's CLI would interpret them as options. Also reject leading whitespace
+    // for the same reason.
+    if (/^[\s-]/.test(input.base) || input.base.includes('\0')) return null
+    let resolvedRef: string | undefined
+    if (typeof input.resolvedRef === 'string') {
+      if (/^[\s-]/.test(input.resolvedRef) || input.resolvedRef.includes('\0')) return null
+      resolvedRef = input.resolvedRef
+    }
+    return {
+      kind: 'branch',
+      base: input.base,
+      resolvedRef
+    }
+  }
+  return null
+}
+
+function registerDiffHandlers(): void {
+  ipcMain.handle('diff:listChanges', async (_event, repoRootFs: unknown, scope: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    const safeScopeVal = safeScope(scope)
+    if (!root || !safeScopeVal) return { files: [], truncated: false, totalCount: 0 }
+    return diffListChanges(root, safeScopeVal)
+  })
+
+  ipcMain.handle('diff:getRepoStatus', async (_event, repoRootFs: unknown) => {
+    if (typeof repoRootFs !== 'string' || repoRootFs.length === 0) {
+      return { kind: 'missing-path' }
+    }
+    const dir = await safeExistingDir(repoRootFs)
+    if (!dir) return { kind: 'missing-path' }
+    try {
+      return await diffGetRepoStatus(dir)
+    } catch (err) {
+      return {
+        kind: 'error',
+        message: err instanceof Error ? err.message : String(err)
+      }
+    }
+  })
+
+  ipcMain.handle('diff:fileContent', async (_event, req: unknown) => {
+    if (!isPlainObject(req)) {
+      throw new Error('diff:fileContent: invalid request')
+    }
+    const root = await safeRepoRoot(req.repoRootFs)
+    const safeScopeVal = safeScope(req.scope)
+    if (!root || !safeScopeVal) {
+      throw new Error('diff:fileContent: invalid scope or repo')
+    }
+    const fileReq = req as unknown as FileDiffRequest
+    const reqFile = fileReq.file
+    if (!reqFile || typeof reqFile !== 'object') {
+      throw new Error('diff:fileContent: missing file')
+    }
+    const safeGitPath = sanitizeGitPath(reqFile.gitPath)
+    if (!safeGitPath) {
+      throw new Error('diff:fileContent: invalid gitPath')
+    }
+    let safeOldGitPath: string | undefined
+    if (reqFile.oldGitPath !== undefined && reqFile.oldGitPath !== null) {
+      const o = sanitizeGitPath(reqFile.oldGitPath)
+      if (!o) throw new Error('diff:fileContent: invalid oldGitPath')
+      safeOldGitPath = o
+    }
+    const safeFile = { ...reqFile, gitPath: safeGitPath, oldGitPath: safeOldGitPath }
+    return diffFileContent({
+      ...fileReq,
+      file: safeFile,
+      repoRootFs: root,
+      scope: safeScopeVal
+    })
+  })
+
+  ipcMain.handle('diff:listBranches', async (_event, repoRootFs: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    if (!root) {
+      return { local: [], remote: [], defaultBase: null, resolvedDefaultRef: null }
+    }
+    const [local, remote, defaultBase] = await Promise.all([
+      listLocalBranches(root),
+      listRemoteBranches(root),
+      resolveDefaultBaseBranch(root)
+    ])
+    const resolvedDefaultRef = defaultBase ? await resolveBranchBase(root, defaultBase) : null
+    return { local, remote, defaultBase, resolvedDefaultRef }
+  })
+
+  ipcMain.handle('diff:stageFile', async (_event, repoRootFs: unknown, gitPath: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    if (!root || typeof gitPath !== 'string') {
+      return { ok: false, code: 'INVALID_INPUT' as const }
+    }
+    return stageFile(root, gitPath)
+  })
+
+  ipcMain.handle('diff:unstageFile', async (_event, repoRootFs: unknown, gitPath: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    if (!root || typeof gitPath !== 'string') {
+      return { ok: false, code: 'INVALID_INPUT' as const }
+    }
+    return unstageFile(root, gitPath)
+  })
+
+  ipcMain.handle('diff:discardFile', async (_event, repoRootFs: unknown, gitPath: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    if (!root || typeof gitPath !== 'string') {
+      return { ok: false, code: 'INVALID_INPUT' as const }
+    }
+    return discardFile(root, gitPath)
+  })
+
+  ipcMain.handle('diff:revertFile', async (_event, repoRootFs: unknown, gitPath: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    if (!root || typeof gitPath !== 'string') {
+      return { ok: false, code: 'INVALID_INPUT' as const }
+    }
+    return revertFile(root, gitPath)
+  })
+
+  ipcMain.handle('diff:deleteUntracked', async (_event, repoRootFs: unknown, gitPath: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    if (!root || typeof gitPath !== 'string') {
+      return { ok: false, code: 'INVALID_INPUT' as const }
+    }
+    return deleteUntracked(root, gitPath)
+  })
+
+  ipcMain.handle('diff:applyHunk', async (_event, req: unknown) => {
+    if (!isPlainObject(req)) {
+      return { ok: false, code: 'INVALID_INPUT' as const }
+    }
+    const root = await safeRepoRoot(req.repoRootFs)
+    if (!root) return { ok: false, code: 'INVALID_INPUT' as const }
+    const hunkReq = req as unknown as HunkMutationRequest
+    return applyHunkPatch({ ...hunkReq, repoRootFs: root })
+  })
+
+  ipcMain.handle(
+    'diff:saveWorkingFile',
+    async (
+      _event,
+      repoRootFs: unknown,
+      gitPath: unknown,
+      content: unknown,
+      eol: unknown,
+      expectedMtimeMs: unknown
+    ) => {
+      const root = await safeRepoRoot(repoRootFs)
+      if (
+        !root ||
+        typeof gitPath !== 'string' ||
+        typeof content !== 'string' ||
+        (eol !== '\n' && eol !== '\r\n')
+      ) {
+        return { ok: false, code: 'INVALID_INPUT' as const }
+      }
+      // Path discipline — reuse the same sanitizer the SCM ops use.
+      const safeGitPath = sanitizeGitPath(gitPath)
+      if (!safeGitPath) {
+        return { ok: false, code: 'INVALID_INPUT' as const }
+      }
+      const fsPath = path.join(root, ...safeGitPath.split('/'))
+      // Realpath the parent directory (the file itself may not yet exist
+      // when writing a brand-new file, but the parent must) and verify it
+      // stays inside the repo realpath. This catches in-repo symlinks that
+      // point outside the worktree — `path.relative` alone follows symlinks
+      // implicitly via the eventual `writeFile`, allowing escapes.
+      let realParent: string
+      try {
+        realParent = await fs.promises.realpath(path.dirname(fsPath))
+      } catch {
+        return { ok: false, code: 'INVALID_INPUT' as const }
+      }
+      const relParent = path.relative(root, realParent)
+      if (relParent.startsWith('..') || path.isAbsolute(relParent)) {
+        return { ok: false, code: 'INVALID_INPUT' as const }
+      }
+      // If the file already exists, also confirm IT realpaths inside root
+      // (catches symlink files that point outside the repo).
+      try {
+        const realFile = await fs.promises.realpath(fsPath)
+        const relFile = path.relative(root, realFile)
+        if (relFile.startsWith('..') || path.isAbsolute(relFile)) {
+          return { ok: false, code: 'INVALID_INPUT' as const }
+        }
+      } catch {
+        /* file may not exist — that's fine, parent check covers creation */
+      }
+      try {
+        if (typeof expectedMtimeMs === 'number') {
+          const stat = await fs.promises.stat(fsPath).catch(() => null)
+          if (!stat || Math.abs(stat.mtimeMs - expectedMtimeMs) > 1500) {
+            return { ok: false, code: 'STALE_DIFF' as const }
+          }
+        }
+        // Normalize EOL on the way out — caller passes the post-edit content
+        // with whatever EOL the editor used; we re-emit using the requested style.
+        const normalized = content.replace(/\r\n/g, '\n')
+        const out = eol === '\r\n' ? normalized.replace(/\n/g, '\r\n') : normalized
+        await fs.promises.writeFile(fsPath, out, 'utf8')
+        const after = await fs.promises.stat(fsPath)
+        return { ok: true, mtimeMs: after.mtimeMs }
+      } catch (err) {
+        return {
+          ok: false,
+          code: 'IO_ERROR' as const,
+          message: err instanceof Error ? err.message : 'write failed'
+        }
+      }
+    }
+  )
+
+  ipcMain.handle('diff:subscribe', async (event, repoRootFs: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    if (!root) return null
+    const sender = event.sender
+    const wcId = sender.id
+    let set = diffSubsByWebContents.get(wcId)
+    if (!set) {
+      set = new Set()
+      diffSubsByWebContents.set(wcId, set)
+      // NOTE: We do NOT decrement watcher refcounts here. `subscribeChanges`
+      // already installs its own `destroyed` listener that calls
+      // `unsubscribeAll` (which removes the wc from the subscribers set
+      // and tears the watcher down only when no live subscriber remains).
+      // Decrementing per-token here would over-decrement and tear down
+      // watchers other windows still depend on.
+      sender.once('destroyed', () => {
+        const tokens = diffSubsByWebContents.get(wcId)
+        diffSubsByWebContents.delete(wcId)
+        if (tokens) {
+          for (const t of tokens) {
+            diffTokensById.delete(String(t.id))
+          }
+        }
+      })
+    }
+    const token = subscribeDiffChanges(root, sender)
+    set.add(token)
+    diffTokensById.set(String(token.id), token)
+    return { token: String(token.id), repoRootFs: root }
+  })
+
+  ipcMain.on('diff:unsubscribe', (event, tokenId: unknown) => {
+    if (typeof tokenId !== 'string') return
+    const token = diffTokensById.get(tokenId)
+    if (!token) return
+    diffTokensById.delete(tokenId)
+    const set = diffSubsByWebContents.get(event.sender.id)
+    set?.delete(token)
+    unsubscribeDiffChanges(token, event.sender.id)
   })
 }
 

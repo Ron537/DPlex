@@ -31,7 +31,10 @@ export function applyCssVarsSync(themeId: string): void {
   root.style.setProperty('--dplex-accent', theme.ui.accent)
   root.style.setProperty('--dplex-hover', theme.ui.hover || 'rgba(255,255,255,0.1)')
   root.style.setProperty('--dplex-scrollbar', theme.ui.scrollbar || 'rgba(255,255,255,0.15)')
-  root.style.setProperty('--dplex-scrollbar-hover', theme.ui.scrollbarHover || 'rgba(255,255,255,0.25)')
+  root.style.setProperty(
+    '--dplex-scrollbar-hover',
+    theme.ui.scrollbarHover || 'rgba(255,255,255,0.25)'
+  )
 
   // Status colors — adapted for contrast on light vs dark backgrounds
   const isLight = theme.variant === 'light'
@@ -41,7 +44,10 @@ export function applyCssVarsSync(themeId: string): void {
   root.style.setProperty('--dplex-status-approval', isLight ? '#dc2626' : '#ef4444')
   root.style.setProperty('--dplex-status-waiting', isLight ? '#16a34a' : '#22c55e')
   root.style.setProperty('--dplex-status-active', isLight ? '#16a34a' : '#22c55e')
-  root.style.setProperty('--dplex-status-active-bg', isLight ? 'rgba(22,163,74,0.12)' : 'rgba(34,197,94,0.12)')
+  root.style.setProperty(
+    '--dplex-status-active-bg',
+    isLight ? 'rgba(22,163,74,0.12)' : 'rgba(34,197,94,0.12)'
+  )
 
   document.body.style.backgroundColor = theme.ui.bg
   // Tell the browser to render native form controls (checkboxes, radios, ranges,
@@ -84,7 +90,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   notificationCooldownSeconds: 30,
   idleTooLongMinutes: 5,
   worktreeDefaults: DEFAULT_WORKTREE_DEFAULTS,
-  projectPanelShowFooter: true
+  projectPanelShowFooter: true,
+  gitPanel: {
+    open: false,
+    width: 300,
+    sectionCollapse: { changes: false }
+  }
 }
 
 interface SettingsState {
@@ -109,6 +120,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         worktreeDefaults: {
           ...DEFAULT_WORKTREE_DEFAULTS,
           ...(saved.worktreeDefaults ?? {})
+        },
+        gitPanel: {
+          ...DEFAULT_SETTINGS.gitPanel,
+          ...(saved.gitPanel ?? {}),
+          sectionCollapse: {
+            ...DEFAULT_SETTINGS.gitPanel.sectionCollapse,
+            ...(saved.gitPanel?.sectionCollapse ?? {})
+          }
         }
       }
       set({ settings: merged, loaded: true })

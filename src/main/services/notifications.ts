@@ -189,11 +189,7 @@ export function handleAttentionEvent(ev: AttentionEvent): void {
   if (isInDndWindow()) return
   // Tab-aware focus gate: only suppress if the user is actually looking at
   // THIS session's tab (app focused AND the session's tab is the active one).
-  if (
-    settings.onlyWhenUnfocused &&
-    anyWindowFocused() &&
-    activeCompositeId === ev.compositeId
-  ) {
+  if (settings.onlyWhenUnfocused && anyWindowFocused() && activeCompositeId === ev.compositeId) {
     return
   }
 

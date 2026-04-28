@@ -32,8 +32,10 @@ export function ShellSelector({ onSelect }: ShellSelectorProps): React.JSX.Eleme
     if (!open) return
     const handler = (e: MouseEvent): void => {
       if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
       ) {
         setOpen(false)
       }
@@ -89,7 +91,10 @@ export function ShellSelector({ onSelect }: ShellSelectorProps): React.JSX.Eleme
               style={{ color: 'var(--dplex-text)' }}
             >
               <span className="font-medium">{shell.name}</span>
-              <span className="text-[10px] truncate max-w-[140px]" style={{ color: 'var(--dplex-text-muted)' }}>
+              <span
+                className="text-[10px] truncate max-w-[140px]"
+                style={{ color: 'var(--dplex-text-muted)' }}
+              >
                 {shell.path}
               </span>
             </button>

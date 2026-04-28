@@ -17,7 +17,14 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
 
   return (
-    <div className="flex items-center justify-between h-6 px-1 text-[10px] select-none" style={{ backgroundColor: 'var(--dplex-bg-alt)', borderTop: '1px solid var(--dplex-border)', color: 'var(--dplex-text-muted)' }}>
+    <div
+      className="flex items-center justify-between h-6 px-1 text-[10px] select-none"
+      style={{
+        backgroundColor: 'var(--dplex-bg-alt)',
+        borderTop: '1px solid var(--dplex-border)',
+        color: 'var(--dplex-text-muted)'
+      }}
+    >
       <div className="flex items-center gap-2">
         <button
           onClick={toggleSidebar}
@@ -34,7 +41,10 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
             {activeTab.title}
           </span>
         )}
-        <span>{totalTerminals} terminal{totalTerminals !== 1 ? 's' : ''} · {groups.length} group{groups.length !== 1 ? 's' : ''}</span>
+        <span>
+          {totalTerminals} terminal{totalTerminals !== 1 ? 's' : ''} · {groups.length} group
+          {groups.length !== 1 ? 's' : ''}
+        </span>
         <button
           onClick={onOpenSettings}
           className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"

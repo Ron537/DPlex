@@ -446,8 +446,6 @@ export function getClaudePidfileRegistry(): ClaudePidfileRegistry {
 }
 
 /** Test helper: replace the singleton instance (e.g. with a custom dir). */
-export function __setClaudePidfileRegistryForTests(
-  instance: ClaudePidfileRegistry | null
-): void {
+export function __setClaudePidfileRegistryForTests(instance: ClaudePidfileRegistry | null): void {
   _singleton = instance
 }

@@ -134,9 +134,7 @@ async function enrich(
  * valid repo has at least the main checkout, so the empty list effectively
  * means "bare repo" in v1 where we skip bare entries).
  */
-export async function listWorktreesWithStatus(
-  repoRoot: string
-): Promise<WorktreeInfo[] | null> {
+export async function listWorktreesWithStatus(repoRoot: string): Promise<WorktreeInfo[] | null> {
   const canonicalRoot = await realpath(repoRoot)
   const res = await execGitRaw(['worktree', 'list', '--porcelain'], canonicalRoot, 10_000)
   if (res.code !== 0) return null

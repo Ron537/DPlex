@@ -120,10 +120,7 @@ function enqueue<T>(fn: () => T | Promise<T>): Promise<T> {
   return next
 }
 
-export function getEntry(
-  repoIdentity: string,
-  worktreePath: string
-): WorktreeSidecarEntry | null {
+export function getEntry(repoIdentity: string, worktreePath: string): WorktreeSidecarEntry | null {
   const file = ensureCache()
   return file.entries[keyOf(repoIdentity, worktreePath)] ?? null
 }
@@ -181,9 +178,7 @@ export function reconcile(repoIdentity: string, livePaths: string[]): Promise<vo
  * Read all entries for a repo — used by the list layer to enrich each worktree
  * without N individual disk reads.
  */
-export function getEntriesForRepo(
-  repoIdentity: string
-): Map<string, WorktreeSidecarEntry> {
+export function getEntriesForRepo(repoIdentity: string): Map<string, WorktreeSidecarEntry> {
   const file = ensureCache()
   const out = new Map<string, WorktreeSidecarEntry>()
   const prefix = `${repoIdentity}::`

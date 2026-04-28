@@ -54,12 +54,7 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
     // Skip work entirely when the snapshot is structurally unchanged AND
     // the loading/error flags are already cleared. This prevents a
     // re-render storm when the main process emits duplicate payloads.
-    if (
-      prev &&
-      !prev.loading &&
-      prev.error === null &&
-      worktreesEqual(prev.worktrees, worktrees)
-    ) {
+    if (prev && !prev.loading && prev.error === null && worktreesEqual(prev.worktrees, worktrees)) {
       return
     }
     const repos = new Map(get().repos)

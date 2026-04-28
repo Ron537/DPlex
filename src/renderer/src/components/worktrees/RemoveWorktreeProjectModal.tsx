@@ -37,6 +37,9 @@ export function RemoveWorktreeProjectModal({
   const projectPath = normalizePath(project.path)
   const openTabs = useTerminalStore((s) => s.groups).flatMap((g) =>
     g.tabs.filter((t) => {
+      if (t.kind === 'fileDiff') {
+        return normalizePath(t.repoRootFs) === projectPath
+      }
       if (t.worktreePath && normalizePath(t.worktreePath) === projectPath) return true
       if (!t.cwd) return false
       const cwd = normalizePath(t.cwd)
@@ -146,10 +149,7 @@ export function RemoveWorktreeProjectModal({
             <span>
               Also delete worktree from disk (<code>git worktree remove</code>)
               {project.createdByDplexWorktree && (
-                <span
-                  className="ml-1 text-[10px]"
-                  style={{ color: 'var(--dplex-text-muted)' }}
-                >
+                <span className="ml-1 text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>
                   — created by DPlex
                 </span>
               )}

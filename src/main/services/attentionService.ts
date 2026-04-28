@@ -1,10 +1,6 @@
 import { app } from 'electron'
 import type { DiscoveredSession, SessionStatus } from './providers/types'
-import type {
-  AttentionEvent,
-  AttentionKind,
-  AttentionSnapshot
-} from '../../preload/attentionTypes'
+import type { AttentionEvent, AttentionKind, AttentionSnapshot } from '../../preload/attentionTypes'
 import { makeCompositeId } from '../../preload/attentionTypes'
 
 /**
@@ -130,11 +126,7 @@ function clearActiveEvent(s: SessionState, keepInHistory: boolean): void {
   s.suppressedUntilTransition = false
 }
 
-function makeEvent(
-  s: SessionState,
-  kind: AttentionKind,
-  seeded: boolean
-): AttentionEvent {
+function makeEvent(s: SessionState, kind: AttentionKind, seeded: boolean): AttentionEvent {
   return {
     compositeId: s.compositeId,
     providerId: s.providerId,

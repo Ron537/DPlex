@@ -143,8 +143,12 @@ export function PromptsDialog({
               style={{ color: 'var(--dplex-text)' }}
             />
           </div>
-          <div className="flex items-center gap-2 mt-1 text-[9px]" style={{ color: 'var(--dplex-text-muted)' }}>
-            <ArrowUp size={8} /><ArrowDown size={8} /> navigate
+          <div
+            className="flex items-center gap-2 mt-1 text-[9px]"
+            style={{ color: 'var(--dplex-text-muted)' }}
+          >
+            <ArrowUp size={8} />
+            <ArrowDown size={8} /> navigate
             <span className="mx-1">·</span>
             Esc to close
           </div>
@@ -166,8 +170,7 @@ export function PromptsDialog({
                 key={prompt.index}
                 className="flex items-start gap-2 px-3 py-2 rounded transition-colors"
                 style={{
-                  backgroundColor:
-                    i === selectedIndex ? 'var(--dplex-bg-alt)' : 'transparent'
+                  backgroundColor: i === selectedIndex ? 'var(--dplex-bg-alt)' : 'transparent'
                 }}
                 onMouseEnter={() => setSelectedIndex(i)}
               >
@@ -185,10 +188,7 @@ export function PromptsDialog({
                     {prompt.text}
                   </div>
                   {prompt.timestamp && (
-                    <div
-                      className="text-[9px] mt-0.5"
-                      style={{ color: 'var(--dplex-text-muted)' }}
-                    >
+                    <div className="text-[9px] mt-0.5" style={{ color: 'var(--dplex-text-muted)' }}>
                       {formatTime(prompt.timestamp)}
                     </div>
                   )}
@@ -197,7 +197,6 @@ export function PromptsDialog({
             ))
           )}
         </div>
-
       </div>
     </div>
   )

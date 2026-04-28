@@ -7,12 +7,7 @@ describe('parsePorcelain', () => {
   })
 
   it('parses a single worktree on a branch', () => {
-    const out = [
-      'worktree /repo',
-      'HEAD abcdef1234567890',
-      'branch refs/heads/main',
-      ''
-    ].join('\n')
+    const out = ['worktree /repo', 'HEAD abcdef1234567890', 'branch refs/heads/main', ''].join('\n')
     expect(parsePorcelain(out)).toEqual([
       {
         path: '/repo',
@@ -77,12 +72,7 @@ describe('parsePorcelain', () => {
   })
 
   it('preserves multi-segment branch names', () => {
-    const out = [
-      'worktree /repo',
-      'HEAD abc',
-      'branch refs/heads/feature/sub/part',
-      ''
-    ].join('\n')
+    const out = ['worktree /repo', 'HEAD abc', 'branch refs/heads/feature/sub/part', ''].join('\n')
     const [rec] = parsePorcelain(out)
     expect(rec.branch).toBe('feature/sub/part')
   })

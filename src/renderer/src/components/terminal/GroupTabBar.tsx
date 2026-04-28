@@ -1,5 +1,11 @@
 import { useMemo, useRef, useState, DragEvent } from 'react'
-import { Plus, X, Terminal as TerminalIcon, SplitSquareHorizontal, SplitSquareVertical } from 'lucide-react'
+import {
+  Plus,
+  X,
+  Terminal as TerminalIcon,
+  SplitSquareHorizontal,
+  SplitSquareVertical
+} from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { useProjectStore } from '../../stores/projectStore'
@@ -25,6 +31,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
   const closeTerminal = useTerminalStore((s) => s.closeTerminal)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const renameTerminal = useTerminalStore((s) => s.renameTerminal)
+  const promotePreviewTab = useTerminalStore((s) => s.promotePreviewTab)
   const splitGroup = useTerminalStore((s) => s.splitGroup)
   const moveTerminalToGroup = useTerminalStore((s) => s.moveTerminalToGroup)
   const reorderTab = useTerminalStore((s) => s.reorderTab)
@@ -43,7 +50,8 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
   const lastExpandedId = useProjectStore((s) => s.lastExpandedProjectId)
   const projects = useProjectStore((s) => s.projects)
   const { highlightPaths, highlightColor } = useMemo(() => {
-    if (!lastExpandedId) return { highlightPaths: new Set<string>(), highlightColor: null as string | null }
+    if (!lastExpandedId)
+      return { highlightPaths: new Set<string>(), highlightColor: null as string | null }
     const paths = new Set<string>()
     const primary = projects.find((p) => p.id === lastExpandedId)
     if (primary) {
@@ -126,104 +134,130 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
       className="flex items-center h-8 select-none"
       style={{
         backgroundColor: 'var(--dplex-bg-alt)',
-        borderBottom: isActiveGroup ? '1px solid var(--dplex-accent)' : '1px solid var(--dplex-border)'
+        borderBottom: isActiveGroup
+          ? '1px solid var(--dplex-accent)'
+          : '1px solid var(--dplex-border)'
       }}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+      }}
       onDrop={handleTabBarDrop}
     >
       <div className="flex items-center gap-0 overflow-x-auto no-scrollbar flex-1">
         {group.tabs.map((tab, index) => {
-          const highlighted = isHighlighted(tab.cwd, tab.worktreePath)
+          const isFileDiff = tab.kind === 'fileDiff'
+          const tabCwd = isFileDiff ? undefined : tab.cwd
+          const tabWorktreePath = isFileDiff ? undefined : tab.worktreePath
+          const tabSessionId = isFileDiff ? undefined : tab.sessionId
+          const tabProviderId = isFileDiff ? undefined : tab.providerId
+          const highlighted = isHighlighted(tabCwd, tabWorktreePath)
           const isActive = tab.id === group.activeTabId
+          const isPreview = isFileDiff && (tab as { preview?: boolean }).preview === true
           return (
-          <div
-            key={tab.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, tab.id)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, index)}
-            className={`group flex items-center gap-1 px-2.5 h-8 cursor-pointer text-[11px] transition-colors relative ${
-              dragOverIndex === index ? 'border-l-2' : ''
-            }`}
-            style={{
-              borderRight: '1px solid var(--dplex-border)',
-              borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
-              backgroundColor: isActive
-                ? highlighted && highlightColor
-                  ? `color-mix(in srgb, ${highlightColor} 22%, var(--dplex-bg))`
-                  : 'var(--dplex-bg)'
-                : highlighted && highlightColor
-                  ? `color-mix(in srgb, ${highlightColor} 10%, transparent)`
-                  : 'transparent',
-              color: isActive
-                ? 'var(--dplex-text)'
-                : highlighted
+            <div
+              key={tab.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, tab.id)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              className={`group flex items-center gap-1 px-2.5 h-8 cursor-pointer text-[11px] transition-colors relative ${
+                dragOverIndex === index ? 'border-l-2' : ''
+              }`}
+              style={{
+                borderRight: '1px solid var(--dplex-border)',
+                borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
+                backgroundColor: isActive
+                  ? highlighted && highlightColor
+                    ? `color-mix(in srgb, ${highlightColor} 22%, var(--dplex-bg))`
+                    : 'var(--dplex-bg)'
+                  : highlighted && highlightColor
+                    ? `color-mix(in srgb, ${highlightColor} 10%, transparent)`
+                    : 'transparent',
+                color: isActive
                   ? 'var(--dplex-text)'
-                  : 'var(--dplex-text-muted)',
-              boxShadow: isActive ? 'inset 0 -2px 0 0 var(--dplex-accent)' : undefined
-            }}
-            onClick={() => {
-              setActiveGroup(group.id)
-              setActiveTerminalInGroup(group.id, tab.id)
-            }}
-            onDoubleClick={() => handleDoubleClick(tab.id, tab.title)}
-            title={highlighted ? 'Belongs to the focused project' : undefined}
-          >
-            {highlighted && !isActive && highlightColor && (
-              <span
-                aria-hidden
-                className="absolute left-0 top-1.5 bottom-1.5 pointer-events-none"
-                style={{
-                  width: 2,
-                  backgroundColor: highlightColor,
-                  opacity: 0.7,
-                  borderRadius: 1
-                }}
-              />
-            )}
-            <TerminalIcon size={11} className="flex-shrink-0" style={{ color: 'var(--dplex-text-muted)' }} />
-            {(() => {
-              if (!tab.sessionId || !tab.providerId) return null
-              const compositeId = `${tab.providerId}:${tab.sessionId}`
-              const event = activeEvents.find(
-                (e) => e.compositeId === compositeId && !e.suppressed
-              )
-              if (!event) return null
-              return (
-                <span
-                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: DOT_COLOR[event.kind] }}
-                  title={event.kind}
-                />
-              )
-            })()}
-            {editingTabId === tab.id ? (
-              <input
-                ref={inputRef}
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitRename()
-                  if (e.key === 'Escape') setEditingTabId(null)
-                }}
-                className="bg-transparent border-none outline-none text-[11px] text-white w-20"
-                autoFocus
-              />
-            ) : (
-              <span className="truncate max-w-[100px]">{tab.title}</span>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                closeTerminal(tab.id)
+                  : highlighted
+                    ? 'var(--dplex-text)'
+                    : 'var(--dplex-text-muted)',
+                boxShadow: isActive ? 'inset 0 -2px 0 0 var(--dplex-accent)' : undefined
               }}
-              className="opacity-0 group-hover:opacity-100 hover:bg-[var(--dplex-hover)] rounded p-0.5 transition-opacity ml-0.5"
+              onClick={() => {
+                setActiveGroup(group.id)
+                setActiveTerminalInGroup(group.id, tab.id)
+              }}
+              onDoubleClick={() => {
+                if (isPreview) {
+                  promotePreviewTab(tab.id)
+                } else if (!isFileDiff) {
+                  handleDoubleClick(tab.id, tab.title)
+                }
+              }}
+              title={highlighted ? 'Belongs to the focused project' : undefined}
             >
-              <X size={9} />
-            </button>
-          </div>
+              {highlighted && !isActive && highlightColor && (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1.5 bottom-1.5 pointer-events-none"
+                  style={{
+                    width: 2,
+                    backgroundColor: highlightColor,
+                    opacity: 0.7,
+                    borderRadius: 1
+                  }}
+                />
+              )}
+              <TerminalIcon
+                size={11}
+                className="flex-shrink-0"
+                style={{ color: 'var(--dplex-text-muted)' }}
+              />
+              {(() => {
+                if (!tabSessionId || !tabProviderId) return null
+                const compositeId = `${tabProviderId}:${tabSessionId}`
+                const event = activeEvents.find(
+                  (e) => e.compositeId === compositeId && !e.suppressed
+                )
+                if (!event) return null
+                return (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: DOT_COLOR[event.kind] }}
+                    title={event.kind}
+                  />
+                )
+              })()}
+              {editingTabId === tab.id ? (
+                <input
+                  ref={inputRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename()
+                    if (e.key === 'Escape') setEditingTabId(null)
+                  }}
+                  className="bg-transparent border-none outline-none text-[11px] text-white w-20"
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className="truncate max-w-[100px]"
+                  style={{ fontStyle: isPreview ? 'italic' : undefined }}
+                >
+                  {tab.title}
+                </span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  closeTerminal(tab.id)
+                }}
+                className="opacity-0 group-hover:opacity-100 hover:bg-[var(--dplex-hover)] rounded p-0.5 transition-opacity ml-0.5"
+              >
+                <X size={9} />
+              </button>
+            </div>
           )
         })}
 

@@ -26,9 +26,7 @@ function createTestEnv(userDataDir: string): NodeJS.ProcessEnv {
   return env
 }
 
-export async function launchApp(opts?: {
-  settings?: Record<string, unknown>
-}): Promise<{
+export async function launchApp(opts?: { settings?: Record<string, unknown> }): Promise<{
   app: ElectronApplication
   window: Page
   userDataDir: string

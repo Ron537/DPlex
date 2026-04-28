@@ -3,7 +3,11 @@ import * as path from 'path'
 import * as os from 'os'
 import type { DiscoveredSession, ParsedSessionData, SessionPrompt } from './types'
 import { BaseSessionProvider, type SessionEntry } from './baseProvider'
-import { parseCopilotEvents, extractCopilotPrompts, clearCopilotParseCache } from './copilotEventsParser'
+import {
+  parseCopilotEvents,
+  extractCopilotPrompts,
+  clearCopilotParseCache
+} from './copilotEventsParser'
 
 export class CopilotProvider extends BaseSessionProvider {
   readonly id = 'copilot-cli'
@@ -63,10 +67,7 @@ export class CopilotProvider extends BaseSessionProvider {
     return parseCopilotEvents(filePath)
   }
 
-  protected extractPromptsFromEvents(
-    sessionDir: string,
-    limit: number
-  ): Promise<SessionPrompt[]> {
+  protected extractPromptsFromEvents(sessionDir: string, limit: number): Promise<SessionPrompt[]> {
     return extractCopilotPrompts(sessionDir, limit)
   }
 
@@ -157,4 +158,3 @@ export class CopilotProvider extends BaseSessionProvider {
     return undefined
   }
 }
-

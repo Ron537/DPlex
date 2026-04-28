@@ -26,10 +26,7 @@ export interface SessionFilterOptions {
  *   sessions are always retained (user may be mid-prompt before the first
  *   message is recorded).
  */
-export function filterSessions(
-  sessions: AISession[],
-  opts: SessionFilterOptions
-): AISession[] {
+export function filterSessions(sessions: AISession[], opts: SessionFilterOptions): AISession[] {
   const q = opts.searchQuery.toLowerCase()
   let filtered = q
     ? sessions.filter(
@@ -66,9 +63,7 @@ export function filterSessions(
   }
 
   if (opts.hideEmptySessions) {
-    filtered = filtered.filter(
-      (s) => s.status === 'active' || (s.messageCount ?? 0) > 0
-    )
+    filtered = filtered.filter((s) => s.status === 'active' || (s.messageCount ?? 0) > 0)
   }
 
   return filtered

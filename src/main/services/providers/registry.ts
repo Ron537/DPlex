@@ -1,9 +1,4 @@
-import type {
-  SessionProvider,
-  DiscoveredSession,
-  ResolvedSession,
-  ProviderInfo
-} from './types'
+import type { SessionProvider, DiscoveredSession, ResolvedSession, ProviderInfo } from './types'
 
 /**
  * Central registry of AI tool providers.
@@ -46,9 +41,7 @@ export class ProviderRegistry {
       const sessions = await provider.discoverSessions()
       results.push(...sessions)
     }
-    return results.sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    )
+    return results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
   }
 
   /** Close a session — tries the specified provider, or searches all. */
@@ -87,10 +80,7 @@ export class ProviderRegistry {
    *  provider session, which is what caused tabs to get cross-contaminated
    *  sessionIds during simultaneous startup of mixed-provider workspaces.
    */
-  async resolveSessionByPid(
-    pid: number,
-    providerHint?: string
-  ): Promise<ResolvedSession | null> {
+  async resolveSessionByPid(pid: number, providerHint?: string): Promise<ResolvedSession | null> {
     if (providerHint) {
       const provider = this.providers.get(providerHint)
       if (!provider) return null
@@ -106,10 +96,7 @@ export class ProviderRegistry {
   /** Resolve a session by CWD — tries all providers, returns best match.
    *  When `providerHint` is supplied, query ONLY that provider.
    */
-  async resolveSessionByCwd(
-    cwd: string,
-    providerHint?: string
-  ): Promise<ResolvedSession | null> {
+  async resolveSessionByCwd(cwd: string, providerHint?: string): Promise<ResolvedSession | null> {
     if (providerHint) {
       const provider = this.providers.get(providerHint)
       if (!provider) return null

@@ -94,14 +94,10 @@ export function SessionList({
 
     const idle = filtered.filter((s) => s.status === 'idle')
     const activeList = filtered.filter((s) => s.status === 'active')
-    const groupedIdle =
-      groupMode === 'time' ? groupByTime(idle) : groupByWorkspace(idle)
+    const groupedIdle = groupMode === 'time' ? groupByTime(idle) : groupByWorkspace(idle)
 
     // Build flat list for keyboard nav
-    const flat: AISession[] = [
-      ...activeList,
-      ...groupedIdle.flatMap((g) => g.sessions)
-    ]
+    const flat: AISession[] = [...activeList, ...groupedIdle.flatMap((g) => g.sessions)]
 
     return {
       active: activeList,
@@ -148,11 +144,7 @@ export function SessionList({
   }
 
   if (error) {
-    return (
-      <div className="px-3 py-4 text-xs text-red-400">
-        Failed to load sessions
-      </div>
-    )
+    return <div className="px-3 py-4 text-xs text-red-400">Failed to load sessions</div>
   }
 
   if (active.length === 0 && groups.length === 0) {
@@ -160,16 +152,19 @@ export function SessionList({
       <div className="px-3 py-8 text-xs text-zinc-500 text-center">
         No sessions found.
         <br />
-        <span className="text-zinc-600">
-          Sessions from your AI tool will appear here.
-        </span>
+        <span className="text-zinc-600">Sessions from your AI tool will appear here.</span>
       </div>
     )
   }
 
   return (
     <>
-      <div ref={listRef} className="flex flex-col gap-1" tabIndex={0} data-selected-index={selectedIndex}>
+      <div
+        ref={listRef}
+        className="flex flex-col gap-1"
+        tabIndex={0}
+        data-selected-index={selectedIndex}
+      >
         {active.length > 0 && (
           <CollapsibleGroup label={`Active (${active.length})`} accent>
             {active.map((session) => (

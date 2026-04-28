@@ -54,7 +54,11 @@ describe('claudeEventsParser', () => {
           },
           timestamp: ts(2)
         },
-        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'done' }] }, timestamp: ts(3) }
+        {
+          type: 'assistant',
+          message: { role: 'assistant', content: [{ type: 'text', text: 'done' }] },
+          timestamp: ts(3)
+        }
       ]),
       'utf-8'
     )
@@ -90,9 +94,7 @@ describe('claudeEventsParser', () => {
   it('parses incrementally and ignores incomplete trailing line', async () => {
     await fsp.writeFile(
       file,
-      jsonl([
-        { type: 'user', message: { role: 'user', content: 'first' }, timestamp: ts(0) }
-      ]),
+      jsonl([{ type: 'user', message: { role: 'user', content: 'first' }, timestamp: ts(0) }]),
       'utf-8'
     )
     const a = await parseClaudeEvents(file)
@@ -101,7 +103,11 @@ describe('claudeEventsParser', () => {
     // Append an incomplete line (no trailing newline)
     await fsp.appendFile(
       file,
-      JSON.stringify({ type: 'user', message: { role: 'user', content: 'second' }, timestamp: ts(1) }),
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'second' },
+        timestamp: ts(1)
+      }),
       'utf-8'
     )
     const b = await parseClaudeEvents(file)
@@ -138,7 +144,11 @@ describe('claudeEventsParser', () => {
       file,
       jsonl([
         { type: 'user', message: { role: 'user', content: 'go' }, timestamp: ts(0) },
-        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'try' }] }, timestamp: ts(1) },
+        {
+          type: 'assistant',
+          message: { role: 'assistant', content: [{ type: 'text', text: 'try' }] },
+          timestamp: ts(1)
+        },
         // After trailingAssistant, a user (string) clears it; then api_error
         { type: 'user', message: { role: 'user', content: 'retry please' }, timestamp: ts(2) },
         { type: 'system', subtype: 'api_error', retryInMs: 5000, timestamp: ts(3) }
@@ -190,7 +200,11 @@ describe('claudeEventsParser', () => {
       file,
       [
         'not-json',
-        JSON.stringify({ type: 'user', message: { role: 'user', content: 'ok' }, timestamp: ts(0) }),
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: 'ok' },
+          timestamp: ts(0)
+        }),
         '{"type":"user"',
         ''
       ].join('\n') + '\n',

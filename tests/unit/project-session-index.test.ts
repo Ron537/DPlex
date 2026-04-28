@@ -38,7 +38,12 @@ describe('buildProjectSessionIndex', () => {
     const idx = buildProjectSessionIndex(sessions, [], projects)
 
     expect(idx.get(parent)!.sessions.map((s) => s.id)).toEqual(['s1'])
-    expect(idx.get(worktree)!.sessions.map((s) => s.id).sort()).toEqual(['s2', 's3'])
+    expect(
+      idx
+        .get(worktree)!
+        .sessions.map((s) => s.id)
+        .sort()
+    ).toEqual(['s2', 's3'])
   })
 
   it('does not let a shorter project path steal sessions from a deeper registered project', () => {
@@ -84,11 +89,7 @@ describe('buildProjectSessionIndex', () => {
   })
 
   it('ignores sessions whose cwd is outside every registered project', () => {
-    const idx = buildProjectSessionIndex(
-      [makeSession('orphan', '/tmp/elsewhere')],
-      [],
-      ['/repo']
-    )
+    const idx = buildProjectSessionIndex([makeSession('orphan', '/tmp/elsewhere')], [], ['/repo'])
     expect(idx.get('/repo')!.sessions).toEqual([])
   })
 

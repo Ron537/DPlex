@@ -78,10 +78,7 @@ export function getTerminalEntry(terminalId: string): TerminalEntry | undefined 
 type PendingExitHandler = (exitCode: number) => void
 const pendingExitHandlers = new Map<string, PendingExitHandler>()
 
-export function registerExitHandler(
-  terminalId: string,
-  handler: PendingExitHandler
-): () => void {
+export function registerExitHandler(terminalId: string, handler: PendingExitHandler): () => void {
   pendingExitHandlers.set(terminalId, handler)
   return () => {
     if (pendingExitHandlers.get(terminalId) === handler) {

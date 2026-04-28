@@ -151,8 +151,7 @@ export class ClaudeCodeProvider extends BaseSessionProvider {
         ? mapPidfileStatus(snap)
         : (parsed?.detailedStatus ?? 'idle')
 
-      const displayName =
-        snap?.name?.trim() || extras.firstUserPrompt || entry.id.slice(0, 12)
+      const displayName = snap?.name?.trim() || extras.firstUserPrompt || entry.id.slice(0, 12)
 
       const updatedAtMs = Math.max(
         entry.mtimeMs,
@@ -184,10 +183,7 @@ export class ClaudeCodeProvider extends BaseSessionProvider {
     return parseClaudeEvents(filePath)
   }
 
-  protected extractPromptsFromEvents(
-    entryPath: string,
-    limit: number
-  ): Promise<SessionPrompt[]> {
+  protected extractPromptsFromEvents(entryPath: string, limit: number): Promise<SessionPrompt[]> {
     return extractClaudePrompts(entryPath, limit)
   }
 
@@ -214,7 +210,9 @@ export class ClaudeCodeProvider extends BaseSessionProvider {
 
   // ── Resolution overrides — fast path via the registry ─────────────
 
-  async resolveSessionByCwd(cwd: string): Promise<{ sessionId: string; displayName: string } | null> {
+  async resolveSessionByCwd(
+    cwd: string
+  ): Promise<{ sessionId: string; displayName: string } | null> {
     await this.registry.ensureStarted()
     const snap = this.registry.getByCwd(cwd)
     if (!snap) return null
@@ -245,12 +243,7 @@ export class ClaudeCodeProvider extends BaseSessionProvider {
     // on graceful exit, but a hard kill can leave one behind).
     const snap = this.registry.getBySessionId(entry.id)
     if (snap) {
-      const pidfile = path.join(
-        os.homedir(),
-        '.claude',
-        'sessions',
-        `${snap.pid}.json`
-      )
+      const pidfile = path.join(os.homedir(), '.claude', 'sessions', `${snap.pid}.json`)
       try {
         await fsp.unlink(pidfile)
       } catch {

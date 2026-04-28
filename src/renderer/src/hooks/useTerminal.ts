@@ -32,7 +32,7 @@ async function resolveSessionIdForTab(
     .getState()
     .groups.flatMap((g) => g.tabs)
     .find((t) => t.id === terminalId)
-  if (currentTab?.sessionId) return
+  if (currentTab && currentTab.kind !== 'fileDiff' && currentTab.sessionId) return
   try {
     const result = await window.dplex.sessions.resolveSessionId(pid, cwd, providerId)
     if (result) {
@@ -71,7 +71,12 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
     const container = containerRef.current
     if (!container) return
 
-    const entry = getOrCreateTerminal(terminalId, settings.fontSize, settings.fontFamily, settings.theme)
+    const entry = getOrCreateTerminal(
+      terminalId,
+      settings.fontSize,
+      settings.fontFamily,
+      settings.theme
+    )
     entryRef.current = entry
 
     // Attach the persistent xterm DOM element to this container
@@ -126,92 +131,97 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
 
       // Create PTY — use tab-specific shell, then settings default, then system default
       const termState = useTerminalStore.getState()
-      const tab = termState.groups
-        .flatMap((g) => g.tabs)
-        .find((t) => t.id === terminalId)
-      const tabShell = tab?.shell
-      const tabCwd = tab?.cwd
-      const tabCommand = tab?.command
-      const tabProviderId = tab?.providerId
+      const tab = termState.groups.flatMap((g) => g.tabs).find((t) => t.id === terminalId)
+      // fileDiff tabs never spawn a PTY — they are rendered by FileDiffTabView
+      // and have no shell/command. The hook short-circuits earlier in the call
+      // site, but we still narrow defensively here to keep the union honest.
+      const terminalTab = tab && tab.kind !== 'fileDiff' ? tab : undefined
+      const tabShell = terminalTab?.shell
+      const tabCwd = terminalTab?.cwd
+      const tabCommand = terminalTab?.command
+      const tabProviderId = terminalTab?.providerId
       const defaultShell = useSettingsStore.getState().settings.defaultShell
       const shellToUse = tabShell || defaultShell || undefined
-      window.dplex.pty.create(shellToUse, tabCwd, tabCommand).then(({ id: ptyId, pid }) => {
-        // Guard: if tab was removed from store before PTY resolved, clean up
-        if (!tabExists(terminalId)) {
-          window.dplex.pty.destroy(ptyId)
+      window.dplex.pty
+        .create(shellToUse, tabCwd, tabCommand)
+        .then(({ id: ptyId, pid }) => {
+          // Guard: if tab was removed from store before PTY resolved, clean up
+          if (!tabExists(terminalId)) {
+            window.dplex.pty.destroy(ptyId)
+            removeDataListener()
+            removeExitListener()
+            entry.creating = false
+            return
+          }
+
+          entry.ptyId = ptyId
+          ptyIdResolved = ptyId
+
+          // Store PID on the tab for session ID resolution
+          if (tabCommand && pid) {
+            useTerminalStore.getState().setPid(terminalId, pid)
+          }
+
+          // Flush buffered output
+          let hadData = false
+          for (const item of earlyBuffer) {
+            if (item.id === ptyId) {
+              entry.term.write(item.data)
+              hadData = true
+            }
+          }
+          earlyBuffer.length = 0
+          if (hadData) {
+            entry.ready = true
+            setReady(true)
+          }
+
+          // Connect terminal input → PTY
+          const onDataDisposable = entry.term.onData((data) => {
+            window.dplex.pty.write(ptyId, data)
+          })
+
+          const onResizeDisposable = entry.term.onResize(({ cols, rows }) => {
+            window.dplex.pty.resize(ptyId, cols, rows)
+          })
+
+          // Sync terminal title changes (OSC escape sequences) to the tab title
+          const onTitleDisposable = entry.term.onTitleChange((title) => {
+            if (title && tabExists(terminalId)) {
+              useTerminalStore.getState().renameTerminal(terminalId, title)
+            }
+          })
+
+          // Sync current terminal size to PTY (it was created with default 80x24)
+          const { cols, rows } = entry.term
+          if (cols && rows) {
+            window.dplex.pty.resize(ptyId, cols, rows)
+          }
+
+          // For AI sessions, resolve the session ID after a delay
+          if (tabCommand && pid) {
+            setTimeout(() => {
+              resolveSessionIdForTab(terminalId, pid, tabCwd, tabProviderId)
+            }, 3000)
+          }
+
+          entry.creating = false
+          entry.cleanupIpc = () => {
+            onDataDisposable.dispose()
+            onResizeDisposable.dispose()
+            onTitleDisposable.dispose()
+            removeDataListener()
+            removeExitListener()
+          }
+        })
+        .catch(() => {
           removeDataListener()
           removeExitListener()
           entry.creating = false
-          return
-        }
-
-        entry.ptyId = ptyId
-        ptyIdResolved = ptyId
-
-        // Store PID on the tab for session ID resolution
-        if (tabCommand && pid) {
-          useTerminalStore.getState().setPid(terminalId, pid)
-        }
-
-        // Flush buffered output
-        let hadData = false
-        for (const item of earlyBuffer) {
-          if (item.id === ptyId) {
-            entry.term.write(item.data)
-            hadData = true
-          }
-        }
-        earlyBuffer.length = 0
-        if (hadData) {
+          entry.term.write('\r\n\x1b[31m[Failed to start terminal]\x1b[0m\r\n')
           entry.ready = true
           setReady(true)
-        }
-
-        // Connect terminal input → PTY
-        const onDataDisposable = entry.term.onData((data) => {
-          window.dplex.pty.write(ptyId, data)
         })
-
-        const onResizeDisposable = entry.term.onResize(({ cols, rows }) => {
-          window.dplex.pty.resize(ptyId, cols, rows)
-        })
-
-        // Sync terminal title changes (OSC escape sequences) to the tab title
-        const onTitleDisposable = entry.term.onTitleChange((title) => {
-          if (title && tabExists(terminalId)) {
-            useTerminalStore.getState().renameTerminal(terminalId, title)
-          }
-        })
-
-        // Sync current terminal size to PTY (it was created with default 80x24)
-        const { cols, rows } = entry.term
-        if (cols && rows) {
-          window.dplex.pty.resize(ptyId, cols, rows)
-        }
-
-        // For AI sessions, resolve the session ID after a delay
-        if (tabCommand && pid) {
-          setTimeout(() => {
-            resolveSessionIdForTab(terminalId, pid, tabCwd, tabProviderId)
-          }, 3000)
-        }
-
-        entry.creating = false
-        entry.cleanupIpc = () => {
-          onDataDisposable.dispose()
-          onResizeDisposable.dispose()
-          onTitleDisposable.dispose()
-          removeDataListener()
-          removeExitListener()
-        }
-      }).catch(() => {
-        removeDataListener()
-        removeExitListener()
-        entry.creating = false
-        entry.term.write('\r\n\x1b[31m[Failed to start terminal]\x1b[0m\r\n')
-        entry.ready = true
-        setReady(true)
-      })
     }
 
     // ResizeObserver for container size changes

@@ -13,7 +13,8 @@ import {
   Pin,
   PinOff,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  GitCompare
 } from 'lucide-react'
 import type { Project, AISession, ProviderInfo, WorktreeDefaults } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
@@ -23,10 +24,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useGitBranch } from '../../hooks/useGitBranch'
 import { useWorktrees } from '../../hooks/useWorktrees'
 import { STATUS_ACTIVE_COLOR, STATUS_ACTIVE_BG } from '../../utils/statusColors'
-import {
-  getAvatarColor,
-  getAvatarInitials
-} from '../../utils/projectStatus'
+import { getAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
 import { SessionItem } from '../sessions/SessionItem'
 import { PendingSessionItem } from '../sessions/PendingSessionItem'
 import { PromptsDialog } from '../sessions/PromptsDialog'
@@ -88,6 +86,7 @@ export function ProjectItem({
   const expandedIds = useProjectStore((s) => s.expandedProjectIds)
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
   const setLastExpanded = useProjectStore((s) => s.setLastExpanded)
+  const setActiveProject = useProjectStore((s) => s.setActiveProject)
   const removeProject = useProjectStore((s) => s.removeProject)
   const togglePin = useProjectStore((s) => s.togglePin)
   const reorderProject = useProjectStore((s) => s.reorderProject)
@@ -239,6 +238,10 @@ export function ProjectItem({
           isCompact || !isExpanded ? undefined : { borderBottom: '1px solid var(--dplex-border)' }
         }
         onClick={() => {
+          // Any click on a project row also makes it the "active" project
+          // for ambient project-scoped UI (Git panel, etc). Independent of
+          // expansion/emphasis state.
+          setActiveProject(project.id)
           // Clicking an already-expanded card that isn't the emphasized one
           // promotes it instead of collapsing. Chevron still toggles.
           if (isExpanded && !isLastExpanded) {
@@ -364,17 +367,18 @@ export function ProjectItem({
                     ? 'idle'
                     : 'no active'}
               </span>
-              {lastActivity && (() => {
-                const rel = relativeTimeShort(lastActivity)
-                return (
-                  <>
-                    <span style={{ opacity: 0.5 }}>·</span>
-                    <span className="tabular-nums flex-shrink-0">
-                      {rel === 'now' ? 'just now' : `${rel} ago`}
-                    </span>
-                  </>
-                )
-              })()}
+              {lastActivity &&
+                (() => {
+                  const rel = relativeTimeShort(lastActivity)
+                  return (
+                    <>
+                      <span style={{ opacity: 0.5 }}>·</span>
+                      <span className="tabular-nums flex-shrink-0">
+                        {rel === 'now' ? 'just now' : `${rel} ago`}
+                      </span>
+                    </>
+                  )
+                })()}
             </div>
           </div>
         )}
@@ -482,6 +486,21 @@ export function ProjectItem({
             style={{ color: 'var(--dplex-text)' }}
           >
             <Terminal size={11} /> Open Terminal
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              // The Git panel auto-binds to the active project; making this
+              // project active implicitly surfaces its changes there. Once
+              // gitPanelStore lands (todo 6) we'll also call its expand()
+              // action so the panel pops open even when collapsed.
+              setActiveProject(project.id)
+              setShowMenu(false)
+            }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+            style={{ color: 'var(--dplex-text)' }}
+          >
+            <GitCompare size={11} /> Show in Git Panel
           </button>
 
           <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />

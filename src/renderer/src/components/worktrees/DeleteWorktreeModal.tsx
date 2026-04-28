@@ -34,6 +34,9 @@ export function DeleteWorktreeModal({
   const normalizedWorktreePath = normalizePath(worktree.path)
   const openTabs = useTerminalStore((s) => s.groups).flatMap((g) =>
     g.tabs.filter((t) => {
+      if (t.kind === 'fileDiff') {
+        return normalizePath(t.repoRootFs) === normalizedWorktreePath
+      }
       if (t.worktreePath && normalizePath(t.worktreePath) === normalizedWorktreePath) {
         return true
       }
@@ -134,17 +137,18 @@ export function DeleteWorktreeModal({
 
         <div className="p-4 space-y-3 text-[12px]" style={{ color: 'var(--dplex-text)' }}>
           <div className="space-y-1">
-            {dirty && (() => {
-              const total =
-                (worktree.status.dirtyCount ?? 0) +
-                (worktree.status.untrackedCount ?? 0) +
-                (worktree.status.stagedCount ?? 0)
-              return (
-                <Warning>
-                  {total} uncommitted change{total === 1 ? '' : 's'}
-                </Warning>
-              )
-            })()}
+            {dirty &&
+              (() => {
+                const total =
+                  (worktree.status.dirtyCount ?? 0) +
+                  (worktree.status.untrackedCount ?? 0) +
+                  (worktree.status.stagedCount ?? 0)
+                return (
+                  <Warning>
+                    {total} uncommitted change{total === 1 ? '' : 's'}
+                  </Warning>
+                )
+              })()}
             {activeSessions > 0 && (
               <Warning>
                 {activeSessions} running DPlex session{activeSessions === 1 ? '' : 's'}
@@ -174,9 +178,7 @@ export function DeleteWorktreeModal({
               onChange={(e) => setForceDelete(e.target.checked)}
               className="mt-0.5"
             />
-            <span>
-              Force delete{dirty ? ' (required — worktree has changes)' : ''}
-            </span>
+            <span>Force delete{dirty ? ' (required — worktree has changes)' : ''}</span>
           </label>
 
           {hasBranch && (

@@ -68,7 +68,9 @@ export async function parseCopilotEvents(filePath: string): Promise<ParsedSessio
     // and must be re-read on the next parse.
     const endsWithNewline = content.endsWith('\n')
     const lines = content.split('\n')
-    const lastIncompleteLen = endsWithNewline ? 0 : Buffer.byteLength(lines[lines.length - 1], 'utf-8')
+    const lastIncompleteLen = endsWithNewline
+      ? 0
+      : Buffer.byteLength(lines[lines.length - 1], 'utf-8')
     const parsedByteCount = bytesRead - lastIncompleteLen
 
     for (let i = 0; i < lines.length - (endsWithNewline ? 0 : 1); i++) {
@@ -79,7 +81,8 @@ export async function parseCopilotEvents(filePath: string): Promise<ParsedSessio
         processEvent(event, data, pendingToolCalls)
 
         if (event.type === 'tool.execution_start') pendingToolCalls++
-        if (event.type === 'tool.execution_complete') pendingToolCalls = Math.max(0, pendingToolCalls - 1)
+        if (event.type === 'tool.execution_complete')
+          pendingToolCalls = Math.max(0, pendingToolCalls - 1)
 
         if (event.timestamp) {
           const ts = new Date(event.timestamp).getTime()

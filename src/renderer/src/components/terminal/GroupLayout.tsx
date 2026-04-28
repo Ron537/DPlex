@@ -24,7 +24,11 @@ export function GroupLayout({ node }: GroupLayoutProps): React.JSX.Element {
   if (node.type === 'group' && node.groupId) {
     const group = groups.find((g) => g.id === node.groupId)
     if (!group) {
-      return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Empty group</div>
+      return (
+        <div className="flex items-center justify-center h-full text-zinc-600 text-xs">
+          Empty group
+        </div>
+      )
     }
     return <EditorGroup group={group} />
   }

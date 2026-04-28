@@ -1,17 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react'
-import {
-  Search,
-  RefreshCw,
-  SlidersHorizontal,
-  Check,
-  Plus
-} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Search, RefreshCw, SlidersHorizontal, Check, Plus } from 'lucide-react'
 import { MOD } from '../../utils/shortcuts'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -114,10 +102,7 @@ export function SidePanel(): React.JSX.Element | null {
 
       const onMouseMove = (e: MouseEvent): void => {
         if (!resizing.current) return
-        const newWidth = Math.min(
-          MAX_WIDTH,
-          Math.max(MIN_WIDTH, startWidth + (e.clientX - startX))
-        )
+        const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (e.clientX - startX)))
         setSidebarWidth(newWidth)
       }
 
@@ -173,86 +158,80 @@ export function SidePanel(): React.JSX.Element | null {
                 <Plus size={13} />
               </button>
               <div className="relative">
-              <button
-                onClick={() => setShowProjectFilterMenu(!showProjectFilterMenu)}
-                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-                style={{
-                  color: projectActiveOnly
-                    ? 'var(--dplex-accent)'
-                    : 'var(--dplex-text-muted)'
-                }}
-                title="Filter projects"
-              >
-                <SlidersHorizontal size={12} />
-              </button>
+                <button
+                  onClick={() => setShowProjectFilterMenu(!showProjectFilterMenu)}
+                  className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+                  style={{
+                    color: projectActiveOnly ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
+                  }}
+                  title="Filter projects"
+                >
+                  <SlidersHorizontal size={12} />
+                </button>
 
-              {showProjectFilterMenu && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowProjectFilterMenu(false)}
-                  />
-                  <div
-                    className="absolute right-0 top-7 z-50 rounded shadow-xl py-1 min-w-[180px]"
-                    style={{
-                      backgroundColor: 'var(--dplex-bg)',
-                      border: '1px solid var(--dplex-border)'
-                    }}
-                  >
+                {showProjectFilterMenu && (
+                  <>
                     <div
-                      className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
-                      style={{ color: 'var(--dplex-text-muted)' }}
-                    >
-                      Show
-                    </div>
-                    <button
-                      onClick={() => setProjectActiveOnly(false)}
-                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                      style={{ color: 'var(--dplex-text)' }}
-                    >
-                      All Projects
-                      {!projectActiveOnly && (
-                        <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setProjectActiveOnly(true)}
-                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                      style={{ color: 'var(--dplex-text)' }}
-                    >
-                      Active Only
-                      {projectActiveOnly && (
-                        <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                      )}
-                    </button>
-
-                    <div
-                      className="my-1"
-                      style={{ borderTop: '1px solid var(--dplex-border)' }}
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowProjectFilterMenu(false)}
                     />
                     <div
-                      className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
-                      style={{ color: 'var(--dplex-text-muted)' }}
+                      className="absolute right-0 top-7 z-50 rounded shadow-xl py-1 min-w-[180px]"
+                      style={{
+                        backgroundColor: 'var(--dplex-bg)',
+                        border: '1px solid var(--dplex-border)'
+                      }}
                     >
-                      Appearance
+                      <div
+                        className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
+                        style={{ color: 'var(--dplex-text-muted)' }}
+                      >
+                        Show
+                      </div>
+                      <button
+                        onClick={() => setProjectActiveOnly(false)}
+                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                        style={{ color: 'var(--dplex-text)' }}
+                      >
+                        All Projects
+                        {!projectActiveOnly && (
+                          <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setProjectActiveOnly(true)}
+                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                        style={{ color: 'var(--dplex-text)' }}
+                      >
+                        Active Only
+                        {projectActiveOnly && (
+                          <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                        )}
+                      </button>
+
+                      <div
+                        className="my-1"
+                        style={{ borderTop: '1px solid var(--dplex-border)' }}
+                      />
+                      <div
+                        className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
+                        style={{ color: 'var(--dplex-text-muted)' }}
+                      >
+                        Appearance
+                      </div>
+                      <button
+                        onClick={() => updateSettings({ projectPanelShowFooter: !showFooter })}
+                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                        style={{ color: 'var(--dplex-text)' }}
+                        title="Show live/terminal count at the bottom of the panel"
+                      >
+                        Show Footer
+                        {showFooter && <Check size={11} style={{ color: 'var(--dplex-accent)' }} />}
+                      </button>
                     </div>
-                    <button
-                      onClick={() =>
-                        updateSettings({ projectPanelShowFooter: !showFooter })
-                      }
-                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                      style={{ color: 'var(--dplex-text)' }}
-                      title="Show live/terminal count at the bottom of the panel"
-                    >
-                      Show Footer
-                      {showFooter && (
-                        <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                      )}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
             </>
           )}
           {activeTab === 'sessions' && (
@@ -263,9 +242,7 @@ export function SidePanel(): React.JSX.Element | null {
                   onClick={() => setShowFilterMenu(!showFilterMenu)}
                   className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
                   style={{
-                    color: hasActiveFilters
-                      ? 'var(--dplex-accent)'
-                      : 'var(--dplex-text-muted)'
+                    color: hasActiveFilters ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
                   }}
                   title="Filter & group options"
                 >
@@ -275,10 +252,7 @@ export function SidePanel(): React.JSX.Element | null {
                 {/* Filter dropdown menu */}
                 {showFilterMenu && (
                   <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowFilterMenu(false)}
-                    />
+                    <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
                     <div
                       className="absolute right-0 top-7 z-50 rounded shadow-xl py-1 min-w-[200px]"
                       style={{
@@ -335,10 +309,7 @@ export function SidePanel(): React.JSX.Element | null {
                         >
                           {opt.label}
                           {statusFilters.has(opt.id) && (
-                            <Check
-                              size={11}
-                              style={{ color: 'var(--dplex-accent)' }}
-                            />
+                            <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
                           )}
                         </button>
                       ))}
@@ -370,10 +341,7 @@ export function SidePanel(): React.JSX.Element | null {
                                 ({opt.count})
                               </span>
                               {providerFilter === opt.id && (
-                                <Check
-                                  size={11}
-                                  style={{ color: 'var(--dplex-accent)' }}
-                                />
+                                <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
                               )}
                             </button>
                           ))}
@@ -391,10 +359,7 @@ export function SidePanel(): React.JSX.Element | null {
                 style={{ color: 'var(--dplex-text-muted)' }}
                 title="Refresh sessions"
               >
-                <RefreshCw
-                  size={12}
-                  className={loading ? 'animate-spin' : ''}
-                />
+                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
               </button>
             </>
           )}
@@ -445,10 +410,7 @@ export function SidePanel(): React.JSX.Element | null {
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'projects' ? (
-          <ProjectList
-            searchQuery={projectSearchQuery}
-            activeOnly={projectActiveOnly}
-          />
+          <ProjectList searchQuery={projectSearchQuery} activeOnly={projectActiveOnly} />
         ) : (
           <SessionList
             groupMode={groupMode}

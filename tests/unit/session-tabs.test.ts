@@ -48,9 +48,7 @@ describe('findTabsForSession', () => {
   })
 
   it('matches tabs whose providerId is undefined (legacy fallback)', () => {
-    const groups: EditorGroup[] = [
-      group('g1', [tab({ id: 't1', sessionId: 's1' })])
-    ]
+    const groups: EditorGroup[] = [group('g1', [tab({ id: 't1', sessionId: 's1' })])]
     const result = findTabsForSession(groups, 's1', 'copilot-cli')
     expect(result.map((t) => t.id)).toEqual(['t1'])
   })
@@ -63,9 +61,7 @@ describe('findTabsForSession', () => {
   })
 
   it('does not match tabs without a sessionId', () => {
-    const groups: EditorGroup[] = [
-      group('g1', [tab({ id: 't1', providerId: 'copilot-cli' })])
-    ]
+    const groups: EditorGroup[] = [group('g1', [tab({ id: 't1', providerId: 'copilot-cli' })])]
     expect(findTabsForSession(groups, 's1', 'copilot-cli')).toEqual([])
   })
 
@@ -112,15 +108,8 @@ describe('findFirstTabForSession', () => {
   })
 
   it('falls back to a resumeCommand match for legacy tabs', () => {
-    const groups: EditorGroup[] = [
-      group('g1', [tab({ id: 't1', command: 'copilot --resume s1' })])
-    ]
-    const match = findFirstTabForSession(
-      groups,
-      's1',
-      'copilot-cli',
-      'copilot --resume s1'
-    )
+    const groups: EditorGroup[] = [group('g1', [tab({ id: 't1', command: 'copilot --resume s1' })])]
+    const match = findFirstTabForSession(groups, 's1', 'copilot-cli', 'copilot --resume s1')
     expect(match?.tab.id).toBe('t1')
   })
 
@@ -131,12 +120,7 @@ describe('findFirstTabForSession', () => {
         tab({ id: 't2', sessionId: 's1', providerId: 'copilot-cli' })
       ])
     ]
-    const match = findFirstTabForSession(
-      groups,
-      's1',
-      'copilot-cli',
-      'copilot --resume s1'
-    )
+    const match = findFirstTabForSession(groups, 's1', 'copilot-cli', 'copilot --resume s1')
     // Both are in g1; .find returns the first, which is t1 (command match).
     // That's still valid behavior — either match focuses a tab for the same
     // session. Assert that whichever wins is at least a real match.
@@ -144,9 +128,7 @@ describe('findFirstTabForSession', () => {
   })
 
   it('does not match by resumeCommand when not provided', () => {
-    const groups: EditorGroup[] = [
-      group('g1', [tab({ id: 't1', command: 'copilot --resume s1' })])
-    ]
+    const groups: EditorGroup[] = [group('g1', [tab({ id: 't1', command: 'copilot --resume s1' })])]
     expect(findFirstTabForSession(groups, 's1', 'copilot-cli')).toBeNull()
   })
 })
@@ -178,9 +160,7 @@ describe('focusSessionTab', () => {
   })
 
   it('focuses via resumeCommand fallback when sessionId is absent on tab', () => {
-    storeState.groups = [
-      group('g1', [tab({ id: 't1', command: 'copilot --resume s1' })])
-    ]
+    storeState.groups = [group('g1', [tab({ id: 't1', command: 'copilot --resume s1' })])]
     expect(focusSessionTab('s1', 'copilot-cli', 'copilot --resume s1')).toBe(true)
     expect(storeState.setActiveGroup).toHaveBeenCalledWith('g1')
     expect(storeState.setActiveTerminalInGroup).toHaveBeenCalledWith('g1', 't1')
@@ -227,9 +207,7 @@ describe('closeOpenTabsForSession', () => {
   })
 
   it('includes legacy tabs without providerId', () => {
-    storeState.groups = [
-      group('g1', [tab({ id: 't1', sessionId: 's1' })])
-    ]
+    storeState.groups = [group('g1', [tab({ id: 't1', sessionId: 's1' })])]
     expect(closeOpenTabsForSession('s1', 'copilot-cli')).toBe(true)
     expect(storeState.closeTerminal).toHaveBeenCalledWith('t1')
   })
@@ -241,12 +219,8 @@ describe('closeOpenTabsForSession', () => {
   })
 
   it('matches legacy tabs by resumeCommand when provided', () => {
-    storeState.groups = [
-      group('g1', [tab({ id: 't1', command: 'copilot --resume s1' })])
-    ]
-    expect(
-      closeOpenTabsForSession('s1', 'copilot-cli', 'copilot --resume s1')
-    ).toBe(true)
+    storeState.groups = [group('g1', [tab({ id: 't1', command: 'copilot --resume s1' })])]
+    expect(closeOpenTabsForSession('s1', 'copilot-cli', 'copilot --resume s1')).toBe(true)
     expect(storeState.closeTerminal).toHaveBeenCalledWith('t1')
   })
 
@@ -261,9 +235,7 @@ describe('closeOpenTabsForSession', () => {
         })
       ])
     ]
-    expect(
-      closeOpenTabsForSession('s1', 'copilot-cli', 'copilot --resume s1')
-    ).toBe(true)
+    expect(closeOpenTabsForSession('s1', 'copilot-cli', 'copilot --resume s1')).toBe(true)
     expect(storeState.closeTerminal).toHaveBeenCalledTimes(1)
     expect(storeState.closeTerminal).toHaveBeenCalledWith('t1')
   })

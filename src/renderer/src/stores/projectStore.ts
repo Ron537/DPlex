@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Project, ProjectWorktreeOverrides } from '../types'
+import type { Project, ProjectGitPanelState, ProjectWorktreeOverrides } from '../types'
 import { useSettingsStore } from './settingsStore'
 import { useTerminalStore } from './terminalStore'
 import { normalizePath } from '../hooks/useProjectSessions'
@@ -18,6 +18,14 @@ interface ProjectState {
   expandedProjectIds: Set<string>
   /** Id of the most recently expanded project. Used to visually emphasize it. */
   lastExpandedProjectId: string | null
+  /**
+   * Id of the project the Git panel and other ambient project-scoped UI bind
+   * to. Distinct from `lastExpandedProjectId` (which only tracks visual
+   * emphasis in the project list). Set when the user explicitly chooses a
+   * project context — e.g. clicks a project row, focuses a terminal whose
+   * cwd matches a project, or restores the workspace.
+   */
+  activeProjectId: string | null
   loaded: boolean
 
   loadProjects: () => Promise<void>
@@ -32,6 +40,8 @@ interface ProjectState {
   reorderProject: (draggedId: string, targetId: string, position: 'above' | 'below') => void
   toggleExpanded: (id: string) => void
   setLastExpanded: (id: string) => void
+  setActiveProject: (id: string | null) => void
+  setProjectGitState: (id: string, patch: ProjectGitPanelState) => void
   togglePin: (id: string) => void
   startAISession: (project: Project, providerId?: string) => Promise<string | null>
   updateProjectWorktreeOverrides: (
@@ -45,6 +55,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   expandedProjectIds: new Set(),
   lastExpandedProjectId: null,
+  activeProjectId: null,
   loaded: false,
 
   loadProjects: async () => {
@@ -65,9 +76,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   updateProjectWorktreeOverrides: (projectId, overrides) => {
     const { projects, persistProjects } = get()
     const next = projects.map((p) =>
-      p.id === projectId
-        ? { ...p, worktreeOverrides: overrides ?? undefined }
-        : p
+      p.id === projectId ? { ...p, worktreeOverrides: overrides ?? undefined } : p
     )
     set({ projects: next })
     persistProjects()
@@ -163,7 +172,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         projects: state.projects.filter((p) => p.id !== id),
         expandedProjectIds: nextExpanded,
         lastExpandedProjectId:
-          state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId
+          state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId,
+        activeProjectId: state.activeProjectId === id ? null : state.activeProjectId
       }
     })
     get().persistProjects()
@@ -174,9 +184,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const target = state.projects.find((p) => p.id === id)
       if (!target) return {}
       const willBePinned = !target.pinned
-      const updated = state.projects.map((p) =>
-        p.id === id ? { ...p, pinned: willBePinned } : p
-      )
+      const updated = state.projects.map((p) => (p.id === id ? { ...p, pinned: willBePinned } : p))
       if (!willBePinned) {
         // Unpin in place — the project stays where it is in raw order, it just
         // falls out of the Pinned section in the rendered list.
@@ -215,8 +223,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         // Collapsing the currently-emphasized project clears emphasis; if other
         // projects remain expanded the emphasis simply disappears until the
         // next expand.
-        const nextLast =
-          state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId
+        const nextLast = state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId
         return { expandedProjectIds: next, lastExpandedProjectId: nextLast }
       }
       next.add(id)
@@ -238,6 +245,41 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
   },
 
+  // Set the active project context. Pass null to clear.
+  // This is the binding signal for the Git panel and any other ambient,
+  // project-scoped UI. We tolerate ids that don't (yet) exist in `projects`
+  // so callers can race-set during workspace restore; consumers should
+  // gracefully handle a missing project.
+  setActiveProject: (id) => {
+    set((state) => {
+      if (state.activeProjectId === id) return state
+      return { activeProjectId: id }
+    })
+  },
+
+  setProjectGitState: (id, patch) => {
+    set((state) => {
+      const idx = state.projects.findIndex((p) => p.id === id)
+      if (idx === -1) return state
+      const current = state.projects[idx]
+      const next: ProjectGitPanelState = {
+        ...(current.gitPanelState ?? {}),
+        ...patch
+      }
+      // Drop the field entirely when there's nothing meaningful to persist —
+      // keeps the saved JSON tidy and avoids cluttering older builds with
+      // empty objects after a single refresh cycle.
+      const isEmpty = next.selectedGitPath === undefined && next.activeWorktreeRoot === undefined
+      const newProj: Project = isEmpty
+        ? { ...current, gitPanelState: undefined }
+        : { ...current, gitPanelState: next }
+      const newProjects = [...state.projects]
+      newProjects[idx] = newProj
+      return { projects: newProjects }
+    })
+    get().persistProjects()
+  },
+
   startAISession: async (project, providerId?) => {
     const settings = useSettingsStore.getState().settings
     const configuredPid = providerId ?? settings.defaultAITool
@@ -253,14 +295,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const command = cmd || resolved.command || pid
     const title = `${resolved.name} · ${folderName(project.path)}`
 
-    const tabId = useTerminalStore.getState().createTerminal(
-      undefined,
-      title,
-      command,
-      undefined,
-      project.path,
-      pid
-    )
+    const tabId = useTerminalStore
+      .getState()
+      .createTerminal(undefined, title, command, undefined, project.path, pid)
     return tabId ?? null
   }
 }))

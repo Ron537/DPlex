@@ -42,9 +42,27 @@ describe('filterSessions', () => {
 
   describe('searchQuery', () => {
     const sessions = [
-      makeSession({ id: 'abc-123', displayName: 'Refactor parser', summary: 'Clean up lexer', cwd: '/x/parser', branch: 'feat/parse' }),
-      makeSession({ id: 'def-456', displayName: 'Add tests', summary: 'Unit + e2e', cwd: '/x/web', branch: 'feat/tests' }),
-      makeSession({ id: 'ghi-789', displayName: 'Fix bug', summary: undefined, cwd: undefined, branch: undefined })
+      makeSession({
+        id: 'abc-123',
+        displayName: 'Refactor parser',
+        summary: 'Clean up lexer',
+        cwd: '/x/parser',
+        branch: 'feat/parse'
+      }),
+      makeSession({
+        id: 'def-456',
+        displayName: 'Add tests',
+        summary: 'Unit + e2e',
+        cwd: '/x/web',
+        branch: 'feat/tests'
+      }),
+      makeSession({
+        id: 'ghi-789',
+        displayName: 'Fix bug',
+        summary: undefined,
+        cwd: undefined,
+        branch: undefined
+      })
     ]
 
     it('matches against displayName (case-insensitive)', () => {
@@ -121,7 +139,9 @@ describe('filterSessions', () => {
     ]
 
     it("'all' disables the filter", () => {
-      expect(filterSessions(sessions, { ...NO_FILTERS, statusFilters: new Set(['all']) })).toHaveLength(sessions.length)
+      expect(
+        filterSessions(sessions, { ...NO_FILTERS, statusFilters: new Set(['all']) })
+      ).toHaveLength(sessions.length)
     })
 
     it("'active' bucket matches status === 'active' regardless of detailedStatus", () => {
@@ -139,17 +159,26 @@ describe('filterSessions', () => {
     })
 
     it("'running' bucket matches thinking + executingTool", () => {
-      const result = filterSessions(sessions, { ...NO_FILTERS, statusFilters: new Set(['running']) })
+      const result = filterSessions(sessions, {
+        ...NO_FILTERS,
+        statusFilters: new Set(['running'])
+      })
       expect(result.map((s) => s.id).sort()).toEqual(['active', 'idle-exec', 'idle-thinking'])
     })
 
     it("'waiting' bucket matches awaitingApproval + waitingForUser", () => {
-      const result = filterSessions(sessions, { ...NO_FILTERS, statusFilters: new Set(['waiting']) })
+      const result = filterSessions(sessions, {
+        ...NO_FILTERS,
+        statusFilters: new Set(['waiting'])
+      })
       expect(result.map((s) => s.id).sort()).toEqual(['idle-approval', 'idle-waituser'])
     })
 
     it('multi-select combines buckets with OR', () => {
-      const result = filterSessions(sessions, { ...NO_FILTERS, statusFilters: new Set(['active', 'waiting']) })
+      const result = filterSessions(sessions, {
+        ...NO_FILTERS,
+        statusFilters: new Set(['active', 'waiting'])
+      })
       expect(result.map((s) => s.id).sort()).toEqual(
         ['active', 'active-idle-detailed', 'idle-approval', 'idle-waituser'].sort()
       )
@@ -161,12 +190,16 @@ describe('filterSessions', () => {
 
     it('idle session with undefined detailedStatus is treated as idle', () => {
       const only = [makeSession({ id: 'x', status: 'idle', detailedStatus: undefined })]
-      expect(filterSessions(only, { ...NO_FILTERS, statusFilters: new Set(['idle']) })).toHaveLength(1)
+      expect(
+        filterSessions(only, { ...NO_FILTERS, statusFilters: new Set(['idle']) })
+      ).toHaveLength(1)
     })
 
     it('active session with undefined detailedStatus is treated as thinking (running bucket)', () => {
       const only = [makeSession({ id: 'x', status: 'active', detailedStatus: undefined })]
-      expect(filterSessions(only, { ...NO_FILTERS, statusFilters: new Set(['running']) })).toHaveLength(1)
+      expect(
+        filterSessions(only, { ...NO_FILTERS, statusFilters: new Set(['running']) })
+      ).toHaveLength(1)
     })
   })
 
@@ -212,11 +245,44 @@ describe('filterSessions', () => {
 
   describe('filter composition', () => {
     const sessions = [
-      makeSession({ id: 'a', aiTool: 'copilot-cli', status: 'idle', messageCount: 5, displayName: 'Auth work' }),
-      makeSession({ id: 'b', aiTool: 'copilot-cli', status: 'idle', messageCount: 0, displayName: 'Auth empty' }),
-      makeSession({ id: 'c', aiTool: 'claude-code', status: 'idle', messageCount: 5, displayName: 'Auth claude' }),
-      makeSession({ id: 'd', aiTool: 'copilot-cli', status: 'active', messageCount: 0, displayName: 'Auth active', detailedStatus: 'thinking' }),
-      makeSession({ id: 'e', aiTool: 'copilot-cli', status: 'idle', messageCount: 5, displayName: 'Unrelated', summary: 'Totally different', branch: 'other' })
+      makeSession({
+        id: 'a',
+        aiTool: 'copilot-cli',
+        status: 'idle',
+        messageCount: 5,
+        displayName: 'Auth work'
+      }),
+      makeSession({
+        id: 'b',
+        aiTool: 'copilot-cli',
+        status: 'idle',
+        messageCount: 0,
+        displayName: 'Auth empty'
+      }),
+      makeSession({
+        id: 'c',
+        aiTool: 'claude-code',
+        status: 'idle',
+        messageCount: 5,
+        displayName: 'Auth claude'
+      }),
+      makeSession({
+        id: 'd',
+        aiTool: 'copilot-cli',
+        status: 'active',
+        messageCount: 0,
+        displayName: 'Auth active',
+        detailedStatus: 'thinking'
+      }),
+      makeSession({
+        id: 'e',
+        aiTool: 'copilot-cli',
+        status: 'idle',
+        messageCount: 5,
+        displayName: 'Unrelated',
+        summary: 'Totally different',
+        branch: 'other'
+      })
     ]
 
     it('applies search + provider + hideEmpty together', () => {

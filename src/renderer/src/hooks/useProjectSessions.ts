@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTerminalStore } from '../stores/terminalStore'
 import { useProjectStore } from '../stores/projectStore'
-import type { AISession, TerminalTab } from '../types'
+import type { AISession, TerminalTab, EditorTab } from '../types'
+import { isTerminalTab } from '../types'
 
 /**
  * Normalize a path for comparison: resolve separators, trim trailing slashes.
@@ -73,7 +74,7 @@ export function useProjectSessions(projectPath: string): ProjectActivity {
  */
 export function computeProjectActivity(
   sessions: AISession[],
-  groups: { id: string; tabs: TerminalTab[] }[],
+  groups: { id: string; tabs: EditorTab[] }[],
   projectPath: string,
   allProjectPaths: string[] = [projectPath]
 ): ProjectActivity {
@@ -86,10 +87,9 @@ export function computeProjectActivity(
 
   const matchedSessions = sessions.filter((s) => s.cwd && matchesThisProject(s.cwd))
 
-  // Any tab with a cwd that falls under the project counts — including plain
-  // terminals (no command) launched from inside the checkout.
   const matchedTabs = groups.flatMap((g) =>
     g.tabs
+      .filter(isTerminalTab)
       .filter((t) => t.cwd && matchesThisProject(t.cwd))
       .map((t) => ({ ...t, groupId: g.id }))
   )
@@ -119,12 +119,10 @@ export function computeProjectActivity(
  */
 export function buildProjectSessionIndex(
   sessions: AISession[],
-  groups: { id: string; tabs: TerminalTab[] }[],
+  groups: { id: string; tabs: EditorTab[] }[],
   projectPaths: string[]
 ): Map<string, ProjectActivity> {
-  const sorted = [...projectPaths].sort(
-    (a, b) => normalizePath(b).length - normalizePath(a).length
-  )
+  const sorted = [...projectPaths].sort((a, b) => normalizePath(b).length - normalizePath(a).length)
 
   const sessionsByProject = new Map<string, AISession[]>()
   const tabsByProject = new Map<string, (TerminalTab & { groupId: string })[]>()
@@ -140,7 +138,10 @@ export function buildProjectSessionIndex(
   }
 
   const allTabs = groups.flatMap((g) =>
-    g.tabs.filter((t) => t.cwd).map((t) => ({ ...t, groupId: g.id }))
+    g.tabs
+      .filter(isTerminalTab)
+      .filter((t) => t.cwd)
+      .map((t) => ({ ...t, groupId: g.id }))
   )
   for (const tab of allTabs) {
     if (!tab.cwd) continue

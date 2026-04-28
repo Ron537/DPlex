@@ -1,6 +1,9 @@
+import type { ChangedFile, DiffScope as DiffScopeFromIPC } from '../../../preload/index'
+
 export interface TerminalTab {
   id: string
   title: string
+  kind?: 'terminal'
   shell?: string
   cwd?: string
   command?: string // Direct command to exec (e.g. 'copilot'). Bypasses shell — no shell to fall back to.
@@ -11,6 +14,44 @@ export interface TerminalTab {
   worktreeBranch?: string // Worktree branch at launch time (display hint, not authoritative)
 }
 
+export type DiffScopePersisted = DiffScopeFromIPC
+
+/**
+ * Per-file diff tab. Replaces the legacy "diff dashboard" tab — each tab now
+ * targets a single file. The Git panel produces these tabs (preview or
+ * permanent); preview tabs are not persisted in the workspace.
+ */
+export interface FileDiffTab {
+  id: string
+  title: string
+  kind: 'fileDiff'
+  /** Absolute, OS-correct repo root path (project or worktree). */
+  repoRootFs: string
+  /** Display name of the repo (project / worktree name). */
+  repoLabel: string
+  scope: DiffScopePersisted
+  /** Snapshot of the file's status at open time. Refreshed when the underlying
+   *  changes list updates and this gitPath is still present. */
+  file: ChangedFile
+  /** True when this tab is in "preview" mode (italic title, single slot
+   *  per group, replaced on next single-click). Promoted to permanent
+   *  on double-click or programmatic action. */
+  preview?: boolean
+  /** UI preference per tab. */
+  sideBySide?: boolean
+}
+
+export type EditorTab = TerminalTab | FileDiffTab
+
+export function isFileDiffTab(tab: EditorTab): tab is FileDiffTab {
+  return tab.kind === 'fileDiff'
+}
+
+export function isTerminalTab(tab: EditorTab): tab is TerminalTab {
+  // Positive match to stay sound if a third tab kind is added later.
+  return tab.kind === 'terminal' || tab.kind === undefined
+}
+
 export interface ShellInfo {
   name: string
   path: string
@@ -18,8 +59,14 @@ export interface ShellInfo {
 
 export interface EditorGroup {
   id: string
-  tabs: TerminalTab[]
+  tabs: EditorTab[]
   activeTabId: string
+  /**
+   * Id of the tab currently in "preview" mode within this group (if any).
+   * Invariant: undefined or refers to an existing tab in `tabs`. Sanitized
+   * by `terminalStore.sanitizeGroupPreview` after every group/tab mutation.
+   */
+  previewTabId?: string
 }
 
 export interface LayoutNode {
@@ -83,6 +130,17 @@ export interface AppSettings {
   worktreeDefaults: WorktreeDefaults
   /** Show the health footer bar at the bottom of the Projects panel. */
   projectPanelShowFooter: boolean
+  /** Right-side Git panel UI state. */
+  gitPanel: GitPanelSettings
+}
+
+export interface GitPanelSettings {
+  /** Whether the panel is expanded. Default: false (collapsed strip). */
+  open: boolean
+  /** Expanded width in px. */
+  width: number
+  /** Per-section collapse map. Keys are section ids. */
+  sectionCollapse: { changes: boolean }
 }
 
 export interface WorktreeDefaults {
@@ -121,6 +179,18 @@ export interface Project {
   createdByDplexWorktree?: boolean
   /** Pinned projects render in a dedicated section at the top of the panel. */
   pinned?: boolean
+  /**
+   * Git panel UI state scoped to this project. Persists across sessions so
+   * the user lands back on the file they last opened. Validated on each
+   * refresh — stale paths fall back to the first changed file, and an
+   * invalid worktree root falls back to the project root.
+   */
+  gitPanelState?: ProjectGitPanelState
+}
+
+export interface ProjectGitPanelState {
+  selectedGitPath?: string
+  activeWorktreeRoot?: string
 }
 
 export interface ProviderInfo {
@@ -129,4 +199,3 @@ export interface ProviderInfo {
   command: string
   icon?: string
 }
-

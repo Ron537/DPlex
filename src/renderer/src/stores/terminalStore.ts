@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { TerminalTab, EditorGroup, LayoutNode } from '../types'
+import type { TerminalTab, FileDiffTab, EditorTab, EditorGroup, LayoutNode } from '../types'
+import { isFileDiffTab, isTerminalTab } from '../types'
 import { destroyTerminal } from '../services/terminalRegistry'
 
 let tabCounter = 0
@@ -30,6 +31,12 @@ function makeTerminalTab(
     command,
     providerId
   }
+}
+
+/** Default title for a fileDiff tab — basename of the gitPath. */
+function makeFileDiffTitle(gitPath: string): string {
+  const i = gitPath.lastIndexOf('/')
+  return i >= 0 ? gitPath.slice(i + 1) : gitPath
 }
 
 function removeGroupFromLayout(node: LayoutNode, groupId: string): LayoutNode | null {
@@ -75,7 +82,14 @@ interface TerminalState {
   activeGroupId: string | null
   restored: boolean
 
-  createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string, providerId?: string) => string
+  createTerminal: (
+    groupId?: string,
+    title?: string,
+    command?: string,
+    shell?: string,
+    cwd?: string,
+    providerId?: string
+  ) => string
   closeTerminal: (terminalId: string) => void
   setActiveGroup: (groupId: string) => void
   setActiveTerminalInGroup: (groupId: string, terminalId: string) => void
@@ -91,10 +105,35 @@ interface TerminalState {
   reorderTab: (groupId: string, fromIndex: number, toIndex: number) => void
   getActiveGroup: () => EditorGroup | undefined
   getAllTerminalIds: () => string[]
-  restoreWorkspace: (groups: EditorGroup[], layout: LayoutNode, activeGroupId: string | null) => void
+  restoreWorkspace: (
+    groups: EditorGroup[],
+    layout: LayoutNode,
+    activeGroupId: string | null
+  ) => void
   setPid: (terminalId: string, pid: number) => void
   associateSessionId: (terminalId: string, sessionId: string) => void
-  setWorktreeMetadata: (terminalId: string, worktreePath: string, worktreeBranch: string | null) => void
+  setWorktreeMetadata: (
+    terminalId: string,
+    worktreePath: string,
+    worktreeBranch: string | null
+  ) => void
+  openOrFocusDiffTab: (input: {
+    repoRootFs: string
+    repoLabel: string
+    scope: FileDiffTab['scope']
+    title?: string
+    /** Tab to spawn for. Required — repo-level diff dashboards no longer exist. */
+    file: FileDiffTab['file']
+    /** When true, opened as a preview tab (italic, single slot per group,
+     *  replaceable on next openOrFocus). Defaults to false (permanent). */
+    preview?: boolean
+  }) => string
+  /**
+   * Promote the named tab from preview → permanent within its group.
+   * No-op when the tab isn't currently the group's preview.
+   */
+  promotePreviewTab: (tabId: string) => void
+  updateFileDiffTab: (tabId: string, patch: Partial<Omit<FileDiffTab, 'id' | 'kind'>>) => void
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -102,7 +141,14 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   layout: { type: 'group', groupId: 'group-0' },
   activeGroupId: null,
   restored: false,
-  createTerminal: (groupId?: string, title?: string, command?: string, shell?: string, cwd?: string, providerId?: string) => {
+  createTerminal: (
+    groupId?: string,
+    title?: string,
+    command?: string,
+    shell?: string,
+    cwd?: string,
+    providerId?: string
+  ) => {
     const state = get()
     const tab = makeTerminalTab(title, undefined, shell, cwd, command, providerId)
     const targetGroupId = groupId ?? state.activeGroupId
@@ -137,9 +183,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
     set({
       groups: state.groups.map((g) =>
-        g.id === targetGroupId
-          ? { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id }
-          : g
+        g.id === targetGroupId ? { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id } : g
       ),
       activeGroupId: targetGroupId
     })
@@ -154,7 +198,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     // path). Just killing the PTY sometimes leaves the Copilot process alive
     // (SIGHUP may not propagate or may be caught), so the session keeps
     // showing as active in history/project views until a manual close.
-    let tab: TerminalTab | undefined
+    let tab: EditorTab | undefined
     for (const g of state.groups) {
       const found = g.tabs.find((t) => t.id === terminalId)
       if (found) {
@@ -162,7 +206,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
         break
       }
     }
-    if (tab?.sessionId && tab.providerId) {
+    if (tab && isTerminalTab(tab) && tab.sessionId && tab.providerId) {
       void window.dplex.sessions.close(tab.sessionId, tab.providerId).catch(() => {
         // ignore — provider may fail if the session is already gone
       })
@@ -175,10 +219,15 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       if (idx === -1) return g
       const newTabs = g.tabs.filter((t) => t.id !== terminalId)
       const newActive =
-        g.activeTabId === terminalId
-          ? newTabs[Math.max(0, idx - 1)]?.id ?? null
-          : g.activeTabId
-      return { ...g, tabs: newTabs, activeTabId: newActive ?? '' }
+        g.activeTabId === terminalId ? (newTabs[Math.max(0, idx - 1)]?.id ?? null) : g.activeTabId
+      return {
+        ...g,
+        tabs: newTabs,
+        activeTabId: newActive ?? '',
+        // Invariant: previewTabId must be undefined or refer to an existing
+        // tab in `tabs`. If we removed the preview tab, clear the slot.
+        previewTabId: g.previewTabId === terminalId ? undefined : g.previewTabId
+      }
     })
 
     // Remove empty groups
@@ -192,9 +241,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     }
 
     const newActiveGroupId =
-      aliveGroups.find((g) => g.id === state.activeGroupId)?.id ??
-      aliveGroups[0]?.id ??
-      null
+      aliveGroups.find((g) => g.id === state.activeGroupId)?.id ?? aliveGroups[0]?.id ?? null
 
     set({
       groups: aliveGroups,
@@ -209,9 +256,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   setActiveTerminalInGroup: (groupId, terminalId) => {
     set((state) => ({
-      groups: state.groups.map((g) =>
-        g.id === groupId ? { ...g, activeTabId: terminalId } : g
-      ),
+      groups: state.groups.map((g) => (g.id === groupId ? { ...g, activeTabId: terminalId } : g)),
       activeGroupId: groupId
     }))
   },
@@ -250,25 +295,37 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     // Don't move to same group (unless reordering — handled by reorderTab)
     if (sourceGroup.id === targetGroupId && insertIndex === undefined) return
 
+    // Moving a tab between groups always promotes it out of preview state —
+    // the source group's preview slot is cleared if the moved tab held it,
+    // and the target group's preview slot is NOT inherited.
+    const wasPreviewInSource = sourceGroup.previewTabId === terminalId
+    const movedTab =
+      wasPreviewInSource && isFileDiffTab(tab) ? ({ ...tab, preview: false } as EditorTab) : tab
+
     // Remove from source
     const newSourceTabs = sourceGroup.tabs.filter((t) => t.id !== terminalId)
     const newSourceActive =
       sourceGroup.activeTabId === terminalId
-        ? newSourceTabs[0]?.id ?? ''
+        ? (newSourceTabs[0]?.id ?? '')
         : sourceGroup.activeTabId
 
     let updatedGroups = state.groups.map((g) => {
       if (g.id === sourceGroup.id) {
-        return { ...g, tabs: newSourceTabs, activeTabId: newSourceActive }
+        return {
+          ...g,
+          tabs: newSourceTabs,
+          activeTabId: newSourceActive,
+          previewTabId: wasPreviewInSource ? undefined : g.previewTabId
+        }
       }
       if (g.id === targetGroupId) {
         const newTabs = [...g.tabs]
         if (insertIndex !== undefined) {
-          newTabs.splice(insertIndex, 0, tab)
+          newTabs.splice(insertIndex, 0, movedTab)
         } else {
-          newTabs.push(tab)
+          newTabs.push(movedTab)
         }
-        return { ...g, tabs: newTabs, activeTabId: tab.id }
+        return { ...g, tabs: newTabs, activeTabId: movedTab.id }
       }
       return g
     })
@@ -296,20 +353,30 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     if (!sourceGroup) return
     const tab = sourceGroup.tabs.find((t) => t.id === terminalId)!
 
+    // Promote out of preview when moving — see moveTerminalToGroup.
+    const wasPreviewInSource = sourceGroup.previewTabId === terminalId
+    const movedTab =
+      wasPreviewInSource && isFileDiffTab(tab) ? ({ ...tab, preview: false } as EditorTab) : tab
+
     // Create new group with this tab
     const newGid = makeGroupId()
-    const newGroup: EditorGroup = { id: newGid, tabs: [tab], activeTabId: tab.id }
+    const newGroup: EditorGroup = { id: newGid, tabs: [movedTab], activeTabId: movedTab.id }
 
     // Remove from source
     const newSourceTabs = sourceGroup.tabs.filter((t) => t.id !== terminalId)
     const newSourceActive =
       sourceGroup.activeTabId === terminalId
-        ? newSourceTabs[0]?.id ?? ''
+        ? (newSourceTabs[0]?.id ?? '')
         : sourceGroup.activeTabId
 
     let updatedGroups = state.groups.map((g) =>
       g.id === sourceGroup.id
-        ? { ...g, tabs: newSourceTabs, activeTabId: newSourceActive }
+        ? {
+            ...g,
+            tabs: newSourceTabs,
+            activeTabId: newSourceActive,
+            previewTabId: wasPreviewInSource ? undefined : g.previewTabId
+          }
         : g
     )
     updatedGroups = [...updatedGroups.filter((g) => g.tabs.length > 0), newGroup]
@@ -363,7 +430,17 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       const num = parseInt(g.id.replace('group-', ''), 10)
       if (!isNaN(num) && num >= groupCounter) groupCounter = num + 1
     }
-    set({ groups, layout, activeGroupId, restored: true })
+    // Sanitize the previewTabId invariant: must be undefined or refer to an
+    // existing tab in `tabs`. Older serialized workspaces lack the field
+    // entirely (undefined is fine); newer ones may persist a value pointing
+    // to a tab we deliberately filtered out (preview tabs aren't persisted),
+    // so re-validate.
+    const sanitized = groups.map((g) => ({
+      ...g,
+      previewTabId:
+        g.previewTabId && g.tabs.some((t) => t.id === g.previewTabId) ? g.previewTabId : undefined
+    }))
+    set({ groups: sanitized, layout, activeGroupId, restored: true })
   },
 
   setPid: (terminalId, pid) => {
@@ -389,10 +466,175 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       groups: state.groups.map((g) => ({
         ...g,
         tabs: g.tabs.map((t) =>
-          t.id === terminalId
+          t.id === terminalId && isTerminalTab(t)
             ? { ...t, worktreePath, worktreeBranch: worktreeBranch ?? undefined }
             : t
         )
+      }))
+    }))
+  },
+
+  openOrFocusDiffTab: (input): string => {
+    const state = get()
+
+    // Preview-tab semantics: if the active group already has a preview tab,
+    // we MUTATE its bound file/title in place (single slot per group). This
+    // mirrors VS Code: clicking a second file replaces the previewed file
+    // rather than spawning a sibling tab.
+    if (input.preview === true) {
+      const targetGroupId = state.activeGroupId
+      const targetGroup = state.groups.find((g) => g.id === targetGroupId)
+      if (targetGroup && targetGroup.previewTabId) {
+        const previewTab = targetGroup.tabs.find((t) => t.id === targetGroup.previewTabId)
+        if (previewTab && isFileDiffTab(previewTab)) {
+          const replacement: FileDiffTab = {
+            ...previewTab,
+            repoRootFs: input.repoRootFs,
+            repoLabel: input.repoLabel,
+            scope: input.scope,
+            file: input.file,
+            title: input.title ?? makeFileDiffTitle(input.file.gitPath),
+            preview: true
+          }
+          set({
+            activeGroupId: targetGroup.id,
+            groups: state.groups.map((g) =>
+              g.id === targetGroup.id
+                ? {
+                    ...g,
+                    tabs: g.tabs.map((t) => (t.id === replacement.id ? replacement : t)),
+                    activeTabId: replacement.id
+                  }
+                : g
+            )
+          })
+          return replacement.id
+        }
+      }
+    }
+
+    // No preview slot to reuse — focus an existing PERMANENT tab for the
+    // same (repoRootFs, scope.kind, gitPath); only fall through to creating
+    // a new tab when no match exists. If a PREVIEW tab already exists for the
+    // same file and we're being asked to open it permanently (preview=false),
+    // promote it in place rather than spawning a duplicate.
+    for (const g of state.groups) {
+      for (const t of g.tabs) {
+        if (
+          isFileDiffTab(t) &&
+          t.repoRootFs === input.repoRootFs &&
+          t.scope.kind === input.scope.kind &&
+          t.file.gitPath === input.file.gitPath
+        ) {
+          if (t.preview && input.preview === false) {
+            const promoted: FileDiffTab = { ...t, preview: false }
+            set({
+              activeGroupId: g.id,
+              groups: state.groups.map((gg) =>
+                gg.id === g.id
+                  ? {
+                      ...gg,
+                      tabs: gg.tabs.map((tt) => (tt.id === t.id ? promoted : tt)),
+                      activeTabId: t.id,
+                      previewTabId: gg.previewTabId === t.id ? undefined : gg.previewTabId
+                    }
+                  : gg
+              )
+            })
+            return t.id
+          }
+          if (!t.preview) {
+            set({
+              activeGroupId: g.id,
+              groups: state.groups.map((gg) =>
+                gg.id === g.id ? { ...gg, activeTabId: t.id } : gg
+              )
+            })
+            return t.id
+          }
+        }
+      }
+    }
+
+    const tab: FileDiffTab = {
+      id: makeTerminalId(),
+      title: input.title ?? makeFileDiffTitle(input.file.gitPath),
+      kind: 'fileDiff',
+      repoRootFs: input.repoRootFs,
+      repoLabel: input.repoLabel,
+      scope: input.scope,
+      file: input.file,
+      preview: input.preview === true
+    }
+    const targetGroupId = state.activeGroupId
+    if (state.groups.length === 0 || !targetGroupId) {
+      const newGroup: EditorGroup = {
+        id: 'group-0',
+        tabs: [tab],
+        activeTabId: tab.id,
+        previewTabId: tab.preview ? tab.id : undefined
+      }
+      set({
+        groups: [newGroup],
+        layout: { type: 'group', groupId: newGroup.id },
+        activeGroupId: newGroup.id
+      })
+      return tab.id
+    }
+    const targetGroup = state.groups.find((g) => g.id === targetGroupId)
+    if (!targetGroup) {
+      const gid = makeGroupId()
+      const newGroup: EditorGroup = {
+        id: gid,
+        tabs: [tab],
+        activeTabId: tab.id,
+        previewTabId: tab.preview ? tab.id : undefined
+      }
+      set({
+        groups: [...state.groups, newGroup],
+        activeGroupId: gid
+      })
+      return tab.id
+    }
+    set({
+      groups: state.groups.map((g) =>
+        g.id === targetGroupId
+          ? {
+              ...g,
+              tabs: [...g.tabs, tab],
+              activeTabId: tab.id,
+              // New preview tab claims the slot, evicting any previous preview
+              // metadata (which should not happen — would mean the existing
+              // preview tab survived the replace branch above).
+              previewTabId: tab.preview ? tab.id : g.previewTabId
+            }
+          : g
+      ),
+      activeGroupId: targetGroupId
+    })
+    return tab.id
+  },
+
+  promotePreviewTab: (tabId: string): void => {
+    set((state) => ({
+      groups: state.groups.map((g) => {
+        if (g.previewTabId !== tabId) return g
+        return {
+          ...g,
+          previewTabId: undefined,
+          tabs: g.tabs.map((t) =>
+            t.id === tabId && isFileDiffTab(t) ? { ...t, preview: false } : t
+          )
+        }
+      })
+    }))
+  },
+
+  updateFileDiffTab: (tabId: string, patch: Partial<Omit<FileDiffTab, 'id' | 'kind'>>): void => {
+    set((state) => ({
+      groups: state.groups.map((g) => ({
+        ...g,
+        tabs: g.tabs.map((t) => (t.id === tabId && isFileDiffTab(t) ? { ...t, ...patch } : t))
       }))
     }))
   }
@@ -401,6 +643,15 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 // Debounced auto-save: persist workspace state 2s after last change
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
+/**
+ * Internal — exported only for tests. Returns the JSON shape we persist.
+ * The shape is intentionally `unknown` at module boundary to discourage
+ * external coupling.
+ */
+export function _serializeWorkspaceForTests(): unknown {
+  return serializeWorkspace()
+}
+
 function serializeWorkspace(): unknown {
   const { groups, layout, activeGroupId } = useTerminalStore.getState()
   return {
@@ -408,18 +659,41 @@ function serializeWorkspace(): unknown {
     groups: groups.map((g) => ({
       id: g.id,
       tabs: g.tabs
-        .filter((t) => t.command) // Only persist AI session tabs
-        .map((t) => ({
-          id: t.id,
-          title: t.title,
-          cwd: t.cwd,
-          command: t.command,
-          sessionId: t.sessionId,
-          providerId: t.providerId,
-          worktreePath: t.worktreePath,
-          worktreeBranch: t.worktreeBranch
-        })),
+        // Persist AI session terminal tabs (have a `command`) and
+        // PERMANENT fileDiff tabs. Plain shell terminals and preview tabs
+        // are intentionally NOT persisted.
+        .filter((t) => {
+          if (isFileDiffTab(t)) return t.preview !== true
+          return isTerminalTab(t) && !!t.command
+        })
+        .map((t) => {
+          if (isFileDiffTab(t)) {
+            return {
+              kind: 'fileDiff' as const,
+              id: t.id,
+              title: t.title,
+              repoRootFs: t.repoRootFs,
+              repoLabel: t.repoLabel,
+              scope: t.scope,
+              file: t.file,
+              sideBySide: t.sideBySide
+            }
+          }
+          return {
+            id: t.id,
+            title: t.title,
+            cwd: t.cwd,
+            command: t.command,
+            sessionId: t.sessionId,
+            providerId: t.providerId,
+            worktreePath: t.worktreePath,
+            worktreeBranch: t.worktreeBranch
+          }
+        }),
       activeTabId: g.activeTabId
+      // previewTabId is deliberately NOT serialized — preview tabs are
+      // transient and their slot is recomputed on first openOrFocusDiffTab
+      // after restore.
     })),
     activeGroupId,
     savedAt: new Date().toISOString()

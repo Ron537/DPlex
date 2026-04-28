@@ -9,6 +9,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Right-side Git panel.** Auto-binds to the active project and hosts a
+  collapsible **Changes** section. Replaces the standalone "View Changes"
+  diff tab. Toggle with **Cmd/Ctrl+Shift+G** (suppressed in inputs and
+  the Monaco find widget). Defaults to collapsed but the watcher stays
+  alive so the count badge in the collapsed strip is always accurate.
+- Git panel: **VS Code-style preview tabs.** Single-click a changed file
+  opens a preview tab (italic title) in the active editor group; clicking
+  another file replaces the preview slot in place. Double-click the file
+  in the panel — or the tab title itself — promotes it to a permanent
+  tab. Preview tabs are not persisted across restarts; permanent file
+  diff tabs are.
+- Git panel: **Worktree switcher** that lists the project-registered
+  worktrees only (hidden when ≤ 1). Selection is per-project and
+  validated on every refresh — falls back to the project root if the
+  active worktree is removed.
+- Git panel: **First-class empty / error states** dispatched on a new
+  `diff:getRepoStatus` IPC: not-a-repo, missing-path, detached HEAD,
+  mid-merge, mid-rebase, mid-cherry-pick, mid-bisect, generic error.
+- **Per-file diff tabs** (`kind: 'fileDiff'`) powered by Monaco's
+  `DiffEditor` with side-by-side ⇄ inline toggle, syntax highlighting,
+  and live refresh as the working tree changes. Forces inline mode for
+  newly-created files (one side empty). Read-only in v1.
+- Diff viewer: **Staged / Unstaged toggle** in the bottom-left of the
+  editor pane for files that have changes in both the index and the
+  working tree (porcelain status `MM`, `MD`, `AM`, etc.), so both
+  halves of the change can be inspected without leaving the tab.
+- Diff viewer: refreshes the changes list and selected diff when the
+  app window regains focus or becomes visible, so changes made in an
+  external editor show up immediately on Linux where `fs.watch` can
+  miss deep edits.
+
+### Changed
+
+- Diff watcher: **`.gitignore`-aware filtering.** Replaces the previous
+  hardcoded "noisy directory" list with a per-repo matcher built from
+  every `.gitignore` in the worktree, plus `.git/info/exclude` and the
+  user's global `core.excludesfile`. Events under ignored paths are
+  dropped before triggering a `git status`, so build outputs and tooling
+  caches that the old list didn't know about (Rust `target/`, Bazel
+  outputs, custom log dirs, etc.) no longer keep the panel in a
+  perpetual refresh. Hardened against hostile input (`.gitignore`
+  symlinks rejected, 1 MiB size cap, 5 s `git config` timeout) and
+  defers matcher construction off the IPC critical path so subscribing
+  never blocks on a large-repo walk. The matcher is rebuilt
+  automatically (debounced) when any `.gitignore`, `.git/info/exclude`,
+  or the user's global excludes file changes; linked worktrees follow
+  the `commondir` pointer to find the shared `info/exclude`.
+- The standalone repo-level `diff` tab kind is removed; opening changes
+  is now exclusively through the Git panel. The project context menu
+  entry is renamed **View Changes → Show in Git Panel**, which expands
+  the panel and binds to that project. Legacy `kind: 'diff'` entries in
+  persisted workspaces are quietly dropped on restore.
+- Editor groups gained a `previewTabId` invariant (always undefined or
+  pointing at an existing tab), kept in sync across close, move, split,
+  and restore mutations.
+
+### Fixed
+
+- (Internal) Generation-based stale-response protection in the Git
+  panel store so a slow `diff:listChanges` from a previous project
+  cannot overwrite the cache after the user switches projects.
+
+### Fixed
+
+- Diff viewer no longer fails to update the editor pane when a file
+  is edited again while already selected (e.g. consecutive saves to
+  the same file). The changes-list dedup that was meant to suppress
+  needless "Refreshing…" spinners was also suppressing the editor
+  re-fetch — content-change detection is now decoupled from the
+  list-signature check.
+- Diff viewer now resolves the watcher's `.git` directory through the
+  `gitdir:` pointer when a project is a **linked worktree**, so file
+  watches actually fire (previously the watcher was looking at a
+  non-existent `.git/HEAD` inside the worktree).
+- Diff viewer: per-WebContents subscription counts are now released
+  in full on tab/window destroy. A single tab subscribing to several
+  diff scopes for the same repo no longer leaves dangling watcher
+  refs after close.
+- Diff viewer: hunk patches now emit `\ No newline at end of file`
+  markers when either side lacks a trailing newline, so
+  `git apply --check` accepts patches over files without a trailing
+  newline (previously the apply would silently fail).
+- Diff viewer: conflicted files (`UU`/`AA`/`DD`) now fall back from
+  stage 0 to stage 2 (`ours`) and then `HEAD` when reading the left
+  side, so the diff renders meaningful content during a merge instead
+  of showing an empty pane.
+- Diff viewer: the `diff:saveWorkingFile` IPC handler now realpaths
+  the parent directory (and the file itself, when it exists) and
+  rejects writes that would escape the repo root via a symlink.
+- Diff viewer: `safeScope` rejects refs starting with whitespace or
+  `-` and refs containing NUL, defense-in-depth against argv-style
+  flag injection.
+- Diff viewer: switching files in the editor pane no longer briefly
+  shows the previous file's content under the new file's language —
+  content is cleared synchronously on selection change.
+- Diff viewer: eliminated the editor flicker that occurred on every
+  background watcher refresh. The editor now reuses Monaco's diff
+  models via `setValue()` when the same file is re-fetched (preserves
+  scroll position, cursor, and selection); content is no longer
+  cleared to empty on refresh; byte-identical refetches are skipped
+  entirely; and the "Loading…" badge only appears on the initial
+  load or when the selected file changes — not on background refreshes.
+
+### Added (continued)
+
+- New `git:listChanges`, `git:fileDiffContent`, `git:listBranches`,
+  `git:stage*/unstage*/discard*/revert*/applyHunk` IPC channels for
+  full SCM parity (renderer hookup is partial in v1).
+- Monaco editor lazy-loaded on first diff tab open — keeps the cold
+  start bundle small (~1.4 MB main chunk; ~6 MB Monaco loaded only
+  when needed). CSP relaxed to allow `worker-src 'self' blob:` for
+  Monaco's language workers.
+
 - **Claude Code provider.** DPlex now discovers, monitors, resumes,
   closes, and deletes sessions from the `claude` CLI alongside Copilot
   CLI. Sessions live at `~/.claude/projects/<slug-of-cwd>/<id>.jsonl`,

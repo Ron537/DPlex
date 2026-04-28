@@ -19,7 +19,7 @@ export interface AppTheme {
 }
 
 export const THEMES: Record<string, AppTheme> = {
-  'dplex': {
+  dplex: {
     id: 'dplex',
     name: 'DPlex',
     variant: 'dark',
@@ -46,7 +46,14 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#a5f3fc',
       brightWhite: '#ffffff'
     },
-    ui: { bg: '#131313', bgAlt: '#0a0a0a', border: '#2a2a2a', text: '#d4d4d4', textMuted: '#666666', accent: '#8b5cf6' }
+    ui: {
+      bg: '#131313',
+      bgAlt: '#0a0a0a',
+      border: '#2a2a2a',
+      text: '#d4d4d4',
+      textMuted: '#666666',
+      accent: '#8b5cf6'
+    }
   },
   'dplex-light': {
     id: 'dplex-light',
@@ -75,9 +82,19 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#06b6d4',
       brightWhite: '#111111'
     },
-    ui: { bg: '#fafafa', bgAlt: '#f1f1f1', border: '#e2e2e2', text: '#1f1f1f', textMuted: '#6b7280', accent: '#7c3aed', hover: 'rgba(124,58,237,0.08)', scrollbar: 'rgba(0,0,0,0.15)', scrollbarHover: 'rgba(0,0,0,0.25)' }
+    ui: {
+      bg: '#fafafa',
+      bgAlt: '#f1f1f1',
+      border: '#e2e2e2',
+      text: '#1f1f1f',
+      textMuted: '#6b7280',
+      accent: '#7c3aed',
+      hover: 'rgba(124,58,237,0.08)',
+      scrollbar: 'rgba(0,0,0,0.15)',
+      scrollbarHover: 'rgba(0,0,0,0.25)'
+    }
   },
-  'midnight': {
+  midnight: {
     id: 'midnight',
     name: 'Midnight',
     variant: 'dark',
@@ -104,9 +121,16 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#99e9f2',
       brightWhite: '#ffffff'
     },
-    ui: { bg: '#1a1a2e', bgAlt: '#16162a', border: '#2a2a4a', text: '#e0e0e0', textMuted: '#888', accent: '#74c0fc' }
+    ui: {
+      bg: '#1a1a2e',
+      bgAlt: '#16162a',
+      border: '#2a2a4a',
+      text: '#e0e0e0',
+      textMuted: '#888',
+      accent: '#74c0fc'
+    }
   },
-  'dracula': {
+  dracula: {
     id: 'dracula',
     name: 'Dracula',
     variant: 'dark',
@@ -133,9 +157,16 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#a4ffff',
       brightWhite: '#ffffff'
     },
-    ui: { bg: '#282a36', bgAlt: '#21222c', border: '#44475a', text: '#f8f8f2', textMuted: '#6272a4', accent: '#bd93f9' }
+    ui: {
+      bg: '#282a36',
+      bgAlt: '#21222c',
+      border: '#44475a',
+      text: '#f8f8f2',
+      textMuted: '#6272a4',
+      accent: '#bd93f9'
+    }
   },
-  'monokai': {
+  monokai: {
     id: 'monokai',
     name: 'Monokai',
     variant: 'dark',
@@ -162,9 +193,16 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#a1efe4',
       brightWhite: '#f9f8f5'
     },
-    ui: { bg: '#272822', bgAlt: '#1e1f1c', border: '#49483e', text: '#f8f8f2', textMuted: '#75715e', accent: '#a6e22e' }
+    ui: {
+      bg: '#272822',
+      bgAlt: '#1e1f1c',
+      border: '#49483e',
+      text: '#f8f8f2',
+      textMuted: '#75715e',
+      accent: '#a6e22e'
+    }
   },
-  'nord': {
+  nord: {
     id: 'nord',
     name: 'Nord',
     variant: 'dark',
@@ -191,7 +229,14 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#8fbcbb',
       brightWhite: '#eceff4'
     },
-    ui: { bg: '#2e3440', bgAlt: '#272c36', border: '#3b4252', text: '#d8dee9', textMuted: '#4c566a', accent: '#88c0d0' }
+    ui: {
+      bg: '#2e3440',
+      bgAlt: '#272c36',
+      border: '#3b4252',
+      text: '#d8dee9',
+      textMuted: '#4c566a',
+      accent: '#88c0d0'
+    }
   },
   'solarized-dark': {
     id: 'solarized-dark',
@@ -220,7 +265,14 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#93a1a1',
       brightWhite: '#fdf6e3'
     },
-    ui: { bg: '#002b36', bgAlt: '#001f27', border: '#073642', text: '#839496', textMuted: '#586e75', accent: '#268bd2' }
+    ui: {
+      bg: '#002b36',
+      bgAlt: '#001f27',
+      border: '#073642',
+      text: '#839496',
+      textMuted: '#586e75',
+      accent: '#268bd2'
+    }
   },
   'github-dark': {
     id: 'github-dark',
@@ -249,7 +301,14 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#a5d6ff',
       brightWhite: '#f0f6fc'
     },
-    ui: { bg: '#0d1117', bgAlt: '#010409', border: '#21262d', text: '#c9d1d9', textMuted: '#484f58', accent: '#79c0ff' }
+    ui: {
+      bg: '#0d1117',
+      bgAlt: '#010409',
+      border: '#21262d',
+      text: '#c9d1d9',
+      textMuted: '#484f58',
+      accent: '#79c0ff'
+    }
   },
   'github-light': {
     id: 'github-light',
@@ -278,7 +337,17 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#3192aa',
       brightWhite: '#8c959f'
     },
-    ui: { bg: '#ffffff', bgAlt: '#f6f8fa', border: '#d0d7de', text: '#24292f', textMuted: '#57606a', accent: '#0969da', hover: 'rgba(0,0,0,0.06)', scrollbar: 'rgba(0,0,0,0.15)', scrollbarHover: 'rgba(0,0,0,0.25)' }
+    ui: {
+      bg: '#ffffff',
+      bgAlt: '#f6f8fa',
+      border: '#d0d7de',
+      text: '#24292f',
+      textMuted: '#57606a',
+      accent: '#0969da',
+      hover: 'rgba(0,0,0,0.06)',
+      scrollbar: 'rgba(0,0,0,0.15)',
+      scrollbarHover: 'rgba(0,0,0,0.25)'
+    }
   },
   'solarized-light': {
     id: 'solarized-light',
@@ -307,7 +376,17 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#93a1a1',
       brightWhite: '#fdf6e3'
     },
-    ui: { bg: '#fdf6e3', bgAlt: '#eee8d5', border: '#d3cbb7', text: '#657b83', textMuted: '#93a1a1', accent: '#268bd2', hover: 'rgba(0,0,0,0.06)', scrollbar: 'rgba(0,0,0,0.15)', scrollbarHover: 'rgba(0,0,0,0.25)' }
+    ui: {
+      bg: '#fdf6e3',
+      bgAlt: '#eee8d5',
+      border: '#d3cbb7',
+      text: '#657b83',
+      textMuted: '#93a1a1',
+      accent: '#268bd2',
+      hover: 'rgba(0,0,0,0.06)',
+      scrollbar: 'rgba(0,0,0,0.15)',
+      scrollbarHover: 'rgba(0,0,0,0.25)'
+    }
   },
   'quiet-light': {
     id: 'quiet-light',
@@ -336,7 +415,17 @@ export const THEMES: Record<string, AppTheme> = {
       brightCyan: '#0083b2',
       brightWhite: '#ffffff'
     },
-    ui: { bg: '#f5f5f5', bgAlt: '#e8e8e8', border: '#d1d1d1', text: '#333333', textMuted: '#777777', accent: '#325cc0', hover: 'rgba(0,0,0,0.06)', scrollbar: 'rgba(0,0,0,0.15)', scrollbarHover: 'rgba(0,0,0,0.25)' }
+    ui: {
+      bg: '#f5f5f5',
+      bgAlt: '#e8e8e8',
+      border: '#d1d1d1',
+      text: '#333333',
+      textMuted: '#777777',
+      accent: '#325cc0',
+      hover: 'rgba(0,0,0,0.06)',
+      scrollbar: 'rgba(0,0,0,0.15)',
+      scrollbarHover: 'rgba(0,0,0,0.25)'
+    }
   }
 }
 

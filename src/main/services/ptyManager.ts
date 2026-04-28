@@ -118,7 +118,9 @@ export function discoverAvailableShells(): ShellInfo[] {
         fs.accessSync(resolved, fs.constants.X_OK)
         seen.add(resolved)
         shells.push({ name, path: resolved })
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
   } else {
     // macOS / Linux: read /etc/shells, filtered to interactive shells only
@@ -130,16 +132,30 @@ export function discoverAvailableShells(): ShellInfo[] {
           addShell(trimmed)
         }
       }
-    } catch { /* fallback below */ }
+    } catch {
+      /* fallback below */
+    }
 
     // Check common paths not always in /etc/shells
-    const fallbacks = ['/bin/zsh', '/bin/bash', '/bin/sh',
-      '/usr/bin/fish', '/usr/local/bin/fish', '/opt/homebrew/bin/fish',
-      '/usr/local/bin/zsh', '/opt/homebrew/bin/zsh',
-      '/usr/local/bin/bash', '/opt/homebrew/bin/bash',
-      '/usr/bin/tmux', '/usr/local/bin/tmux', '/opt/homebrew/bin/tmux',
-      '/usr/local/bin/nu', '/opt/homebrew/bin/nu',
-      '/usr/local/bin/pwsh', '/opt/homebrew/bin/pwsh']
+    const fallbacks = [
+      '/bin/zsh',
+      '/bin/bash',
+      '/bin/sh',
+      '/usr/bin/fish',
+      '/usr/local/bin/fish',
+      '/opt/homebrew/bin/fish',
+      '/usr/local/bin/zsh',
+      '/opt/homebrew/bin/zsh',
+      '/usr/local/bin/bash',
+      '/opt/homebrew/bin/bash',
+      '/usr/bin/tmux',
+      '/usr/local/bin/tmux',
+      '/opt/homebrew/bin/tmux',
+      '/usr/local/bin/nu',
+      '/opt/homebrew/bin/nu',
+      '/usr/local/bin/pwsh',
+      '/opt/homebrew/bin/pwsh'
+    ]
     for (const p of fallbacks) {
       addShell(p)
     }
@@ -181,9 +197,7 @@ export function createPty(
 
   // When a command is provided, exec it through the login shell so PATH is set up
   // but the shell process is replaced — no shell to fall back to on Ctrl+C
-  const shellArgs = command
-    ? getCommandShellArgs(shellPath, command)
-    : getShellArgs(shellPath)
+  const shellArgs = command ? getCommandShellArgs(shellPath, command) : getShellArgs(shellPath)
 
   const ptyProcess = pty.spawn(shellPath, shellArgs, {
     name: 'xterm-256color',

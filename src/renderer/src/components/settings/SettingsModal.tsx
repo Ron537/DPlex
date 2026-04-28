@@ -12,7 +12,13 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type SettingsTab = 'appearance' | 'terminal' | 'ai-tools' | 'notifications' | 'worktrees' | 'shortcuts'
+type SettingsTab =
+  | 'appearance'
+  | 'terminal'
+  | 'ai-tools'
+  | 'notifications'
+  | 'worktrees'
+  | 'shortcuts'
 
 const SHORTCUTS: { category: string; items: { keys: string; description: string }[] }[] = [
   {
@@ -51,16 +57,24 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
   { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard }
 ]
 
-function SettingItem({ label, description, children }: {
+function SettingItem({
+  label,
+  description,
+  children
+}: {
   label: string
   description?: string
   children: React.ReactNode
 }): React.JSX.Element {
   return (
     <div className="mb-5 last:mb-0">
-      <span className="block text-[11px] font-medium mb-0.5" style={{ color: 'var(--dplex-text)' }}>{label}</span>
+      <span className="block text-[11px] font-medium mb-0.5" style={{ color: 'var(--dplex-text)' }}>
+        {label}
+      </span>
       {description && (
-        <p className="text-[10px] mb-2" style={{ color: 'var(--dplex-text-muted)' }}>{description}</p>
+        <p className="text-[10px] mb-2" style={{ color: 'var(--dplex-text-muted)' }}>
+          {description}
+        </p>
       )}
       {children}
     </div>
@@ -134,9 +148,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="rounded-lg shadow-2xl w-[580px] h-[420px] flex flex-col" style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}>
+      <div
+        className="rounded-lg shadow-2xl w-[580px] h-[420px] flex flex-col"
+        style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--dplex-border)' }}>
+        <div
+          className="flex items-center justify-between px-5 py-3 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--dplex-border)' }}
+        >
           <div className="flex items-center gap-2" style={{ color: 'var(--dplex-text)' }}>
             <Settings size={16} />
             <span className="text-sm font-medium">Settings</span>
@@ -153,7 +173,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
         {/* Body: sidebar + content */}
         <div className="flex flex-1 min-h-0">
           {/* Vertical tab sidebar */}
-          <div className="w-[150px] flex-shrink-0 py-2 px-2 space-y-0.5" style={{ borderRight: '1px solid var(--dplex-border)' }}>
+          <div
+            className="w-[150px] flex-shrink-0 py-2 px-2 space-y-0.5"
+            style={{ borderRight: '1px solid var(--dplex-border)' }}
+          >
             {TABS.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -178,8 +201,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
           {/* Tab content */}
           <div className="flex-1 p-5 overflow-y-auto">
             {activeTab === 'appearance' && (
-              <SettingItem label="Theme" description="Controls the color theme for the terminal and UI.">
-                <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--dplex-text-muted)' }}>Dark</h4>
+              <SettingItem
+                label="Theme"
+                description="Controls the color theme for the terminal and UI."
+              >
+                <h4
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-2"
+                  style={{ color: 'var(--dplex-text-muted)' }}
+                >
+                  Dark
+                </h4>
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   {darkThemes.map((t) => {
                     const theme = getTheme(t.id)
@@ -189,7 +220,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         key={t.id}
                         onClick={() => applyNow({ theme: t.id })}
                         className={`flex flex-col items-center gap-1.5 p-2 rounded border transition-colors ${
-                          isSelected ? 'border-[var(--dplex-accent)] bg-[var(--dplex-accent)]/10' : 'border-transparent hover:border-zinc-500'
+                          isSelected
+                            ? 'border-[var(--dplex-accent)] bg-[var(--dplex-accent)]/10'
+                            : 'border-transparent hover:border-zinc-500'
                         }`}
                         style={{ borderColor: isSelected ? undefined : 'var(--dplex-border)' }}
                       >
@@ -197,16 +230,29 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                           className="w-full h-6 rounded flex items-center gap-0.5 px-1"
                           style={{ backgroundColor: theme.terminal.background as string }}
                         >
-                          <span style={{ color: theme.terminal.green as string, fontSize: 8 }}>$</span>
-                          <span style={{ color: theme.terminal.foreground as string, fontSize: 8 }}>hello</span>
-                          <span style={{ color: theme.terminal.blue as string, fontSize: 8 }}>~</span>
+                          <span style={{ color: theme.terminal.green as string, fontSize: 8 }}>
+                            $
+                          </span>
+                          <span style={{ color: theme.terminal.foreground as string, fontSize: 8 }}>
+                            hello
+                          </span>
+                          <span style={{ color: theme.terminal.blue as string, fontSize: 8 }}>
+                            ~
+                          </span>
                         </div>
-                        <span className="text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>{t.name}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                          {t.name}
+                        </span>
                       </button>
                     )
                   })}
                 </div>
-                <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--dplex-text-muted)' }}>Light</h4>
+                <h4
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-2"
+                  style={{ color: 'var(--dplex-text-muted)' }}
+                >
+                  Light
+                </h4>
                 <div className="grid grid-cols-3 gap-2">
                   {lightThemes.map((t) => {
                     const theme = getTheme(t.id)
@@ -216,7 +262,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         key={t.id}
                         onClick={() => applyNow({ theme: t.id })}
                         className={`flex flex-col items-center gap-1.5 p-2 rounded border transition-colors ${
-                          isSelected ? 'border-[var(--dplex-accent)] bg-[var(--dplex-accent)]/10' : 'border-transparent hover:border-zinc-500'
+                          isSelected
+                            ? 'border-[var(--dplex-accent)] bg-[var(--dplex-accent)]/10'
+                            : 'border-transparent hover:border-zinc-500'
                         }`}
                         style={{ borderColor: isSelected ? undefined : 'var(--dplex-border)' }}
                       >
@@ -224,11 +272,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                           className="w-full h-6 rounded flex items-center gap-0.5 px-1"
                           style={{ backgroundColor: theme.terminal.background as string }}
                         >
-                          <span style={{ color: theme.terminal.green as string, fontSize: 8 }}>$</span>
-                          <span style={{ color: theme.terminal.foreground as string, fontSize: 8 }}>hello</span>
-                          <span style={{ color: theme.terminal.blue as string, fontSize: 8 }}>~</span>
+                          <span style={{ color: theme.terminal.green as string, fontSize: 8 }}>
+                            $
+                          </span>
+                          <span style={{ color: theme.terminal.foreground as string, fontSize: 8 }}>
+                            hello
+                          </span>
+                          <span style={{ color: theme.terminal.blue as string, fontSize: 8 }}>
+                            ~
+                          </span>
                         </div>
-                        <span className="text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>{t.name}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                          {t.name}
+                        </span>
                       </button>
                     )
                   })}
@@ -238,36 +294,57 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
             {activeTab === 'terminal' && (
               <>
-                <SettingItem label="Default Shell" description="The shell used when opening new terminals. Override per-tab with the dropdown next to the + button.">
+                <SettingItem
+                  label="Default Shell"
+                  description="The shell used when opening new terminals. Override per-tab with the dropdown next to the + button."
+                >
                   <select
                     value={settings.defaultShell}
                     onChange={(e) => applyNow({ defaultShell: e.target.value })}
                     className="w-full rounded px-3 py-1.5 text-xs outline-none"
-                    style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
+                    style={{
+                      backgroundColor: 'var(--dplex-bg-alt)',
+                      border: '1px solid var(--dplex-border)',
+                      color: 'var(--dplex-text)'
+                    }}
                   >
                     <option value="">System default</option>
                     {shells.map((s) => (
-                      <option key={s.path} value={s.path}>{s.name} ({s.path})</option>
+                      <option key={s.path} value={s.path}>
+                        {s.name} ({s.path})
+                      </option>
                     ))}
                   </select>
                 </SettingItem>
 
-                <SettingItem label="Font Size" description={`Controls the terminal font size in pixels. Currently ${settings.fontSize}px.`}>
+                <SettingItem
+                  label="Font Size"
+                  description={`Controls the terminal font size in pixels. Currently ${settings.fontSize}px.`}
+                >
                   <input
-                    type="range" min={10} max={24}
+                    type="range"
+                    min={10}
+                    max={24}
                     value={settings.fontSize}
                     onChange={(e) => applyDebounced({ fontSize: Number(e.target.value) })}
                     className="w-full accent-[var(--dplex-accent)]"
                   />
                 </SettingItem>
 
-                <SettingItem label="Font Family" description="Controls the terminal font family. Use a monospace font for best results.">
+                <SettingItem
+                  label="Font Family"
+                  description="Controls the terminal font family. Use a monospace font for best results."
+                >
                   <input
                     type="text"
                     value={settings.fontFamily}
                     onChange={(e) => applyDebounced({ fontFamily: e.target.value })}
                     className="w-full rounded px-3 py-1.5 text-xs outline-none"
-                    style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
+                    style={{
+                      backgroundColor: 'var(--dplex-bg-alt)',
+                      border: '1px solid var(--dplex-border)',
+                      color: 'var(--dplex-text)'
+                    }}
                   />
                 </SettingItem>
               </>
@@ -275,15 +352,24 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
             {activeTab === 'ai-tools' && (
               <>
-                <SettingItem label="Default AI Tool" description="The AI CLI tool used for session discovery and integration.">
+                <SettingItem
+                  label="Default AI Tool"
+                  description="The AI CLI tool used for session discovery and integration."
+                >
                   <select
                     value={settings.defaultAITool}
                     onChange={(e) => applyNow({ defaultAITool: e.target.value })}
                     className="w-full rounded px-3 py-1.5 text-xs outline-none"
-                    style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
+                    style={{
+                      backgroundColor: 'var(--dplex-bg-alt)',
+                      border: '1px solid var(--dplex-border)',
+                      color: 'var(--dplex-text)'
+                    }}
                   >
                     {providers.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
                     ))}
                   </select>
                 </SettingItem>
@@ -298,7 +384,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       min={1}
                       max={90}
                       value={settings.sessionMaxAgeDays}
-                      onChange={(e) => applyDebounced({ sessionMaxAgeDays: Number(e.target.value) })}
+                      onChange={(e) =>
+                        applyDebounced({ sessionMaxAgeDays: Number(e.target.value) })
+                      }
                       className="flex-1 accent-[var(--dplex-accent)]"
                     />
                     <input
@@ -313,9 +401,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         }
                       }}
                       className="w-16 rounded px-2 py-1 text-xs outline-none"
-                      style={{ backgroundColor: 'var(--dplex-bg-alt)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text)' }}
+                      style={{
+                        backgroundColor: 'var(--dplex-bg-alt)',
+                        border: '1px solid var(--dplex-border)',
+                        color: 'var(--dplex-text)'
+                      }}
                     />
-                    <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>days</span>
+                    <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                      days
+                    </span>
                   </div>
                 </SettingItem>
 
@@ -658,7 +752,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     <option value="none">Do nothing</option>
                   </select>
                 </SettingItem>
-
               </>
             )}
 
@@ -666,7 +759,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
               <div className="space-y-4">
                 {SHORTCUTS.map((group) => (
                   <div key={group.category}>
-                    <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--dplex-accent)' }}>
+                    <h4
+                      className="text-[10px] font-semibold uppercase tracking-wider mb-2"
+                      style={{ color: 'var(--dplex-accent)' }}
+                    >
                       {group.category}
                     </h4>
                     <div className="space-y-1">
@@ -676,10 +772,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                           className="flex items-center justify-between py-1.5 px-2 rounded"
                           style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
                         >
-                          <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>{item.description}</span>
+                          <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                            {item.description}
+                          </span>
                           <kbd
                             className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-                            style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)', color: 'var(--dplex-text-muted)' }}
+                            style={{
+                              backgroundColor: 'var(--dplex-bg)',
+                              border: '1px solid var(--dplex-border)',
+                              color: 'var(--dplex-text-muted)'
+                            }}
                           >
                             {item.keys}
                           </kbd>

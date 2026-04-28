@@ -4,10 +4,7 @@
  * `${providerId}:${sessionId}` to avoid collisions across providers.
  */
 
-export type AttentionKind =
-  | 'waitingForApproval'
-  | 'waitingForInput'
-  | 'finished'
+export type AttentionKind = 'waitingForApproval' | 'waitingForInput' | 'finished'
 
 /**
  * A single attention event. At most one active event per composite id.

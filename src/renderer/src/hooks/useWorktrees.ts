@@ -23,9 +23,7 @@ export function releaseWorktreeSubscription(repoPath: string): void {
   releaseSubscription(repoPath)
 }
 
-function ensureSubscription(
-  repoPath: string
-): Promise<{ token: string; repoRoot: string } | null> {
+function ensureSubscription(repoPath: string): Promise<{ token: string; repoRoot: string } | null> {
   const existing = refCounts.get(repoPath)
   if (existing) {
     existing.count += 1

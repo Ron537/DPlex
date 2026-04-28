@@ -75,11 +75,7 @@ export async function handleWorktreeCreated(input: WorktreePostCreateInput): Pro
       termStore.setWorktreeMetadata(setupTabId, worktreePath, branch)
       const preparedTempPath = prepared.tempPath
       registerExitHandler(setupTabId, (exitCode) => {
-        void window.dplex.worktrees.recordSetupResult(
-          originProject.path,
-          worktreePath,
-          exitCode
-        )
+        void window.dplex.worktrees.recordSetupResult(originProject.path, worktreePath, exitCode)
         void window.dplex.worktrees.cleanupSetupScript(preparedTempPath)
         void runAfterCreate()
       })

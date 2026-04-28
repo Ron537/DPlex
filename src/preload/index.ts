@@ -10,6 +10,15 @@ import type {
   WorktreeInfo,
   WorktreesChangedPayload
 } from '../main/services/worktrees/types'
+import type {
+  ChangeListResult,
+  DiffScope,
+  FileDiffContent,
+  FileDiffRequest,
+  HunkMutationRequest,
+  MutationResult,
+  RepoStatus
+} from '../main/services/diff/types'
 
 export type {
   CreateWorktreeOptions,
@@ -21,6 +30,18 @@ export type {
   WorktreesChangedPayload
 } from '../main/services/worktrees/types'
 
+export type {
+  ChangedFile,
+  ChangeListResult,
+  DiffScope,
+  FileDiffContent,
+  FileDiffRequest,
+  GitStatusCode,
+  HunkMutationRequest,
+  MutationResult,
+  RepoStatus,
+  RepoStatusKind
+} from '../main/services/diff/types'
 
 export interface DplexAPI {
   pty: {
@@ -32,12 +53,23 @@ export interface DplexAPI {
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }
   sessions: {
-    discover: (providerId?: string) => Promise<{
-      id: string; displayName: string; status: string; aiTool: string;
-      createdAt: string; updatedAt: string; cwd?: string; summary?: string;
-      detailedStatus?: string; branch?: string;
-      messageCount?: number; toolCallCount?: number; lastActivityTime?: number
-    }[]>
+    discover: (providerId?: string) => Promise<
+      {
+        id: string
+        displayName: string
+        status: string
+        aiTool: string
+        createdAt: string
+        updatedAt: string
+        cwd?: string
+        summary?: string
+        detailedStatus?: string
+        branch?: string
+        messageCount?: number
+        toolCallCount?: number
+        lastActivityTime?: number
+      }[]
+    >
     delete: (sessionId: string, providerId?: string) => Promise<void>
     close: (sessionId: string, providerId?: string) => Promise<boolean>
     loadWorkspace: () => Promise<unknown | null>
@@ -51,21 +83,47 @@ export interface DplexAPI {
     getResumeCommand: (providerId: string, sessionId: string) => Promise<string | null>
     getNewSessionCommand: (providerId: string) => Promise<string | null>
     getProviders: () => Promise<{ id: string; name: string; command: string; icon?: string }[]>
-    getPrompts: (sessionId: string, providerId?: string, limit?: number) => Promise<{ text: string; timestamp?: number; index: number }[]>
+    getPrompts: (
+      sessionId: string,
+      providerId?: string,
+      limit?: number
+    ) => Promise<{ text: string; timestamp?: number; index: number }[]>
     startWatching: () => Promise<void>
     stopWatching: () => Promise<void>
-    onSessionUpdated: (callback: (session: {
-      id: string; displayName: string; status: string; aiTool: string;
-      createdAt: string; updatedAt: string; cwd?: string; summary?: string;
-      detailedStatus?: string; branch?: string;
-      messageCount?: number; toolCallCount?: number; lastActivityTime?: number
-    }) => void) => () => void
-    onSessionAdded: (callback: (session: {
-      id: string; displayName: string; status: string; aiTool: string;
-      createdAt: string; updatedAt: string; cwd?: string; summary?: string;
-      detailedStatus?: string; branch?: string;
-      messageCount?: number; toolCallCount?: number; lastActivityTime?: number
-    }) => void) => () => void
+    onSessionUpdated: (
+      callback: (session: {
+        id: string
+        displayName: string
+        status: string
+        aiTool: string
+        createdAt: string
+        updatedAt: string
+        cwd?: string
+        summary?: string
+        detailedStatus?: string
+        branch?: string
+        messageCount?: number
+        toolCallCount?: number
+        lastActivityTime?: number
+      }) => void
+    ) => () => void
+    onSessionAdded: (
+      callback: (session: {
+        id: string
+        displayName: string
+        status: string
+        aiTool: string
+        createdAt: string
+        updatedAt: string
+        cwd?: string
+        summary?: string
+        detailedStatus?: string
+        branch?: string
+        messageCount?: number
+        toolCallCount?: number
+        lastActivityTime?: number
+      }) => void
+    ) => () => void
     onSessionRemoved: (callback: (sessionId: string, providerId: string) => void) => () => void
   }
   settings: {
@@ -83,17 +141,13 @@ export interface DplexAPI {
   }
   git: {
     getBranch: (dirPath: string) => Promise<string | null>
-    inspectPath: (
-      dirPath: string
-    ) => Promise<{
+    inspectPath: (dirPath: string) => Promise<{
       topLevel: string
       mainRepoPath: string
       isWorktree: boolean
       branch: string | null
     } | null>
-    watchBranch: (
-      dirPath: string
-    ) => Promise<{ token: string; repoRoot: string } | null>
+    watchBranch: (dirPath: string) => Promise<{ token: string; repoRoot: string } | null>
     unwatchBranch: (token: string) => void
     onBranchChanged: (callback: (repoRoot: string, branch: string | null) => void) => () => void
   }
@@ -111,29 +165,48 @@ export interface DplexAPI {
     listBranches: (
       repoRoot: string
     ) => Promise<{ local: string[]; remote: string[]; defaultBase: string | null }>
-    create: (
-      opts: CreateWorktreeOptions
-    ) => Promise<CreateWorktreeResult | WorktreeError>
+    create: (opts: CreateWorktreeOptions) => Promise<CreateWorktreeResult | WorktreeError>
     delete: (opts: DeleteWorktreeOptions) => Promise<DeleteWorktreeResult | WorktreeError>
     watchRepo: (repoRoot: string) => Promise<{ token: string; repoRoot: string } | null>
     unwatchRepo: (token: string) => void
     refresh: (repoRoot: string) => Promise<void>
     reveal: (path: string) => Promise<void>
-    recordSetupResult: (
-      repoRoot: string,
-      worktreePath: string,
-      exitCode: number
-    ) => Promise<void>
+    recordSetupResult: (repoRoot: string, worktreePath: string, exitCode: number) => Promise<void>
     /**
      * Write the given script body to a temporary file and return a shell
      * command that executes it. Caller should create a PTY tab with that
      * command. A follow-up `worktrees:cleanupSetupScript` removes the tmp file.
      */
-    prepareSetupScript: (
-      scriptBody: string
-    ) => Promise<{ command: string; tempPath: string }>
+    prepareSetupScript: (scriptBody: string) => Promise<{ command: string; tempPath: string }>
     cleanupSetupScript: (tempPath: string) => Promise<void>
     onChanged: (callback: (payload: WorktreesChangedPayload) => void) => () => void
+  }
+  diff: {
+    listChanges: (repoRootFs: string, scope: DiffScope) => Promise<ChangeListResult>
+    getRepoStatus: (repoRootFs: string) => Promise<RepoStatus>
+    fileContent: (req: FileDiffRequest) => Promise<FileDiffContent>
+    listBranches: (repoRootFs: string) => Promise<{
+      local: string[]
+      remote: string[]
+      defaultBase: string | null
+      resolvedDefaultRef: string | null
+    }>
+    stageFile: (repoRootFs: string, gitPath: string) => Promise<MutationResult>
+    unstageFile: (repoRootFs: string, gitPath: string) => Promise<MutationResult>
+    discardFile: (repoRootFs: string, gitPath: string) => Promise<MutationResult>
+    revertFile: (repoRootFs: string, gitPath: string) => Promise<MutationResult>
+    deleteUntracked: (repoRootFs: string, gitPath: string) => Promise<MutationResult>
+    applyHunk: (req: HunkMutationRequest) => Promise<MutationResult>
+    saveWorkingFile: (
+      repoRootFs: string,
+      gitPath: string,
+      content: string,
+      eol: '\n' | '\r\n',
+      expectedMtimeMs?: number
+    ) => Promise<MutationResult & { mtimeMs?: number }>
+    subscribe: (repoRootFs: string) => Promise<{ token: string; repoRootFs: string } | null>
+    unsubscribe: (token: string) => void
+    onChangesChanged: (callback: (payload: { repoRootFs: string }) => void) => () => void
   }
 }
 
@@ -162,17 +235,21 @@ const dplexAPI: DplexAPI = {
   },
   sessions: {
     discover: (providerId?) => ipcRenderer.invoke('sessions:discover', providerId),
-    delete: (sessionId, providerId?) => ipcRenderer.invoke('sessions:delete', sessionId, providerId),
+    delete: (sessionId, providerId?) =>
+      ipcRenderer.invoke('sessions:delete', sessionId, providerId),
     close: (sessionId, providerId?) => ipcRenderer.invoke('sessions:close', sessionId, providerId),
     loadWorkspace: () => ipcRenderer.invoke('sessions:loadWorkspace'),
     saveWorkspace: (data) => ipcRenderer.invoke('sessions:saveWorkspace', data),
     saveWorkspaceSync: (data) => ipcRenderer.sendSync('sessions:saveWorkspaceSync', data),
     resolveSessionId: (pid, cwd?, providerId?) =>
       ipcRenderer.invoke('sessions:resolveSessionId', pid, cwd, providerId),
-    getResumeCommand: (providerId, sessionId) => ipcRenderer.invoke('sessions:getResumeCommand', providerId, sessionId),
-    getNewSessionCommand: (providerId) => ipcRenderer.invoke('sessions:getNewSessionCommand', providerId),
+    getResumeCommand: (providerId, sessionId) =>
+      ipcRenderer.invoke('sessions:getResumeCommand', providerId, sessionId),
+    getNewSessionCommand: (providerId) =>
+      ipcRenderer.invoke('sessions:getNewSessionCommand', providerId),
     getProviders: () => ipcRenderer.invoke('sessions:getProviders'),
-    getPrompts: (sessionId, providerId?, limit?) => ipcRenderer.invoke('sessions:getPrompts', sessionId, providerId, limit),
+    getPrompts: (sessionId, providerId?, limit?) =>
+      ipcRenderer.invoke('sessions:getPrompts', sessionId, providerId, limit),
     startWatching: () => ipcRenderer.invoke('sessions:startWatching'),
     stopWatching: () => ipcRenderer.invoke('sessions:stopWatching'),
     onSessionUpdated: (callback) => {
@@ -257,15 +334,44 @@ const dplexAPI: DplexAPI = {
       ipcRenderer.invoke('worktrees:recordSetupResult', repoRoot, worktreePath, exitCode),
     prepareSetupScript: (scriptBody) =>
       ipcRenderer.invoke('worktrees:prepareSetupScript', scriptBody),
-    cleanupSetupScript: (tempPath) =>
-      ipcRenderer.invoke('worktrees:cleanupSetupScript', tempPath),
+    cleanupSetupScript: (tempPath) => ipcRenderer.invoke('worktrees:cleanupSetupScript', tempPath),
     onChanged: (callback) => {
-      const handler = (
-        _event: Electron.IpcRendererEvent,
-        payload: WorktreesChangedPayload
-      ): void => callback(payload)
+      const handler = (_event: Electron.IpcRendererEvent, payload: WorktreesChangedPayload): void =>
+        callback(payload)
       ipcRenderer.on('worktrees:changed', handler)
       return () => ipcRenderer.removeListener('worktrees:changed', handler)
+    }
+  },
+  diff: {
+    listChanges: (repoRootFs, scope) => ipcRenderer.invoke('diff:listChanges', repoRootFs, scope),
+    getRepoStatus: (repoRootFs) => ipcRenderer.invoke('diff:getRepoStatus', repoRootFs),
+    fileContent: (req) => ipcRenderer.invoke('diff:fileContent', req),
+    listBranches: (repoRootFs) => ipcRenderer.invoke('diff:listBranches', repoRootFs),
+    stageFile: (repoRootFs, gitPath) => ipcRenderer.invoke('diff:stageFile', repoRootFs, gitPath),
+    unstageFile: (repoRootFs, gitPath) =>
+      ipcRenderer.invoke('diff:unstageFile', repoRootFs, gitPath),
+    discardFile: (repoRootFs, gitPath) =>
+      ipcRenderer.invoke('diff:discardFile', repoRootFs, gitPath),
+    revertFile: (repoRootFs, gitPath) => ipcRenderer.invoke('diff:revertFile', repoRootFs, gitPath),
+    deleteUntracked: (repoRootFs, gitPath) =>
+      ipcRenderer.invoke('diff:deleteUntracked', repoRootFs, gitPath),
+    applyHunk: (req) => ipcRenderer.invoke('diff:applyHunk', req),
+    saveWorkingFile: (repoRootFs, gitPath, content, eol, expectedMtimeMs) =>
+      ipcRenderer.invoke(
+        'diff:saveWorkingFile',
+        repoRootFs,
+        gitPath,
+        content,
+        eol,
+        expectedMtimeMs
+      ),
+    subscribe: (repoRootFs) => ipcRenderer.invoke('diff:subscribe', repoRootFs),
+    unsubscribe: (token) => ipcRenderer.send('diff:unsubscribe', token),
+    onChangesChanged: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: { repoRootFs: string }): void =>
+        callback(payload)
+      ipcRenderer.on('git:diff:changes-changed', handler)
+      return () => ipcRenderer.removeListener('git:diff:changes-changed', handler)
     }
   }
 }

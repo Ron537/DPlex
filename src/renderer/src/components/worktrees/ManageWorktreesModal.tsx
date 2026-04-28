@@ -108,9 +108,7 @@ export function ManageWorktreesModal({
               Loading worktrees…
             </div>
           )}
-          {error && (
-            <div className="px-4 py-2 text-[11px] text-red-400">{error}</div>
-          )}
+          {error && <div className="px-4 py-2 text-[11px] text-red-400">{error}</div>}
           {!loading && worktrees.length === 0 && !error && (
             <div
               className="px-4 py-6 text-center text-[11px]"
@@ -121,8 +119,7 @@ export function ManageWorktreesModal({
           )}
           {worktrees.map((wt) => {
             const backing = findBackingProject(wt.path)
-            const dirty =
-              (wt.status.dirtyCount ?? 0) + (wt.status.untrackedCount ?? 0) > 0
+            const dirty = (wt.status.dirtyCount ?? 0) + (wt.status.untrackedCount ?? 0) > 0
             const isOrphan = !wt.isMain && !backing
             return (
               <div
@@ -172,10 +169,7 @@ export function ManageWorktreesModal({
                       </span>
                     )}
                     {dirty && (
-                      <AlertCircle
-                        size={10}
-                        style={{ color: 'var(--dplex-status-executing)' }}
-                      />
+                      <AlertCircle size={10} style={{ color: 'var(--dplex-status-executing)' }} />
                     )}
                   </div>
                   <div

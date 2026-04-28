@@ -67,9 +67,7 @@ export async function inspectPath(dirPath: string): Promise<{
     ])
     if (!gitDirRaw || !commonDirRaw) return null
     // Both may be relative to CWD; resolve against the toplevel.
-    const gitDir = path.isAbsolute(gitDirRaw)
-      ? gitDirRaw
-      : path.resolve(topLevel, gitDirRaw)
+    const gitDir = path.isAbsolute(gitDirRaw) ? gitDirRaw : path.resolve(topLevel, gitDirRaw)
     const commonDir = path.isAbsolute(commonDirRaw)
       ? commonDirRaw
       : path.resolve(topLevel, commonDirRaw)
@@ -271,7 +269,11 @@ export function execGitRaw(
         if (err) {
           const maybeCode = (err as NodeJS.ErrnoException & { code?: number | string }).code
           const code = typeof maybeCode === 'number' ? maybeCode : 1
-          resolve({ code, stdout: String(stdout ?? ''), stderr: String(stderr ?? err.message ?? '') })
+          resolve({
+            code,
+            stdout: String(stdout ?? ''),
+            stderr: String(stderr ?? err.message ?? '')
+          })
           return
         }
         resolve({ code: 0, stdout: String(stdout ?? ''), stderr: String(stderr ?? '') })
@@ -358,10 +360,7 @@ export async function revListCount(
   base: string,
   head: string
 ): Promise<number | null> {
-  const result = await execGitRaw(
-    ['rev-list', '--count', `${base}..${head}`],
-    repoRoot
-  )
+  const result = await execGitRaw(['rev-list', '--count', `${base}..${head}`], repoRoot)
   if (result.code !== 0) return null
   const n = parseInt(result.stdout.trim(), 10)
   return Number.isFinite(n) ? n : null
@@ -396,10 +395,7 @@ export async function revListAheadBehind(
  * Return the upstream tracking ref for a branch (e.g. "origin/feature/auth"),
  * or null if the branch has no upstream set.
  */
-export async function getUpstream(
-  repoRoot: string,
-  branch: string
-): Promise<string | null> {
+export async function getUpstream(repoRoot: string, branch: string): Promise<string | null> {
   const result = await execGitRaw(
     ['rev-parse', '--abbrev-ref', '--symbolic-full-name', `${branch}@{upstream}`],
     repoRoot

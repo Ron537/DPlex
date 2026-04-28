@@ -25,9 +25,9 @@ export function ProjectWorktreeDefaultsModal({
     existing.envFiles == null ? undefined : existing.envFiles.join(', ')
   )
   const [setupScript, setSetupScript] = useState<string | undefined>(existing.setupScript)
-  const [afterCreate, setAfterCreate] = useState<
-    'session' | 'terminal' | 'none' | undefined
-  >(existing.afterCreate)
+  const [afterCreate, setAfterCreate] = useState<'session' | 'terminal' | 'none' | undefined>(
+    existing.afterCreate
+  )
   useEscapeKey(onClose)
 
   const save = (): void => {
@@ -154,9 +154,7 @@ export function ProjectWorktreeDefaultsModal({
             render={(value, setValue) => (
               <select
                 value={value}
-                onChange={(e) =>
-                  setValue(e.target.value as 'session' | 'terminal' | 'none')
-                }
+                onChange={(e) => setValue(e.target.value as 'session' | 'terminal' | 'none')}
                 className="w-full px-2 py-1 rounded text-[11px]"
                 style={{
                   backgroundColor: 'var(--dplex-bg-alt)',
@@ -226,13 +224,16 @@ function OverrideField<T>({
   const overridden = value !== undefined
   return (
     <div>
-      <label className="flex items-center gap-2 text-[10px] uppercase mb-1" style={{ color: 'var(--dplex-text-muted)' }}>
+      <label
+        className="flex items-center gap-2 text-[10px] uppercase mb-1"
+        style={{ color: 'var(--dplex-text-muted)' }}
+      >
         <input
           type="checkbox"
           checked={overridden}
           onChange={(e) => {
             if (e.target.checked) {
-              onChange((defaultOverrideValue ?? ('' as unknown as T)))
+              onChange(defaultOverrideValue ?? ('' as unknown as T))
             } else {
               onChange(undefined)
             }

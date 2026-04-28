@@ -7,7 +7,12 @@ if (!project) {
   process.exit(1)
 }
 
-const playwrightArgs = ['playwright', 'test', '--config=playwright.config.ts', `--project=${project}`]
+const playwrightArgs = [
+  'playwright',
+  'test',
+  '--config=playwright.config.ts',
+  `--project=${project}`
+]
 const isLinuxWithoutDisplay =
   process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY
 

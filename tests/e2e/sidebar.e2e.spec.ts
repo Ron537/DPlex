@@ -5,7 +5,10 @@ import { closeApp, launchApp } from './support/electronApp'
 // window so the project store picks them up on mount. This lets us exercise
 // project-related UI (last-expanded highlighting, chevron vs card click) in
 // e2e without needing the OS folder picker.
-async function seedProjects(window: Page, projects: Array<{ id: string; name: string; path: string }>): Promise<void> {
+async function seedProjects(
+  window: Page,
+  projects: Array<{ id: string; name: string; path: string }>
+): Promise<void> {
   await window.evaluate(async (payload) => {
     const withMeta = payload.map((p) => ({
       ...p,

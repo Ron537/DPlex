@@ -1,8 +1,10 @@
 import { useState, DragEvent } from 'react'
 import type { EditorGroup as EditorGroupType } from '../../types'
+import { isFileDiffTab } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { GroupTabBar } from './GroupTabBar'
 import { TerminalView } from './TerminalView'
+import { FileDiffTabView } from '../diff/FileDiffTabView'
 
 interface EditorGroupProps {
   group: EditorGroupType
@@ -100,11 +102,15 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
                 zIndex: isActive ? 1 : 0
               }}
             >
-              <TerminalView
-                terminalId={tab.id}
-                isActive={isActiveGroup && isActive}
-                onFocus={() => setActiveGroup(group.id)}
-              />
+              {isFileDiffTab(tab) ? (
+                <FileDiffTabView tab={tab} />
+              ) : (
+                <TerminalView
+                  terminalId={tab.id}
+                  isActive={isActiveGroup && isActive}
+                  onFocus={() => setActiveGroup(group.id)}
+                />
+              )}
             </div>
           )
         })}

@@ -1,18 +1,10 @@
-import type { TerminalTab, EditorGroup } from '../types'
+import type { TerminalTab, EditorTab, EditorGroup } from '../types'
+import { isTerminalTab } from '../types'
 import { useTerminalStore } from '../stores/terminalStore'
 
-/**
- * Match predicate: a tab belongs to the given AI session when its
- * `sessionId` matches AND its `providerId` either matches or is undefined.
- *
- * The undefined fallback handles legacy tabs created before `providerId` was
- * tracked — we assume a single active provider per session at a time.
- */
-function tabMatchesSession(t: TerminalTab, sessionId: string, providerId: string): boolean {
-  return (
-    t.sessionId === sessionId &&
-    (t.providerId === providerId || t.providerId === undefined)
-  )
+function tabMatchesSession(t: EditorTab, sessionId: string, providerId: string): boolean {
+  if (!isTerminalTab(t)) return false
+  return t.sessionId === sessionId && (t.providerId === providerId || t.providerId === undefined)
 }
 
 /**
@@ -27,7 +19,7 @@ export function findTabsForSession(
   const matches: TerminalTab[] = []
   for (const group of groups) {
     for (const t of group.tabs) {
-      if (tabMatchesSession(t, sessionId, providerId)) {
+      if (tabMatchesSession(t, sessionId, providerId) && isTerminalTab(t)) {
         matches.push(t)
       }
     }
@@ -52,9 +44,9 @@ export function findFirstTabForSession(
     const tab = group.tabs.find(
       (t) =>
         tabMatchesSession(t, sessionId, providerId) ||
-        (resumeCommand !== undefined && t.command === resumeCommand)
+        (resumeCommand !== undefined && isTerminalTab(t) && t.command === resumeCommand)
     )
-    if (tab) return { groupId: group.id, tab }
+    if (tab && isTerminalTab(tab)) return { groupId: group.id, tab }
   }
   return null
 }
@@ -94,7 +86,7 @@ export function closeOpenTabsForSession(
     for (const t of group.tabs) {
       if (
         tabMatchesSession(t, sessionId, providerId) ||
-        (resumeCommand !== undefined && t.command === resumeCommand)
+        (resumeCommand !== undefined && isTerminalTab(t) && t.command === resumeCommand)
       ) {
         matchIds.add(t.id)
       }

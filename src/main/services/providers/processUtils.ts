@@ -124,10 +124,7 @@ export function verifyProcessIdentity(
 }
 
 /** Wait until the given pids have all exited, or the timeout elapses. */
-export async function waitForProcessesToExit(
-  pids: number[],
-  timeoutMs: number
-): Promise<boolean> {
+export async function waitForProcessesToExit(pids: number[], timeoutMs: number): Promise<boolean> {
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
     if (pids.every((pid) => !isProcessAlive(pid))) return true

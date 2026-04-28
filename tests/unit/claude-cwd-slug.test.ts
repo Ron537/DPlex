@@ -26,12 +26,12 @@ describe('mapPidfileStatus', () => {
   const base = { pid: 1, sessionId: 's', cwd: '/x' } as const
 
   it('maps waiting + approve as awaitingApproval for side-effecting tools', () => {
-    expect(
-      mapPidfileStatus({ ...base, status: 'waiting', waitingFor: 'approve Bash' })
-    ).toBe('awaitingApproval')
-    expect(
-      mapPidfileStatus({ ...base, status: 'waiting', waitingFor: 'approve Edit' })
-    ).toBe('awaitingApproval')
+    expect(mapPidfileStatus({ ...base, status: 'waiting', waitingFor: 'approve Bash' })).toBe(
+      'awaitingApproval'
+    )
+    expect(mapPidfileStatus({ ...base, status: 'waiting', waitingFor: 'approve Edit' })).toBe(
+      'awaitingApproval'
+    )
   })
 
   it('maps approve AskUserQuestion as waitingForUser (interactive question, not permission)', () => {

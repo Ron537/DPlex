@@ -109,8 +109,8 @@ export const useSessionStore = create<SessionState>((set, get) => {
       try {
         await window.dplex.sessions.delete(sessionId, providerId)
         set((state) => ({
-          sessions: state.sessions.filter((s) =>
-            !(s.id === sessionId && s.aiTool === (providerId ?? s.aiTool))
+          sessions: state.sessions.filter(
+            (s) => !(s.id === sessionId && s.aiTool === (providerId ?? s.aiTool))
           )
         }))
       } catch (err) {
@@ -157,9 +157,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
 
       const unsubRemoved = window.dplex.sessions.onSessionRemoved((sessionId, providerId) => {
         set((state) => ({
-          sessions: state.sessions.filter((s) =>
-            !(s.id === sessionId && s.aiTool === providerId)
-          )
+          sessions: state.sessions.filter((s) => !(s.id === sessionId && s.aiTool === providerId))
         }))
       })
 

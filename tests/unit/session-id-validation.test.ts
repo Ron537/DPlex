@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { BaseSessionProvider, type SessionEntry } from '../../src/main/services/providers/baseProvider'
-import type { DiscoveredSession, ParsedSessionData, SessionPrompt } from '../../src/main/services/providers/types'
+import {
+  BaseSessionProvider,
+  type SessionEntry
+} from '../../src/main/services/providers/baseProvider'
+import type {
+  DiscoveredSession,
+  ParsedSessionData,
+  SessionPrompt
+} from '../../src/main/services/providers/types'
 
 class TestProvider extends BaseSessionProvider {
   readonly id = 'test'
@@ -17,7 +24,12 @@ class TestProvider extends BaseSessionProvider {
   }
 
   protected parseEventsIncremental(): Promise<ParsedSessionData> {
-    return Promise.resolve({ detailedStatus: 'idle', messageCount: 0, toolCallCount: 0, lastActivityTime: 0 })
+    return Promise.resolve({
+      detailedStatus: 'idle',
+      messageCount: 0,
+      toolCallCount: 0,
+      lastActivityTime: 0
+    })
   }
 
   protected extractPromptsFromEvents(): Promise<SessionPrompt[]> {

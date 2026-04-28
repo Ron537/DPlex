@@ -9,11 +9,7 @@ import type {
   SessionPrompt,
   ParsedSessionData
 } from './types'
-import {
-  killProcess,
-  isProcessAlive,
-  waitForProcessesToExit
-} from './processUtils'
+import { killProcess, isProcessAlive, waitForProcessesToExit } from './processUtils'
 
 // Filesystems on macOS and Windows are case-insensitive by default; Linux is case-sensitive.
 const FS_CASE_SENSITIVE = process.platform !== 'darwin' && process.platform !== 'win32'
@@ -91,14 +87,10 @@ export abstract class BaseSessionProvider implements SessionProvider {
   protected abstract getSessionDir(): string
 
   /** Parse a single session entry into a `DiscoveredSession`. Return null to skip. */
-  protected abstract parseSession(
-    entry: SessionEntry
-  ): Promise<DiscoveredSession | null>
+  protected abstract parseSession(entry: SessionEntry): Promise<DiscoveredSession | null>
 
   /** Incrementally parse events to get current status/counts. */
-  protected abstract parseEventsIncremental(
-    entryPath: string
-  ): Promise<ParsedSessionData | null>
+  protected abstract parseEventsIncremental(entryPath: string): Promise<ParsedSessionData | null>
 
   /** Extract user prompts from a session's events. */
   protected abstract extractPromptsFromEvents(

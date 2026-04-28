@@ -151,9 +151,7 @@ describe('claudePidfileRegistry', () => {
     // Skip on Windows where start-time verification is unavailable.
     if (process.platform === 'win32') return
 
-    const { getProcessStartTimeMs } = await import(
-      '../../src/main/services/providers/processUtils'
-    )
+    const { getProcessStartTimeMs } = await import('../../src/main/services/providers/processUtils')
     const actualStart = getProcessStartTimeMs(process.pid)
     if (actualStart === null) return // ps unavailable; behaviour preserved
 

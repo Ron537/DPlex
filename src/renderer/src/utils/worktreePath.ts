@@ -23,7 +23,5 @@ export function slugifyBranch(branch: string): string {
  * Branch is slugified on the way through.
  */
 export function expandPattern(pattern: string, projectName: string, branch: string): string {
-  return pattern
-    .replace(/\{project\}/g, projectName)
-    .replace(/\{branch\}/g, slugifyBranch(branch))
+  return pattern.replace(/\{project\}/g, projectName).replace(/\{branch\}/g, slugifyBranch(branch))
 }

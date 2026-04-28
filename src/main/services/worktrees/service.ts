@@ -146,24 +146,18 @@ export async function list(repoRoot: string): Promise<WorktreeInfo[]> {
  *     created by a buggy pattern expansion while still allowing both
  *     `~/work/proj-branch` and `<repoParent>/proj-branch` patterns.
  */
-function validateWorktreePath(
-  desiredPath: string,
-  repoRoot: string
-): WorktreeError | null {
+function validateWorktreePath(desiredPath: string, repoRoot: string): WorktreeError | null {
   if (!path.isAbsolute(desiredPath)) {
     return worktreeError('INVALID_ARGUMENT', `Worktree path must be absolute: ${desiredPath}`)
   }
   if (desiredPath === repoRoot) {
-    return worktreeError(
-      'INVALID_ARGUMENT',
-      'Worktree path cannot be the repository root itself'
-    )
+    return worktreeError('INVALID_ARGUMENT', 'Worktree path cannot be the repository root itself')
   }
-  if (desiredPath.includes(`${path.sep}.git${path.sep}`) || desiredPath.endsWith(`${path.sep}.git`)) {
-    return worktreeError(
-      'INVALID_ARGUMENT',
-      'Worktree path cannot be inside a .git directory'
-    )
+  if (
+    desiredPath.includes(`${path.sep}.git${path.sep}`) ||
+    desiredPath.endsWith(`${path.sep}.git`)
+  ) {
+    return worktreeError('INVALID_ARGUMENT', 'Worktree path cannot be inside a .git directory')
   }
   const home = os.homedir()
   const repoParent = path.dirname(repoRoot)
@@ -190,10 +184,7 @@ export async function create(
   // Even though we use execFile (no shell), git argv parsing treats e.g.
   // "-f" as --force, which would change semantics.
   if (opts.branch.startsWith('-')) {
-    return worktreeError(
-      'INVALID_ARGUMENT',
-      `Branch name cannot start with "-": ${opts.branch}`
-    )
+    return worktreeError('INVALID_ARGUMENT', `Branch name cannot start with "-": ${opts.branch}`)
   }
   if (opts.baseBranch && opts.baseBranch.startsWith('-')) {
     return worktreeError(
@@ -477,10 +468,8 @@ export async function watchRepo(
     const gitDir = commonDir ?? (await resolveGitDir(canonical))
     if (gitDir) {
       try {
-        entry.gitDirWatcher = fs.watch(
-          gitDir,
-          { persistent: false, recursive: false },
-          () => scheduleRefresh(identity)
+        entry.gitDirWatcher = fs.watch(gitDir, { persistent: false, recursive: false }, () =>
+          scheduleRefresh(identity)
         )
         entry.gitDirWatcher.on('error', () => {
           /* ignore — falls back to manual refresh */
@@ -595,10 +584,8 @@ function rebindWorktreeWatchers(identity: string, worktrees: WorktreeInfo[]): vo
   for (const w of worktrees) {
     if (entry.worktreeWatchers.has(w.path)) continue
     try {
-      const watcher = fs.watch(
-        w.path,
-        { persistent: false, recursive },
-        () => scheduleRefresh(identity)
+      const watcher = fs.watch(w.path, { persistent: false, recursive }, () =>
+        scheduleRefresh(identity)
       )
       watcher.on('error', () => {
         /* ignore */
