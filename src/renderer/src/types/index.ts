@@ -179,18 +179,14 @@ export interface Project {
   createdByDplexWorktree?: boolean
   /** Pinned projects render in a dedicated section at the top of the panel. */
   pinned?: boolean
-  /**
-   * Git panel UI state scoped to this project. Persists across sessions so
-   * the user lands back on the file they last opened. Validated on each
-   * refresh — stale paths fall back to the first changed file, and an
-   * invalid worktree root falls back to the project root.
-   */
+  /** Git panel UI state scoped to this project. Persists across sessions
+   *  so the user lands back on the file they last opened. Validated on
+   *  each refresh — stale paths fall back to the first changed file. */
   gitPanelState?: ProjectGitPanelState
 }
 
 export interface ProjectGitPanelState {
   selectedGitPath?: string
-  activeWorktreeRoot?: string
 }
 
 export interface ProviderInfo {

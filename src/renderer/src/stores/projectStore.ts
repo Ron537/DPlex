@@ -61,8 +61,53 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   loadProjects: async () => {
     try {
       const allSettings = await window.dplex.settings.getAll()
-      const saved = (allSettings.projects as Project[]) || []
-      set({ projects: saved, loaded: true })
+      const rawSaved = (allSettings.projects as Project[]) || []
+      // Strip the legacy `gitPanelState.activeWorktreeRoot` field — it was
+      // a vestigial mechanism that pre-dated the "switching active project
+      // IS the switch" model. Older builds wrote it; current code never
+      // does, but stale values on worktree children pointed at the parent
+      // path and made `resolveActiveRoot` return the wrong repo.
+      let mutated = false
+      const saved: Project[] = rawSaved.map((p) => {
+        const gps = p.gitPanelState as
+          | (ProjectGitPanelState & { activeWorktreeRoot?: string })
+          | undefined
+        if (!gps || gps.activeWorktreeRoot === undefined) return p
+        mutated = true
+        const cleaned: ProjectGitPanelState = { selectedGitPath: gps.selectedGitPath }
+        const isEmpty = cleaned.selectedGitPath === undefined
+        return { ...p, gitPanelState: isEmpty ? undefined : cleaned }
+      })
+      const savedActiveId = (allSettings.activeProjectId as string | null | undefined) ?? null
+      const restoredActiveId =
+        savedActiveId && saved.some((p) => p.id === savedActiveId) ? savedActiveId : null
+      // Visual state (expansion + last-expanded emphasis) is driven separately
+      // from activeProjectId, so we re-derive it from the restored active id
+      // to match what `setActiveProject + toggleExpanded` would have produced
+      // when the user originally clicked the row. For nested worktree
+      // projects we also walk the parent chain so the active row is actually
+      // visible after restore (otherwise the parent stays collapsed).
+      const restoredExpanded = new Set<string>()
+      if (restoredActiveId) {
+        const byId = new Map(saved.map((p) => [p.id, p]))
+        let cursor: Project | undefined = byId.get(restoredActiveId)
+        const seen = new Set<string>()
+        while (cursor && !seen.has(cursor.id)) {
+          seen.add(cursor.id)
+          restoredExpanded.add(cursor.id)
+          cursor = cursor.parentProjectId ? byId.get(cursor.parentProjectId) : undefined
+        }
+      }
+      set({
+        projects: saved,
+        activeProjectId: restoredActiveId,
+        expandedProjectIds: restoredExpanded,
+        lastExpandedProjectId: restoredActiveId,
+        loaded: true
+      })
+      if (mutated) {
+        window.dplex.settings.merge({ projects: saved })
+      }
     } catch {
       set({ loaded: true })
     }
@@ -165,18 +210,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   removeProject: (id) => {
+    let activeCleared = false
     set((state) => {
       const nextExpanded = new Set(state.expandedProjectIds)
       nextExpanded.delete(id)
+      activeCleared = state.activeProjectId === id
       return {
         projects: state.projects.filter((p) => p.id !== id),
         expandedProjectIds: nextExpanded,
         lastExpandedProjectId:
           state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId,
-        activeProjectId: state.activeProjectId === id ? null : state.activeProjectId
+        activeProjectId: activeCleared ? null : state.activeProjectId
       }
     })
     get().persistProjects()
+    if (activeCleared) window.dplex.settings.merge({ activeProjectId: null })
   },
 
   togglePin: (id) => {
@@ -216,6 +264,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   toggleExpanded: (id) => {
+    let clearActive = false
     set((state) => {
       const next = new Set(state.expandedProjectIds)
       if (next.has(id)) {
@@ -224,11 +273,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         // projects remain expanded the emphasis simply disappears until the
         // next expand.
         const nextLast = state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId
-        return { expandedProjectIds: next, lastExpandedProjectId: nextLast }
+        // If we're collapsing the active project — or any ancestor of the
+        // active worktree child — the active selection becomes invisible,
+        // so clear it (and the persisted copy) to match the user's
+        // intent: collapsing means "I don't want this active anymore".
+        const activeId = state.activeProjectId
+        if (activeId) {
+          const byId = new Map(state.projects.map((p) => [p.id, p]))
+          let cursor = byId.get(activeId)
+          const seen = new Set<string>()
+          while (cursor && !seen.has(cursor.id)) {
+            seen.add(cursor.id)
+            if (cursor.id === id) {
+              clearActive = true
+              break
+            }
+            cursor = cursor.parentProjectId ? byId.get(cursor.parentProjectId) : undefined
+          }
+        }
+        return {
+          expandedProjectIds: next,
+          lastExpandedProjectId: nextLast,
+          ...(clearActive ? { activeProjectId: null } : {})
+        }
       }
       next.add(id)
       return { expandedProjectIds: next, lastExpandedProjectId: id }
     })
+    if (clearActive) {
+      window.dplex.settings.merge({ activeProjectId: null })
+    }
   },
 
   // Promote an already-expanded project to be the emphasized one without
@@ -255,6 +329,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (state.activeProjectId === id) return state
       return { activeProjectId: id }
     })
+    window.dplex.settings.merge({ activeProjectId: id })
   },
 
   setProjectGitState: (id, patch) => {
@@ -269,7 +344,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       // Drop the field entirely when there's nothing meaningful to persist —
       // keeps the saved JSON tidy and avoids cluttering older builds with
       // empty objects after a single refresh cycle.
-      const isEmpty = next.selectedGitPath === undefined && next.activeWorktreeRoot === undefined
+      const isEmpty = next.selectedGitPath === undefined
       const newProj: Project = isEmpty
         ? { ...current, gitPanelState: undefined }
         : { ...current, gitPanelState: next }

@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react'
+import { GitBranch } from 'lucide-react'
 import { useGitPanelStore } from '../../stores/gitPanelStore'
 import { useProjectStore } from '../../stores/projectStore'
 
 /**
- * 28px vertical strip rendered when the panel is collapsed.
- * Click to expand; shows a count badge for the active project's changes.
+ * 44px vertical activity-bar style strip rendered when the panel is collapsed.
+ * Click to expand. Shows a GitBranch icon, a corner count badge for the
+ * active project's changes, and an accent stripe on the left when count > 0.
  */
 export function GitPanelCollapsedStrip(): React.JSX.Element {
   const expand = useGitPanelStore((s) => s.expand)
@@ -19,40 +21,50 @@ export function GitPanelCollapsedStrip(): React.JSX.Element {
     return byRepo[root]?.files.length ?? 0
   }, [activeProject, byRepo, resolveActiveRoot])
 
+  const hasChanges = count > 0
+  const display = count > 99 ? '99+' : String(count)
+
   return (
-    <button
-      type="button"
-      onClick={expand}
-      title="Expand Git panel (⇧⌘G)"
-      aria-label="Expand Git panel"
+    <div
       data-testid="git-panel-collapsed-strip"
-      className="w-7 h-full flex flex-col items-center py-2 gap-2 hover:bg-[var(--dplex-hover)] flex-shrink-0"
+      className="relative w-11 h-full flex flex-col items-center pt-2 flex-shrink-0"
       style={{
         borderLeft: '1px solid var(--dplex-border)',
-        backgroundColor: 'var(--dplex-bg-alt)',
-        color: 'var(--dplex-text-muted)'
+        backgroundColor: 'var(--dplex-bg-alt)'
       }}
     >
-      <span
-        className="text-[9px] font-bold uppercase tracking-wider"
-        style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-      >
-        Git
-      </span>
-      {count > 0 && (
+      {hasChanges && (
         <span
-          className="text-[9px] font-semibold rounded-full px-1.5 py-0.5 tabular-nums"
-          style={{
-            backgroundColor: 'var(--dplex-accent)',
-            color: 'var(--dplex-bg)',
-            minWidth: 16,
-            textAlign: 'center'
-          }}
-          data-testid="git-panel-count-badge"
-        >
-          {count > 99 ? '99+' : count}
-        </span>
+          aria-hidden="true"
+          className="absolute left-0 top-2 h-9 w-[2px] rounded-r-sm"
+          style={{ backgroundColor: 'var(--dplex-accent)' }}
+        />
       )}
-    </button>
+      <button
+        type="button"
+        onClick={expand}
+        title="Expand Git panel (⇧⌘G)"
+        aria-label="Expand Git panel"
+        className="relative flex items-center justify-center w-9 h-9 rounded hover:bg-[var(--dplex-hover)] transition-colors"
+        style={{ color: hasChanges ? 'var(--dplex-text)' : 'var(--dplex-text-muted)' }}
+      >
+        <GitBranch size={20} strokeWidth={1.8} />
+        {hasChanges && (
+          <span
+            data-testid="git-panel-count-badge"
+            className="absolute -top-0.5 -right-0.5 text-[9px] font-bold rounded-full px-1 tabular-nums leading-[14px] h-[14px]"
+            style={{
+              backgroundColor: 'var(--dplex-accent)',
+              color: 'var(--dplex-bg)',
+              minWidth: 14,
+              textAlign: 'center',
+              boxShadow: '0 0 0 2px var(--dplex-bg-alt)'
+            }}
+          >
+            {display}
+          </span>
+        )}
+      </button>
+    </div>
   )
 }

@@ -57,7 +57,7 @@ export function FileDiffTabView({ tab }: FileDiffTabViewProps): React.JSX.Elemen
   // Editor area width drives the side-by-side ↔ inline fallback. We keep
   // the same threshold as the editor pane for consistency. Uses a callback
   // ref so we attach the observer the moment the div mounts.
-  const SIDE_BY_SIDE_MIN_WIDTH = 900
+  const SIDE_BY_SIDE_MIN_WIDTH = 600
   const [editorAreaWidth, setEditorAreaWidth] = useState<number>(Infinity)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const editorAreaRef = useCallback((el: HTMLDivElement | null) => {

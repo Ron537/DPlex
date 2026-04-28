@@ -108,21 +108,7 @@ export const useGitPanelStore = create<GitPanelState>((set, get) => ({
     })
   },
 
-  resolveActiveRoot: (project) => {
-    const persisted = project.gitPanelState?.activeWorktreeRoot
-    if (!persisted) return project.path
-    // Only accept the persisted root if it is currently registered as a
-    // sibling worktree of the same parent (or matches the project itself).
-    const all = useProjectStore.getState().projects
-    const isRegistered = all.some(
-      (p) =>
-        p.path === persisted &&
-        (p.id === project.id ||
-          p.parentProjectId === (project.parentProjectId ?? project.id) ||
-          p.id === (project.parentProjectId ?? project.id))
-    )
-    return isRegistered ? persisted : project.path
-  },
+  resolveActiveRoot: (project) => project.path,
 
   bindToProject: (projectId, opts) => {
     const project = useProjectStore.getState().projects.find((p) => p.id === projectId)

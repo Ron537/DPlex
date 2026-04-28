@@ -194,24 +194,26 @@ describe('gitPanelStore.resolveActiveRoot', () => {
     expect(useGitPanelStore.getState().resolveActiveRoot(p)).toBe('/repo')
   })
 
-  it('returns the persisted worktree root only when it is still registered', () => {
+  it('returns project.path even when a sibling worktree is registered', () => {
     const parent = makeProject('p1', '/repo')
     const wt: Project = {
       ...makeProject('wt1', '/repo-wt'),
       parentProjectId: 'p1'
     }
-    const projWithOverride: Project = {
-      ...parent,
-      gitPanelState: { activeWorktreeRoot: '/repo-wt' }
-    }
-    useProjectStore.setState({ projects: [projWithOverride, wt] } as never)
-    expect(useGitPanelStore.getState().resolveActiveRoot(projWithOverride)).toBe('/repo-wt')
+    useProjectStore.setState({ projects: [parent, wt] } as never)
+    // Each project resolves to its own path — the panel follows
+    // activeProjectId, never a persisted "active worktree root".
+    expect(useGitPanelStore.getState().resolveActiveRoot(parent)).toBe('/repo')
+    expect(useGitPanelStore.getState().resolveActiveRoot(wt)).toBe('/repo-wt')
   })
 
-  it('falls back to project root when persisted worktree is no longer registered', () => {
+  it('ignores any legacy gitPanelState fields and returns project.path', () => {
     const parent: Project = {
       ...makeProject('p1', '/repo'),
-      gitPanelState: { activeWorktreeRoot: '/dead-wt' }
+      // Legacy field kept on disk by older builds — must not influence the
+      // resolved root anymore. Cast to unknown so the test compiles after
+      // the field was removed from the type.
+      gitPanelState: { selectedGitPath: 'a.ts' } as unknown as Project['gitPanelState']
     }
     useProjectStore.setState({ projects: [parent] } as never)
     expect(useGitPanelStore.getState().resolveActiveRoot(parent)).toBe('/repo')

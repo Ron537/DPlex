@@ -73,15 +73,21 @@ export function DiffEditorPane({
           monacoRef.current = monaco
           editorInstance = monaco.editor.createDiffEditor(containerRef.current, {
             renderSideBySide: sideBySideRef.current,
+            renderSideBySideInlineBreakpoint: 0,
             readOnly: true,
             originalEditable: false,
             automaticLayout: true,
-            minimap: { enabled: false },
+            minimap: { enabled: true, renderCharacters: false, showSlider: 'always' },
             fontSize: 12,
-            renderOverviewRuler: false,
-            scrollBeyondLastLine: false
+            renderOverviewRuler: true,
+            scrollBeyondLastLine: false,
+            contextmenu: false
           })
           editorRef.current = editorInstance
+          // Suppress Monaco's command palette (F1) on both inner panes.
+          const noop = (): void => {}
+          editorInstance.getOriginalEditor().addCommand(monaco.KeyCode.F1, noop)
+          editorInstance.getModifiedEditor().addCommand(monaco.KeyCode.F1, noop)
           setMonacoReady(true)
         } catch (err) {
           console.error('[DiffEditorPane] Monaco editor creation failed', err)
