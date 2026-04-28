@@ -12,6 +12,13 @@ interface SessionListProps {
   groupMode: SessionGroupMode
   providerFilter: string
   statusFilters: Set<string>
+  /**
+   * Collapse-all toolbar signal. Each press of the toolbar button bumps
+   * `nonce` and flips `collapsed`. Each <CollapsibleGroup> reacts to a
+   * new nonce by adopting the new collapsed value, while still letting
+   * users toggle individual groups in between presses.
+   */
+  collapseAllSignal?: { nonce: number; collapsed: boolean }
 }
 
 interface SessionGroup {
@@ -71,7 +78,8 @@ function groupByWorkspace(sessions: AISession[]): SessionGroup[] {
 export function SessionList({
   groupMode,
   providerFilter,
-  statusFilters
+  statusFilters,
+  collapseAllSignal
 }: SessionListProps): React.JSX.Element {
   const sessions = useSessionStore((s) => s.sessions)
   const searchQuery = useSessionStore((s) => s.searchQuery)
@@ -166,7 +174,11 @@ export function SessionList({
         data-selected-index={selectedIndex}
       >
         {active.length > 0 && (
-          <CollapsibleGroup label={`Active (${active.length})`} accent>
+          <CollapsibleGroup
+            label={`Active (${active.length})`}
+            accent
+            collapseAllSignal={collapseAllSignal}
+          >
             {active.map((session) => (
               <SessionItem
                 key={session.id}
@@ -179,7 +191,11 @@ export function SessionList({
         )}
 
         {groups.map((group) => (
-          <CollapsibleGroup key={group.label} label={group.label}>
+          <CollapsibleGroup
+            key={group.label}
+            label={group.label}
+            collapseAllSignal={collapseAllSignal}
+          >
             {group.sessions.map((session) => (
               <SessionItem
                 key={session.id}
@@ -207,13 +223,26 @@ export function SessionList({
 function CollapsibleGroup({
   label,
   accent,
+  collapseAllSignal,
   children
 }: {
   label: string
   accent?: boolean
+  collapseAllSignal?: { nonce: number; collapsed: boolean }
   children: React.ReactNode
 }): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
+  // Track the last collapse-all nonce we've applied so we only react to
+  // *new* presses of the toolbar button, not to every parent re-render.
+  // Individual user toggles between presses are preserved.
+  const lastAppliedNonceRef = useRef(0)
+  useEffect(() => {
+    if (!collapseAllSignal) return
+    if (collapseAllSignal.nonce === 0) return
+    if (lastAppliedNonceRef.current === collapseAllSignal.nonce) return
+    lastAppliedNonceRef.current = collapseAllSignal.nonce
+    setCollapsed(collapseAllSignal.collapsed)
+  }, [collapseAllSignal])
 
   return (
     <div>

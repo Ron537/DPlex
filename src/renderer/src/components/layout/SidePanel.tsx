@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Search, RefreshCw, SlidersHorizontal, Check, Plus } from 'lucide-react'
+import { Search, RefreshCw, SlidersHorizontal, Check, Plus, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { MOD } from '../../utils/shortcuts'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -44,6 +44,14 @@ export function SidePanel(): React.JSX.Element | null {
   const [projectSearchQuery, setProjectSearchQuery] = useState('')
   const [projectActiveOnly, setProjectActiveOnly] = useState(false)
   const [showProjectFilterMenu, setShowProjectFilterMenu] = useState(false)
+  // Collapse-all signal for SessionList groups. The nonce bumps each time
+  // the user clicks the toolbar button so each <CollapsibleGroup> can react
+  // (via a ref-tracked last-seen nonce) without losing its individual
+  // toggle behavior in between presses.
+  const [sessionCollapseAll, setSessionCollapseAll] = useState<{
+    nonce: number
+    collapsed: boolean
+  }>({ nonce: 0, collapsed: false })
   const resizing = useRef(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -236,6 +244,27 @@ export function SidePanel(): React.JSX.Element | null {
           )}
           {activeTab === 'sessions' && (
             <>
+              {/* Collapse / Expand all groups */}
+              <button
+                onClick={() =>
+                  setSessionCollapseAll((s) => ({ nonce: s.nonce + 1, collapsed: !s.collapsed }))
+                }
+                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+                style={{ color: 'var(--dplex-text-muted)' }}
+                title={
+                  sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'
+                }
+                aria-label={
+                  sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'
+                }
+                data-testid="sessions-toggle-collapse-all"
+              >
+                {sessionCollapseAll.collapsed ? (
+                  <ChevronsUpDown size={12} />
+                ) : (
+                  <ChevronsDownUp size={12} />
+                )}
+              </button>
               {/* Filter button */}
               <div className="relative">
                 <button
@@ -416,6 +445,7 @@ export function SidePanel(): React.JSX.Element | null {
             groupMode={groupMode}
             providerFilter={providerFilter}
             statusFilters={statusFilters}
+            collapseAllSignal={sessionCollapseAll}
           />
         )}
       </div>

@@ -39,6 +39,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   app window regains focus or becomes visible, so changes made in an
   external editor show up immediately on Linux where `fs.watch` can
   miss deep edits.
+- Git panel collapsed strip redesigned in VS Code activity-bar style: a
+  44 px rail with a 36 × 36 icon button, branch glyph, accent stripe,
+  and corner count badge that surfaces the changed-file count even
+  when the panel is collapsed.
+- Diff viewer: enabled Monaco's minimap (with hunk-tinted overlay) and
+  overview ruler so changes in long files are visible on the scrollbar
+  without scrolling. Also lowered the side-by-side ⇄ inline breakpoint
+  from 900 px to 600 px (and disabled Monaco's internal auto-fallback)
+  so split view stays available on narrower panels.
+- Sessions panel: **Collapse / Expand all groups** toolbar button that
+  toggles every group at once in both grouping modes (Time and
+  Workspace). Individual group toggles still work in between presses.
+- **Persist last active project across app restarts.** Reopening the
+  app re-selects the project that was active when you last quit, and
+  walks the parent-project chain so the row is actually visible (e.g.
+  worktree children expand their parent automatically). Collapsing the
+  active project (or any ancestor of an active worktree child) clears
+  the persisted selection so the next launch starts fresh.
 
 ### Changed
 
@@ -111,6 +129,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cleared to empty on refresh; byte-identical refetches are skipped
   entirely; and the "Loading…" badge only appears on the initial
   load or when the selected file changes — not on background refreshes.
+- Git panel: showed the parent repo's changes when a worktree child
+  was active. The vestigial `gitPanelState.activeWorktreeRoot` field —
+  never written by current code but persisted by older builds with the
+  parent's path on worktree children — caused the panel to resolve to
+  the parent repo. Removed the field, simplified the active-root
+  resolver to just use the project's path, and added a one-shot
+  migration in `loadProjects` that strips the legacy field on load and
+  re-persists the cleaned project list.
+- Diff viewer: disabled Monaco's F1 command palette and right-click
+  context menu in the diff editor. Both surfaced edit/refactor actions
+  that aren't applicable to DPlex's read-only diff view and were a
+  source of confusion.
 
 ### Added (continued)
 
