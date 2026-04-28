@@ -27,7 +27,18 @@ export function GitPanelCollapsedStrip(): React.JSX.Element {
   return (
     <div
       data-testid="git-panel-collapsed-strip"
-      className="relative w-11 h-full flex flex-col items-center pt-2 flex-shrink-0"
+      role="button"
+      tabIndex={0}
+      aria-label="Expand Git panel"
+      title="Expand Git panel (⇧⌘G)"
+      onClick={expand}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          expand()
+        }
+      }}
+      className="relative w-11 h-full flex flex-col items-center pt-2 flex-shrink-0 cursor-pointer outline-none"
       style={{
         borderLeft: '1px solid var(--dplex-border)',
         backgroundColor: 'var(--dplex-bg-alt)'
@@ -42,9 +53,13 @@ export function GitPanelCollapsedStrip(): React.JSX.Element {
       )}
       <button
         type="button"
-        onClick={expand}
-        title="Expand Git panel (⇧⌘G)"
-        aria-label="Expand Git panel"
+        onClick={(e) => {
+          // Outer rail also handles click; stop here so we don't fire twice.
+          e.stopPropagation()
+          expand()
+        }}
+        tabIndex={-1}
+        aria-hidden="true"
         className="relative flex items-center justify-center w-9 h-9 rounded hover:bg-[var(--dplex-hover)] transition-colors"
         style={{ color: hasChanges ? 'var(--dplex-text)' : 'var(--dplex-text-muted)' }}
       >
