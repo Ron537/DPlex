@@ -8,6 +8,7 @@ import { GitPanelChangesSection } from './GitPanelChangesSection'
 import { GitPanelEmptyState } from './GitPanelEmptyState'
 import { WorktreeSwitcher } from './WorktreeSwitcher'
 import type { Project } from '../../types'
+import { MOD, SHIFT } from '../../utils/shortcuts'
 
 const MIN_WIDTH = 220
 const MAX_WIDTH = 640
@@ -238,7 +239,7 @@ function PanelHeader({
           type="button"
           className="p-1 rounded hover:bg-[var(--dplex-hover)]"
           onClick={onCollapse}
-          title="Collapse Git panel (⇧⌘G)"
+          title={`Collapse Git panel (${SHIFT}${MOD}G)`}
           aria-label="Collapse Git panel"
         >
           <X size={12} />

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { GitBranch } from 'lucide-react'
 import { useGitPanelStore } from '../../stores/gitPanelStore'
 import { useProjectStore } from '../../stores/projectStore'
+import { MOD, SHIFT } from '../../utils/shortcuts'
 
 /**
  * 44px vertical activity-bar style strip rendered when the panel is collapsed.
@@ -30,7 +31,7 @@ export function GitPanelCollapsedStrip(): React.JSX.Element {
       role="button"
       tabIndex={0}
       aria-label="Expand Git panel"
-      title="Expand Git panel (⇧⌘G)"
+      title={`Expand Git panel (${SHIFT}${MOD}G)`}
       onClick={expand}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
