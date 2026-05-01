@@ -4,24 +4,12 @@ import { useTerminalStore } from '../stores/terminalStore'
 import { useProjectStore } from '../stores/projectStore'
 import type { AISession, TerminalTab, EditorTab } from '../types'
 import { isTerminalTab } from '../types'
+import { normalizePath } from '../utils/normalizePath'
 
-/**
- * Normalize a path for comparison: resolve separators, trim trailing slashes.
- * Case-fold only on case-insensitive platforms (macOS, Windows).
- *
- * Exported so that every code path that decides "is this the same project path"
- * uses identical rules (dedup, orphan detection, session attribution).
- */
-export function normalizePath(p: string): string {
-  let normalized = p.replace(/\\/g, '/').replace(/\/+$/, '')
-  if (typeof navigator !== 'undefined') {
-    const platform = navigator.platform?.toLowerCase() ?? ''
-    if (platform.includes('mac') || platform.includes('win')) {
-      normalized = normalized.toLowerCase()
-    }
-  }
-  return normalized
-}
+// Re-exported so existing call sites that import `normalizePath` from this
+// module keep working. New code should import directly from
+// `../utils/normalizePath` to avoid pulling in the project/terminal stores.
+export { normalizePath }
 
 /**
  * Pick the registered project whose path is the longest prefix of cwd.

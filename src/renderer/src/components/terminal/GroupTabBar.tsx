@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, DragEvent } from 'react'
+import { useRef, useState, DragEvent } from 'react'
 import {
   Plus,
   X,
@@ -8,8 +8,6 @@ import {
 } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useAttentionStore } from '../../stores/attentionStore'
-import { useProjectStore } from '../../stores/projectStore'
-import { getAvatarColor } from '../../utils/projectStatus'
 import { ShellSelector } from './ShellSelector'
 import type { EditorGroup } from '../../types'
 import type { AttentionKind } from '../../../../preload/attentionTypes'
@@ -42,35 +40,6 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
   const inputRef = useRef<HTMLInputElement>(null)
 
   const activeEvents = useAttentionStore((s) => s.active)
-
-  // Paths associated with the most recently expanded project. Used to
-  // visually highlight tabs that belong to that project — both its own path
-  // and the paths of its worktree children. The project's avatar color is
-  // reused as a subtle visual link between panel and tabs.
-  const lastExpandedId = useProjectStore((s) => s.lastExpandedProjectId)
-  const projects = useProjectStore((s) => s.projects)
-  const { highlightPaths, highlightColor } = useMemo(() => {
-    if (!lastExpandedId)
-      return { highlightPaths: new Set<string>(), highlightColor: null as string | null }
-    const paths = new Set<string>()
-    const primary = projects.find((p) => p.id === lastExpandedId)
-    if (primary) {
-      paths.add(primary.path)
-      for (const p of projects) {
-        if (p.parentProjectId === lastExpandedId) paths.add(p.path)
-      }
-    }
-    const color = primary ? getAvatarColor(primary.id).fg : null
-    return { highlightPaths: paths, highlightColor: color }
-  }, [lastExpandedId, projects])
-
-  const isHighlighted = (cwd?: string, worktreePath?: string): boolean => {
-    if (highlightPaths.size === 0) return false
-    return (
-      (cwd !== undefined && highlightPaths.has(cwd)) ||
-      (worktreePath !== undefined && highlightPaths.has(worktreePath))
-    )
-  }
 
   const handleDoubleClick = (tabId: string, currentTitle: string): void => {
     setEditingTabId(tabId)
@@ -147,11 +116,8 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
       <div className="flex items-center gap-0 overflow-x-auto no-scrollbar flex-1">
         {group.tabs.map((tab, index) => {
           const isFileDiff = tab.kind === 'fileDiff'
-          const tabCwd = isFileDiff ? undefined : tab.cwd
-          const tabWorktreePath = isFileDiff ? undefined : tab.worktreePath
           const tabSessionId = isFileDiff ? undefined : tab.sessionId
           const tabProviderId = isFileDiff ? undefined : tab.providerId
-          const highlighted = isHighlighted(tabCwd, tabWorktreePath)
           const isActive = tab.id === group.activeTabId
           const isPreview = isFileDiff && (tab as { preview?: boolean }).preview === true
           return (
@@ -168,18 +134,8 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               style={{
                 borderRight: '1px solid var(--dplex-border)',
                 borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
-                backgroundColor: isActive
-                  ? highlighted && highlightColor
-                    ? `color-mix(in srgb, ${highlightColor} 22%, var(--dplex-bg))`
-                    : 'var(--dplex-bg)'
-                  : highlighted && highlightColor
-                    ? `color-mix(in srgb, ${highlightColor} 10%, transparent)`
-                    : 'transparent',
-                color: isActive
-                  ? 'var(--dplex-text)'
-                  : highlighted
-                    ? 'var(--dplex-text)'
-                    : 'var(--dplex-text-muted)',
+                backgroundColor: isActive ? 'var(--dplex-bg)' : 'transparent',
+                color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
                 boxShadow: isActive ? 'inset 0 -2px 0 0 var(--dplex-accent)' : undefined
               }}
               onClick={() => {
@@ -193,20 +149,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   handleDoubleClick(tab.id, tab.title)
                 }
               }}
-              title={highlighted ? 'Belongs to the focused project' : undefined}
             >
-              {highlighted && !isActive && highlightColor && (
-                <span
-                  aria-hidden
-                  className="absolute left-0 top-1.5 bottom-1.5 pointer-events-none"
-                  style={{
-                    width: 2,
-                    backgroundColor: highlightColor,
-                    opacity: 0.7,
-                    borderRadius: 1
-                  }}
-                />
-              )}
               <TerminalIcon
                 size={11}
                 className="flex-shrink-0"

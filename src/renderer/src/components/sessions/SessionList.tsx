@@ -1,12 +1,29 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useTerminalStore } from '../../stores/terminalStore'
 import { SessionItem } from './SessionItem'
 import { PromptsDialog } from './PromptsDialog'
 import { Loader2, ChevronRight, ChevronDown } from 'lucide-react'
 import type { AISession } from '../../types'
+import { isTerminalTab } from '../../types'
 import type { SessionGroupMode } from '../layout/SidePanel'
 import { filterSessions } from '../../utils/sessionFilters'
+
+/**
+ * Active-section sort priority. Lower number = higher in the list.
+ *   0 — pending approval / waiting for user (the user is on the hook)
+ *   1 — thinking / executing a tool (the agent is on the hook)
+ *   2 — active but neither (idle agent). These are further sorted by
+ *       "has an open tab first, then by recency" inside `compareActive`
+ *       below.
+ */
+function activeSortBucket(s: AISession): number {
+  const ds = s.detailedStatus
+  if (ds === 'awaitingApproval' || ds === 'waitingForUser') return 0
+  if (ds === 'thinking' || ds === 'executingTool') return 1
+  return 2
+}
 
 interface SessionListProps {
   groupMode: SessionGroupMode
@@ -87,12 +104,28 @@ export function SessionList({
   const error = useSessionStore((s) => s.error)
   const deleteSession = useSessionStore((s) => s.deleteSession)
   const hideEmptySessions = useSettingsStore((s) => s.settings.hideEmptySessions)
+  const groups = useTerminalStore((s) => s.groups)
+
+  // Set of `${providerId}:${sessionId}` for sessions currently represented
+  // by an open terminal tab. Used as the secondary sort key for active-but-
+  // not-running sessions (open ones float above unopened ones).
+  const openSessionIds = useMemo(() => {
+    const set = new Set<string>()
+    for (const g of groups) {
+      for (const t of g.tabs) {
+        if (!isTerminalTab(t)) continue
+        if (t.sessionId && t.providerId) set.add(`${t.providerId}:${t.sessionId}`)
+      }
+    }
+    return set
+  }, [groups])
+
 
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [promptsSession, setPromptsSession] = useState<AISession | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  const { active, groups, flatList } = useMemo(() => {
+  const { active, groups: idleGroups, flatList } = useMemo(() => {
     const filtered = filterSessions(sessions, {
       searchQuery,
       providerFilter,
@@ -102,6 +135,24 @@ export function SessionList({
 
     const idle = filtered.filter((s) => s.status === 'idle')
     const activeList = filtered.filter((s) => s.status === 'active')
+
+    const sessionTime = (s: AISession): number =>
+      s.lastActivityTime ?? new Date(s.updatedAt).getTime()
+    const compareActive = (a: AISession, b: AISession): number => {
+      const ba = activeSortBucket(a)
+      const bb = activeSortBucket(b)
+      if (ba !== bb) return ba - bb
+      // Bucket 2 only: prioritize sessions with an open tab.
+      if (ba === 2) {
+        const aOpen = openSessionIds.has(`${a.aiTool}:${a.id}`) ? 1 : 0
+        const bOpen = openSessionIds.has(`${b.aiTool}:${b.id}`) ? 1 : 0
+        if (aOpen !== bOpen) return bOpen - aOpen
+      }
+      // Final tiebreaker: most recent activity first.
+      return sessionTime(b) - sessionTime(a)
+    }
+    activeList.sort(compareActive)
+
     const groupedIdle = groupMode === 'time' ? groupByTime(idle) : groupByWorkspace(idle)
 
     // Build flat list for keyboard nav
@@ -112,7 +163,15 @@ export function SessionList({
       groups: groupedIdle,
       flatList: flat
     }
-  }, [sessions, searchQuery, groupMode, providerFilter, statusFilters, hideEmptySessions])
+  }, [
+    sessions,
+    searchQuery,
+    groupMode,
+    providerFilter,
+    statusFilters,
+    hideEmptySessions,
+    openSessionIds
+  ])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -143,7 +202,7 @@ export function SessionList({
     setSelectedIndex(-1)
   }, [searchQuery, providerFilter, statusFilters])
 
-  if (loading && active.length === 0 && groups.length === 0) {
+  if (loading && active.length === 0 && idleGroups.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-zinc-500">
         <Loader2 size={16} className="animate-spin" />
@@ -155,7 +214,7 @@ export function SessionList({
     return <div className="px-3 py-4 text-xs text-red-400">Failed to load sessions</div>
   }
 
-  if (active.length === 0 && groups.length === 0) {
+  if (active.length === 0 && idleGroups.length === 0) {
     return (
       <div className="px-3 py-8 text-xs text-zinc-500 text-center">
         No sessions found.
@@ -190,7 +249,7 @@ export function SessionList({
           </CollapsibleGroup>
         )}
 
-        {groups.map((group) => (
+        {idleGroups.map((group) => (
           <CollapsibleGroup
             key={group.label}
             label={group.label}

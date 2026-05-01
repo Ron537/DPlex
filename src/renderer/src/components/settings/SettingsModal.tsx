@@ -382,7 +382,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     <input
                       type="range"
                       min={1}
-                      max={90}
+                      max={15}
                       value={settings.sessionMaxAgeDays}
                       onChange={(e) =>
                         applyDebounced({ sessionMaxAgeDays: Number(e.target.value) })
@@ -392,12 +392,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     <input
                       type="number"
                       min={1}
-                      max={365}
+                      max={15}
                       value={settings.sessionMaxAgeDays}
                       onChange={(e) => {
                         const n = Number(e.target.value)
                         if (Number.isFinite(n) && n >= 1) {
-                          applyDebounced({ sessionMaxAgeDays: Math.min(365, Math.floor(n)) })
+                          applyDebounced({ sessionMaxAgeDays: Math.min(15, Math.floor(n)) })
                         }
                       }}
                       className="w-16 rounded px-2 py-1 text-xs outline-none"

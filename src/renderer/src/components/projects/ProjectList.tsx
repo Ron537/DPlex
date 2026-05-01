@@ -2,14 +2,32 @@ import { useEffect, useState, useMemo } from 'react'
 import { useProjectStore } from '../../stores/projectStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { useAttentionStore } from '../../stores/attentionStore'
 import { ProjectItem } from './ProjectItem'
+import { ProjectAvatarButton } from './ProjectAvatarButton'
 import { FolderPlus, Pin } from 'lucide-react'
 import { buildProjectSessionIndex } from '../../hooks/useProjectSessions'
 import type { Project, ProviderInfo } from '../../types'
+import type { ProjectActivity } from '../../hooks/useProjectSessions'
+import type { AttentionEvent } from '../../../../preload/attentionTypes'
+
+const EMPTY_ACTIVITY: ProjectActivity = {
+  sessions: [],
+  openTabs: [],
+  activeCount: 0,
+  hasActive: false,
+  lastActivity: undefined
+}
+// Shared empty attention array — a fresh `[]` per render would defeat the
+// `memo()` shallow comparison on `ProjectAvatarButton` and rerender every
+// avatar on unrelated SidePanel updates.
+const EMPTY_ATTENTION: AttentionEvent[] = []
 
 interface ProjectListProps {
   searchQuery?: string
   activeOnly?: boolean
+  /** Render the rail-style avatar-only column instead of full rows. */
+  compact?: boolean
 }
 
 interface ProjectEntry {
@@ -17,12 +35,17 @@ interface ProjectEntry {
   children?: Project[]
 }
 
-export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): React.JSX.Element {
+export function ProjectList({
+  searchQuery,
+  activeOnly,
+  compact
+}: ProjectListProps): React.JSX.Element {
   const projects = useProjectStore((s) => s.projects)
   const loaded = useProjectStore((s) => s.loaded)
   const loadProjects = useProjectStore((s) => s.loadProjects)
   const sessions = useSessionStore((s) => s.sessions)
   const groups = useTerminalStore((s) => s.groups)
+  const attentionEvents = useAttentionStore((s) => s.active)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
 
   useEffect(() => {
@@ -40,6 +63,31 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
     () => buildProjectSessionIndex(sessions, groups, projectPaths),
     [sessions, groups, projectPaths]
   )
+
+  // Map projectId → AttentionEvents for the rail. Built O(projects × events)
+  // and only when the rail is rendered, since attention events are typically
+  // a tiny set. Each session/tab inside a project contributes its compositeId
+  // (providerId:sessionId) which we match against the active events.
+  const attentionByProject = useMemo(() => {
+    const out = new Map<string, AttentionEvent[]>()
+    if (compact !== true || attentionEvents.length === 0) return out
+    for (const project of projects) {
+      const activity = sessionIndex.get(project.path)
+      if (!activity) continue
+      const compositeIds = new Set<string>()
+      for (const s of activity.sessions) {
+        compositeIds.add(`${s.aiTool}:${s.id}`)
+      }
+      for (const t of activity.openTabs) {
+        if (t.providerId && t.sessionId) compositeIds.add(`${t.providerId}:${t.sessionId}`)
+      }
+      const matches = attentionEvents.filter(
+        (e) => !e.suppressed && compositeIds.has(e.compositeId)
+      )
+      if (matches.length > 0) out.set(project.id, matches)
+    }
+    return out
+  }, [compact, projects, sessionIndex, attentionEvents])
 
   // Build parentId→children map keyed by project id. Orphan children (whose
   // parent was removed) fall back to being rendered as top-level projects.
@@ -103,6 +151,30 @@ export function ProjectList({ searchQuery, activeOnly }: ProjectListProps): Reac
   }, [projects, childrenByParent, searchQuery, activeOnly, sessionIndex, hasFilter])
 
   const totalVisible = pinned.length + rest.length
+
+  // ── Compact (rail) layout ────────────────────────────────────────────────
+  // Used when the side panel is collapsed — projects shrink to avatar-only
+  // buttons. Pinned section is preserved and separated by a thin divider.
+  if (compact) {
+    const renderAvatar = (project: Project): React.JSX.Element => (
+      <ProjectAvatarButton
+        key={project.id}
+        project={project}
+        activity={sessionIndex.get(project.path) ?? EMPTY_ACTIVITY}
+        attentionEvents={attentionByProject.get(project.id) ?? EMPTY_ATTENTION}
+      />
+    )
+    const showPinnedDivider = pinned.length > 0 && rest.length > 0
+    return (
+      <div className="flex flex-col items-center gap-1.5 py-2" role="list">
+        {pinned.map((entry) => renderAvatar(entry.project))}
+        {showPinnedDivider && (
+          <div className="my-1" style={{ width: 24, borderTop: '1px solid var(--dplex-border)' }} />
+        )}
+        {rest.map((entry) => renderAvatar(entry.project))}
+      </div>
+    )
+  }
 
   const renderEntry = (
     { project, children }: ProjectEntry,

@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-05-02
+
+### Added
+
+- **Project avatar rail.** When the side panel is collapsed it now becomes
+  a 52 px rail of project avatars (instead of disappearing entirely).
+  Avatars carry the project's deterministic color/initials, an active-
+  project accent bar, and a status ring. Clicking an avatar re-expands
+  the panel, marks that project active, and focuses the first existing
+  tab in the project tree.
+- **FLIP layout animation** glides avatars between the expanded row
+  layout and the collapsed rail layout when the panel toggles. No
+  animation library — just `useLayoutEffect` + a single CSS transform
+  pass per avatar, driven by a shared `data-project-avatar` attribute.
+- **In-panel segmented toggle** for switching between Projects and
+  Sessions views (replaces the standalone activity bar). Pill-style
+  control lives in the side-panel header.
+- **Project status taxonomy** on the rail: avatars dim subtly when the
+  project has no live session or open tab, show full opacity when live,
+  add a green pulsing border when an agent is actively running
+  (`detailedStatus` is `thinking` or `executingTool`), and an amber
+  border + corner attention badge when sessions need approval / input.
+  All transitions animate (no snap-in), and the status reveal is held
+  back until the FLIP finishes so it doesn't jitter mid-glide.
+- **Bidirectional project ↔ tab sync.** Activating a tab now also marks
+  the matching project active (longest-prefix path match, normalized
+  for case + separator). Clicking a project (in row or rail) focuses
+  the first existing tab whose path is in the project tree (own path
+  + worktree children), or no-ops if the focused tab already belongs.
+- Active-session list sort buckets in the Sessions view: pending-
+  approval / waiting-for-user first, thinking / executing-tool next,
+  then "active but idle" sorted by has-open-tab and recency.
+- Cross-platform-safe `normalizePath` extracted to its own util module.
+- New `focusFirstTabForPaths(paths)` helper in `utils/sessionTabs`.
+- New `useProjectAvatarFlip(triggerKey)` hook for cross-layout FLIP.
+
+### Changed
+
+- Active project signal in the expanded panel switched from a
+  highlighted border + glow on the last-expanded card to a thin left
+  accent bar on the active row (matches the collapsed-rail treatment).
+- Tabs no longer get tinted with the focused project's color — both
+  background tint and the left color strip in `GroupTabBar` are gone.
+  Tabs use the standard active/inactive styling regardless of which
+  project is selected.
+- "Discovered" project rows lost their dashed row border; they remain
+  visually distinguished by a slight opacity dim and the inline
+  "Discovered" badge.
+- Settings: **Session Max Age** slider + number input now cap at 15
+  days (previously slider 90, input 365).
+
+### Removed
+
+- The standalone **Activity Bar** component (Projects/Sessions/Settings
+  icons in a 52 px rail). The Projects/Sessions toggle moved into the
+  side-panel header; Settings is reachable from the status bar gear.
+- Unused `@tanstack/react-virtual` dependency.
+
+### Fixed
+
+- Path comparisons in tab → project sync and project → tab focus now
+  go through `normalizePath`, so the active-project indicator and
+  click-to-focus work correctly on Windows (backslashes,
+  case-insensitive filesystem) and on macOS where casing can differ
+  between registration and tab creation.
+- `useProjectAvatarFlip` no longer forces a synchronous layout on every
+  unrelated `SidePanel` re-render — the measurement effect runs only
+  when the trigger key changes.
+- FLIP cleanup now restores the avatar's prior inline `transition` /
+  `transform-origin` so the component's own border-color and opacity
+  transitions keep working after the first toggle.
+- Clicking a rail avatar while the Sessions tab was last-active now
+  expands into the Projects view (where the user expects to see the
+  emphasized project) instead of leaving them on Sessions.
+- Empty-attention array prop on `ProjectAvatarButton` is now a shared
+  constant, restoring `memo()` shallow-comparison so rail avatars
+  don't all rerender on unrelated SidePanel updates.
+
 ### Added
 
 - **Right-side Git panel.** Auto-binds to the active project and hosts a
@@ -295,7 +373,8 @@ AI-assisted development.
 - Eight built-in themes across dark and light variants.
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Ron537/DPlex/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Ron537/DPlex/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Ron537/DPlex/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Ron537/DPlex/compare/v0.2.0...v0.2.1

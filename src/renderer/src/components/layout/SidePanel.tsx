@@ -8,6 +8,7 @@ import { useProjectStore } from '../../stores/projectStore'
 import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
 import { ProjectPanelFooter } from '../projects/ProjectPanelFooter'
+import { useProjectAvatarFlip } from '../../hooks/useProjectAvatarFlip'
 
 export type SessionGroupMode = 'time' | 'workspace'
 
@@ -21,6 +22,7 @@ const STATUS_OPTIONS: { id: string; label: string }[] = [
 
 const MIN_WIDTH = 200
 const MAX_WIDTH = 500
+const COLLAPSED_WIDTH = 52
 
 export function SidePanel(): React.JSX.Element | null {
   const searchQuery = useSessionStore((s) => s.searchQuery)
@@ -130,8 +132,31 @@ export function SidePanel(): React.JSX.Element | null {
     [sidebarWidth, setSidebarWidth]
   )
 
-  if (!sidebarVisible || panelCollapsed) {
+  // FLIP-animate project avatars between the expanded rows and the collapsed
+  // rail when `panelCollapsed` toggles.
+  useProjectAvatarFlip(panelCollapsed)
+
+  if (!sidebarVisible) {
     return null
+  }
+
+  // Collapsed rail: a slim 52px column showing project avatars. Clicking an
+  // avatar re-expands the panel and emphasizes that project.
+  if (panelCollapsed) {
+    return (
+      <div
+        className="flex flex-col h-full flex-shrink-0"
+        style={{
+          width: COLLAPSED_WIDTH,
+          backgroundColor: 'var(--dplex-bg-alt)',
+          borderRight: '1px solid var(--dplex-border)'
+        }}
+      >
+        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
+          <ProjectList compact />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -143,17 +168,42 @@ export function SidePanel(): React.JSX.Element | null {
         borderRight: '1px solid var(--dplex-border)'
       }}
     >
-      {/* Header: panel title + actions (VS Code style) */}
+      {/* Header: segmented Projects/Sessions toggle + per-tab actions. The
+          toggle replaces the standalone activity-bar — switching tabs lives
+          inside the panel itself. */}
       <div
-        className="flex items-center justify-between px-3 h-9"
+        className="flex items-center justify-between px-2 h-9 gap-2"
         style={{ borderBottom: '1px solid var(--dplex-border)' }}
       >
-        <span
-          className="text-[11px] font-semibold tracking-wider uppercase select-none"
-          style={{ color: 'var(--dplex-text-muted)' }}
+        <div
+          role="tablist"
+          aria-label="Side panel view"
+          className="relative flex items-center gap-0.5 rounded-full p-0.5 select-none flex-shrink-0"
+          style={{ backgroundColor: 'var(--dplex-bg)' }}
         >
-          {activeTab === 'projects' ? 'Projects' : 'Sessions'}
-        </span>
+          {(['projects', 'sessions'] as const).map((tab) => {
+            const active = activeTab === tab
+            return (
+              <button
+                key={tab}
+                role="tab"
+                aria-selected={active}
+                onClick={() => updateSettings({ sidebarActiveTab: tab })}
+                className="relative px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full transition-colors"
+                style={{
+                  backgroundColor: active ? 'var(--dplex-bg-alt)' : 'transparent',
+                  color: active ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+                  boxShadow: active
+                    ? '0 1px 2px rgba(0,0,0,0.18), 0 0 0 1px color-mix(in srgb, var(--dplex-border) 60%, transparent)'
+                    : undefined
+                }}
+                data-testid={`side-panel-tab-${tab}`}
+              >
+                {tab === 'projects' ? 'Projects' : 'Sessions'}
+              </button>
+            )
+          })}
+        </div>
         <div className="flex items-center gap-0.5">
           {activeTab === 'projects' && (
             <>

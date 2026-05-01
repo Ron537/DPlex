@@ -30,6 +30,7 @@ import { PendingSessionItem } from '../sessions/PendingSessionItem'
 import { PromptsDialog } from '../sessions/PromptsDialog'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
 import { normalizePath } from '../../hooks/useProjectSessions'
+import { focusFirstTabForPaths } from '../../utils/sessionTabs'
 import { PopoverMenu } from '../common/PopoverMenu'
 import { NewWorktreeModal } from '../worktrees/NewWorktreeModal'
 import { ManageWorktreesModal } from '../worktrees/ManageWorktreesModal'
@@ -129,6 +130,7 @@ export function ProjectItem({
 
   const isExpanded = expandedIds.has(project.id)
   const lastExpandedId = useProjectStore((s) => s.lastExpandedProjectId)
+  const isActive = useProjectStore((s) => s.activeProjectId === project.id)
   const isLastExpanded = isExpanded && lastExpandedId === project.id
   const branch = useGitBranch(project.path)
   const { sessions, openTabs, activeCount, hasActive, lastActivity } = activity
@@ -178,26 +180,33 @@ export function ProjectItem({
       style={{
         marginLeft: indent ? indent * 16 : undefined,
         // Collapsed rows blend with the container; only expanded cards get a
-        // subtle gradient + border to stand out (mirrors the mockup).
-        // The most recently expanded project gets a stronger accent border
-        // + subtle glow so the user can tell which one they just opened.
+        // subtle gradient + border to stand out (mirrors the mockup). The
+        // active project gets a left accent bar (rendered below) instead of
+        // a special border treatment.
         background: isCompact
           ? undefined
           : isExpanded
             ? 'linear-gradient(180deg, color-mix(in srgb, var(--dplex-status-active-bg) 10%, var(--dplex-bg)) 0%, var(--dplex-bg) 50%, var(--dplex-bg-alt) 100%)'
             : undefined,
-        border: isCompact
-          ? undefined
-          : isLastExpanded
-            ? '1px solid color-mix(in srgb, var(--dplex-accent) 55%, var(--dplex-border))'
-            : isExpanded
-              ? '1px solid var(--dplex-border)'
-              : undefined,
-        boxShadow: isLastExpanded
-          ? '0 0 0 1px color-mix(in srgb, var(--dplex-accent) 20%, transparent)'
-          : undefined
+        border: isCompact ? undefined : isExpanded ? '1px solid var(--dplex-border)' : undefined
       }}
     >
+      {/* Active-project accent bar — non-compact rows only. */}
+      {!isCompact && isActive && (
+        <div
+          aria-hidden
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 6,
+            bottom: 6,
+            width: 2,
+            borderRadius: 2,
+            backgroundColor: 'var(--dplex-accent)',
+            zIndex: 1
+          }}
+        />
+      )}
       {/* Thread line connecting the worktree row to the parent project. */}
       {isCompact && (
         <>
@@ -242,6 +251,14 @@ export function ProjectItem({
           // for ambient project-scoped UI (Git panel, etc). Independent of
           // expansion/emphasis state.
           setActiveProject(project.id)
+          // Jump to the first existing tab that belongs to this project
+          // tree (own path or any worktree child) so the editor follows
+          // the panel selection.
+          {
+            const paths = new Set<string>([project.path])
+            if (childProjects) for (const c of childProjects) paths.add(c.path)
+            focusFirstTabForPaths(paths)
+          }
           // Clicking an already-expanded card that isn't the emphasized one
           // promotes it instead of collapsing. Chevron still toggles.
           if (isExpanded && !isLastExpanded) {
@@ -261,6 +278,7 @@ export function ProjectItem({
         {avatarColor && avatarInitials && (
           <span
             aria-hidden
+            data-project-avatar={project.id}
             className="flex-shrink-0 flex items-center justify-center rounded-md text-[10.5px] font-bold leading-none"
             style={{
               width: 26,

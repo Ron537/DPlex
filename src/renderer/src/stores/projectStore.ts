@@ -376,3 +376,52 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return tabId ?? null
   }
 }))
+
+/**
+ * Sync the active project from the focused terminal tab. Whenever the user
+ * activates a tab — by click, keyboard shortcut, or programmatic switch —
+ * locate the project whose path matches the tab's cwd or worktree path and
+ * mark it active. Mirrors what `setActiveProject` does inside ProjectItem's
+ * onClick, but covers every other path that can change the focused tab.
+ */
+function getActiveTabPath(): string | undefined {
+  const ts = useTerminalStore.getState()
+  const group = ts.groups.find((g) => g.id === ts.activeGroupId)
+  if (!group) return undefined
+  const tab = group.tabs.find((t) => t.id === group.activeTabId)
+  if (!tab || tab.kind === 'fileDiff') return undefined
+  return tab.worktreePath ?? tab.cwd
+}
+
+function syncActiveProjectFromTabPath(tabPath: string | undefined): void {
+  if (!tabPath) return
+  const projects = useProjectStore.getState().projects
+  const norm = normalizePath(tabPath)
+  // Prefer an exact path match; fall back to the closest ancestor (handles
+  // tabs opened in subdirectories of a project). All comparisons use the
+  // platform-aware normalization so Windows backslashes and case-insensitive
+  // filesystems behave correctly.
+  const exact = projects.find((p) => normalizePath(p.path) === norm)
+  const match =
+    exact ??
+    projects
+      .map((p) => ({ p, n: normalizePath(p.path) }))
+      .filter(({ n }) => norm === n || norm.startsWith(n + '/'))
+      .sort((a, b) => b.n.length - a.n.length)[0]?.p
+  if (!match) return
+  if (useProjectStore.getState().activeProjectId === match.id) return
+  useProjectStore.getState().setActiveProject(match.id)
+}
+
+let prevActiveTabKey: string | null = (() => {
+  const ts = useTerminalStore.getState()
+  const group = ts.groups.find((g) => g.id === ts.activeGroupId)
+  return group ? `${group.id}::${group.activeTabId}` : null
+})()
+useTerminalStore.subscribe((state) => {
+  const group = state.groups.find((g) => g.id === state.activeGroupId)
+  const key = group ? `${group.id}::${group.activeTabId}` : null
+  if (key === prevActiveTabKey) return
+  prevActiveTabKey = key
+  syncActiveProjectFromTabPath(getActiveTabPath())
+})

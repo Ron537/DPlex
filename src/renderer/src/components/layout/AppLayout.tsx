@@ -4,7 +4,6 @@ import { persistWorkspaceNow } from '../../stores/terminalStore'
 import { useSettingsStore, applyCssVarsSync } from '../../stores/settingsStore'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { SidePanel } from './SidePanel'
-import { ActivityBar } from './ActivityBar'
 import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
@@ -283,7 +282,6 @@ export function AppLayout(): React.JSX.Element {
       </div>
 
       <div className="flex flex-1 min-h-0">
-        <ActivityBar onOpenSettings={() => setSettingsOpen(true)} />
         <SidePanel />
 
         <div className="flex flex-col flex-1 min-w-0">
