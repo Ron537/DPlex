@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react'
 import { AppLayout } from './components/layout/AppLayout'
+import { ProviderIconSprite } from './components/common/ProviderIconSprite'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTerminalStore } from './stores/terminalStore'
 import { useProvidersStore } from './stores/providersStore'
@@ -11,6 +12,7 @@ function App(): React.JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeTerminal = useTerminalStore((s) => s.closeTerminal)
   const splitGroup = useTerminalStore((s) => s.splitGroup)
+  const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
 
   useEffect(() => {
@@ -69,15 +71,31 @@ function App(): React.JSX.Element {
 
       if (meta && e.key >= '1' && e.key <= '9') {
         e.preventDefault()
-        if (activeGroup) {
-          const idx = parseInt(e.key) - 1
-          if (idx < activeGroup.tabs.length) {
-            setActiveTerminalInGroup(activeGroup.id, activeGroup.tabs[idx].id)
+        // Flatten groups in visual (layout-tree) order, then concatenate
+        // their tabs so CMD/CTRL+1..9 selects the Nth tab globally across
+        // all split groups, not just within the active one.
+        const orderedGroupIds: string[] = []
+        const walk = (node: typeof state.layout): void => {
+          if (node.type === 'group' && node.groupId) {
+            orderedGroupIds.push(node.groupId)
+          } else if (node.children) {
+            for (const c of node.children) walk(c)
           }
+        }
+        walk(state.layout)
+        const orderedGroups = orderedGroupIds
+          .map((id) => state.groups.find((g) => g.id === id))
+          .filter((g): g is NonNullable<typeof g> => Boolean(g))
+        const flatTabs = orderedGroups.flatMap((g) => g.tabs.map((t) => ({ groupId: g.id, tabId: t.id })))
+        const idx = parseInt(e.key) - 1
+        if (idx < flatTabs.length) {
+          const target = flatTabs[idx]
+          setActiveGroup(target.groupId)
+          setActiveTerminalInGroup(target.groupId, target.tabId)
         }
       }
     },
-    [createTerminal, closeTerminal, toggleSidebar, splitGroup, setActiveTerminalInGroup]
+    [createTerminal, closeTerminal, toggleSidebar, splitGroup, setActiveGroup, setActiveTerminalInGroup]
   )
 
   useEffect(() => {
@@ -85,7 +103,12 @@ function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  return <AppLayout />
+  return (
+    <>
+      <ProviderIconSprite />
+      <AppLayout />
+    </>
+  )
 }
 
 export default App

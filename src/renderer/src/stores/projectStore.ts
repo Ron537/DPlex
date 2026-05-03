@@ -16,6 +16,18 @@ function folderName(folderPath: string): string {
 interface ProjectState {
   projects: Project[]
   expandedProjectIds: Set<string>
+  /**
+   * Worktree-section header collapse state, keyed by either a worktree
+   * project id (for child worktrees) or `${parentId}::main` (for the
+   * parent's main-checkout section). Defaults to **expanded** — a section
+   * appears in this set only after the user explicitly collapses it.
+   *
+   * Stored separately from `expandedProjectIds` so toggling a worktree
+   * section never collapses the parent project, and so the default
+   * expanded state doesn't require seeding entries every time a project
+   * loads.
+   */
+  collapsedWorktreeSections: Set<string>
   /** Id of the most recently expanded project. Used to visually emphasize it. */
   lastExpandedProjectId: string | null
   /**
@@ -39,6 +51,8 @@ interface ProjectState {
   removeProject: (id: string) => void
   reorderProject: (draggedId: string, targetId: string, position: 'above' | 'below') => void
   toggleExpanded: (id: string) => void
+  /** Toggle the collapsed/expanded state of a worktree section header. */
+  toggleWorktreeSection: (sectionId: string) => void
   setLastExpanded: (id: string) => void
   setActiveProject: (id: string | null) => void
   setProjectGitState: (id: string, patch: ProjectGitPanelState) => void
@@ -54,6 +68,7 @@ interface ProjectState {
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   expandedProjectIds: new Set(),
+  collapsedWorktreeSections: new Set(),
   lastExpandedProjectId: null,
   activeProjectId: null,
   loaded: false,
@@ -265,6 +280,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   toggleExpanded: (id) => {
     let clearActive = false
+    let promoteActiveTo: string | null = null
     set((state) => {
       const next = new Set(state.expandedProjectIds)
       if (next.has(id)) {
@@ -274,27 +290,42 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         // next expand.
         const nextLast = state.lastExpandedProjectId === id ? null : state.lastExpandedProjectId
         // If we're collapsing the active project — or any ancestor of the
-        // active worktree child — the active selection becomes invisible,
-        // so clear it (and the persisted copy) to match the user's
-        // intent: collapsing means "I don't want this active anymore".
+        // active worktree child — the active selection would become
+        // invisible. We promote the active to the nearest still-rendered
+        // ancestor when one exists (so collapsing a worktree-child keeps
+        // its parent project highlighted), otherwise clear it entirely
+        // (collapsing a top-level project means "I'm done with this one").
         const activeId = state.activeProjectId
         if (activeId) {
           const byId = new Map(state.projects.map((p) => [p.id, p]))
+          // Walk activeId → root, collecting the parent chain.
+          const path: string[] = []
           let cursor = byId.get(activeId)
           const seen = new Set<string>()
           while (cursor && !seen.has(cursor.id)) {
             seen.add(cursor.id)
-            if (cursor.id === id) {
-              clearActive = true
-              break
-            }
+            path.push(cursor.id)
             cursor = cursor.parentProjectId ? byId.get(cursor.parentProjectId) : undefined
+          }
+          const collapseIdx = path.indexOf(id)
+          if (collapseIdx !== -1) {
+            // The collapsed project is on the active path. Try the next
+            // ancestor up — if it exists in the project list (always true
+            // for worktree-children since their parent is registered as a
+            // top-level project), promote active to it; otherwise clear.
+            const ancestorId = path[collapseIdx + 1]
+            if (ancestorId && byId.has(ancestorId)) {
+              promoteActiveTo = ancestorId
+            } else {
+              clearActive = true
+            }
           }
         }
         return {
           expandedProjectIds: next,
           lastExpandedProjectId: nextLast,
-          ...(clearActive ? { activeProjectId: null } : {})
+          ...(clearActive ? { activeProjectId: null } : {}),
+          ...(promoteActiveTo ? { activeProjectId: promoteActiveTo } : {})
         }
       }
       next.add(id)
@@ -302,7 +333,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })
     if (clearActive) {
       window.dplex.settings.merge({ activeProjectId: null })
+    } else if (promoteActiveTo) {
+      window.dplex.settings.merge({ activeProjectId: promoteActiveTo })
     }
+  },
+
+  // Toggle a worktree section's collapsed state. Independent of project
+  // expansion — collapsing a worktree section never affects the parent
+  // project's open/closed state.
+  toggleWorktreeSection: (sectionId) => {
+    set((state) => {
+      const next = new Set(state.collapsedWorktreeSections)
+      if (next.has(sectionId)) next.delete(sectionId)
+      else next.add(sectionId)
+      return { collapsedWorktreeSections: next }
+    })
   },
 
   // Promote an already-expanded project to be the emphasized one without
@@ -409,8 +454,57 @@ function syncActiveProjectFromTabPath(tabPath: string | undefined): void {
       .filter(({ n }) => norm === n || norm.startsWith(n + '/'))
       .sort((a, b) => b.n.length - a.n.length)[0]?.p
   if (!match) return
-  if (useProjectStore.getState().activeProjectId === match.id) return
-  useProjectStore.getState().setActiveProject(match.id)
+  // Set active. If the matched project is a worktree-child, also surface
+  // its parent — selecting a tab inside a worktree should mark both.
+  const store = useProjectStore.getState()
+  if (store.activeProjectId !== match.id) store.setActiveProject(match.id)
+
+  // Expand the parent project (and the worktree-section if applicable) so
+  // the row that backs this tab is in the DOM, then scroll it into view.
+  // Mirrors the manual "click the project to find your tab" flow.
+  const parentId = match.parentProjectId
+  const expanded = useProjectStore.getState().expandedProjectIds
+  const next = new Set(expanded)
+  let mutated = false
+  // Top-level project that owns this tab (either match itself, or its parent).
+  const ownerId = parentId ?? match.id
+  if (!next.has(ownerId)) {
+    next.add(ownerId)
+    mutated = true
+  }
+  if (mutated) {
+    useProjectStore.setState({
+      expandedProjectIds: next,
+      lastExpandedProjectId: ownerId
+    })
+  }
+  // If the tab belongs to a worktree-child, make sure its section is
+  // expanded too (collapsed-by-default-not-in-set semantics).
+  if (parentId) {
+    const collapsed = useProjectStore.getState().collapsedWorktreeSections
+    if (collapsed.has(match.id)) {
+      const nextCollapsed = new Set(collapsed)
+      nextCollapsed.delete(match.id)
+      useProjectStore.setState({ collapsedWorktreeSections: nextCollapsed })
+    }
+  }
+
+  // Defer the scroll-into-view to the next frame so React has a chance to
+  // mount the now-visible expanded body. Use the tab id (stable) so both
+  // session rows and terminal rows can opt in.
+  const ts = useTerminalStore.getState()
+  const group = ts.groups.find((g) => g.id === ts.activeGroupId)
+  const tabId = group?.activeTabId
+  if (tabId) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`[data-row-tab-id="${CSS.escape(tabId)}"]`)
+        if (el && 'scrollIntoView' in el) {
+          ;(el as HTMLElement).scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+        }
+      })
+    })
+  }
 }
 
 let prevActiveTabKey: string | null = (() => {

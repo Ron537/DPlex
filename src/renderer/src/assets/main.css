@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "@xterm/xterm/css/xterm.css";
+@import 'tailwindcss';
+@import '@xterm/xterm/css/xterm.css';
 
 :root {
   color-scheme: dark;
@@ -11,15 +11,15 @@
   --dplex-accent: #74c0fc;
 }
 
-input[type="checkbox"],
-input[type="radio"],
-input[type="range"] {
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'] {
   accent-color: var(--dplex-accent);
 }
 
 /* Style native range tracks so they respect the theme (color-scheme alone
    doesn't fully restyle them in WebKit/Chromium). */
-input[type="range"] {
+input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
@@ -28,12 +28,12 @@ input[type="range"] {
   outline: none;
   cursor: pointer;
 }
-input[type="range"]::-webkit-slider-runnable-track {
+input[type='range']::-webkit-slider-runnable-track {
   height: 4px;
   background: var(--dplex-border);
   border-radius: 9999px;
 }
-input[type="range"]::-webkit-slider-thumb {
+input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
@@ -44,12 +44,12 @@ input[type="range"]::-webkit-slider-thumb {
   border: none;
   cursor: pointer;
 }
-input[type="range"]::-moz-range-track {
+input[type='range']::-moz-range-track {
   height: 4px;
   background: var(--dplex-border);
   border-radius: 9999px;
 }
-input[type="range"]::-moz-range-thumb {
+input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 9999px;
@@ -123,24 +123,453 @@ body {
 
 /* Theme-aware hover — works on both dark and light themes */
 .hover-bg:hover {
-  background-color: var(--dplex-hover, rgba(255,255,255,0.1));
+  background-color: var(--dplex-hover, rgba(255, 255, 255, 0.1));
 }
 
 /* Status dot pulse animation for active AI sessions */
 @keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
 }
 
 /* Subtle pulse for the "live session" dot on project rows. Uses a dedicated
    class so tests can assert it and theme hover rules don't interact. */
 @keyframes dplex-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 .dplex-pulse-dot {
   animation: dplex-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+@keyframes dplex-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.dplex-spin {
+  animation: dplex-spin 1.6s linear infinite;
+  transform-origin: center;
+}
+/* Three-dot typing indicator — used by the `thinking` status motif. The
+   three child circles each pulse opacity on a staggered cadence to read
+   like a "..." typing-in-progress signal. */
+@keyframes dplex-dots {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+.dplex-dots > circle:nth-child(1) {
+  animation: dplex-dots 1.4s ease-in-out infinite;
+}
+.dplex-dots > circle:nth-child(2) {
+  animation: dplex-dots 1.4s ease-in-out 0.16s infinite;
+}
+.dplex-dots > circle:nth-child(3) {
+  animation: dplex-dots 1.4s ease-in-out 0.32s infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .dplex-pulse-dot { animation: none; }
+  .dplex-pulse-dot,
+  .dplex-spin,
+  .dplex-dots > circle {
+    animation: none;
+  }
+}
+
+/* ============================================================
+ * Redesign primitives — class names mirror the HTML preview so
+ * a developer can grep "preview file → here". All colors come
+ * from CSS variables; never hardcoded.
+ * ============================================================ */
+
+/* Status pill — small inline badge with optional dot.
+   Status colors are pulled from --dplex-status-* tokens which
+   adapt to light/dark themes via applyCssVarsSync. */
+.dplex-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+.dplex-pill .dplex-pill-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.dplex-pill.dplex-pill-idle {
+  background: rgba(138, 138, 153, 0.1);
+  color: var(--dplex-text-muted);
+  border-color: rgba(138, 138, 153, 0.18);
+}
+.dplex-pill.dplex-pill-idle .dplex-pill-led {
+  background: var(--dplex-status-idle);
+}
+.dplex-pill.dplex-pill-thinking {
+  background: rgba(96, 165, 250, 0.12);
+  color: #93c5fd;
+  border-color: rgba(96, 165, 250, 0.25);
+}
+.dplex-pill.dplex-pill-thinking .dplex-pill-led {
+  background: var(--dplex-status-thinking);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.dplex-pill.dplex-pill-running {
+  background: rgba(74, 222, 128, 0.1);
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.22);
+}
+.dplex-pill.dplex-pill-running .dplex-pill-led {
+  background: var(--dplex-status-executing);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.dplex-pill.dplex-pill-waiting {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.dplex-pill.dplex-pill-waiting .dplex-pill-led {
+  background: var(--dplex-status-waiting);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.dplex-pill.dplex-pill-attn {
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.28);
+}
+.dplex-pill.dplex-pill-attn .dplex-pill-led {
+  background: var(--dplex-status-approval);
+  animation: pulse 1s ease-in-out infinite;
+}
+.dplex-pill.dplex-pill-compact {
+  padding: 1px 7px;
+  font-size: 10px;
+}
+
+/* Status avatar — replaces the bare status dot in session rows.
+   Dimensions and tints match the preview's .sav rule exactly. */
+.dplex-sav {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--dplex-bg-alt);
+  border: 1px solid var(--dplex-border);
+  color: var(--dplex-text-muted);
+  position: relative;
+}
+.dplex-sav svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+.dplex-sav.dplex-sav-thinking {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #93c5fd;
+}
+.dplex-sav.dplex-sav-running {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.28);
+  color: #86efac;
+}
+.dplex-sav.dplex-sav-waiting {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+.dplex-sav.dplex-sav-attn {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+}
+.dplex-sav .dplex-sav-corner {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  background: var(--dplex-bg-panel);
+  border: 1px solid var(--dplex-border);
+  color: var(--dplex-text-muted);
+}
+.dplex-sav .dplex-sav-corner svg {
+  width: 9px;
+  height: 9px;
+}
+
+/* Terminal-row avatar — visually distinct from `.dplex-sav` (AI session
+   card). Transparent fill + dashed border + monospace `>_` glyph reads as
+   "ephemeral shell" rather than "session", so a project body that mixes
+   AI sessions and shells is scannable at a glance. Same 26 × 26 footprint
+   and 7-px radius as the session avatar so the column rhythm stays
+   aligned. */
+.dplex-term-av {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: transparent;
+  border: 1px dashed var(--dplex-border-strong);
+  color: var(--dplex-text-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+/* Provider glyph — neutral monochrome card carrying a provider mark.
+   Used in places where we deliberately want provider identity even
+   when status takes the avatar slot (e.g. tab title, settings). */
+.dplex-pg {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--dplex-bg-alt);
+  border: 1px solid var(--dplex-border);
+  color: var(--dplex-text-muted);
+}
+.dplex-pg svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.dplex-pg.dplex-pg-sm {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+.dplex-pg.dplex-pg-sm svg {
+  width: 12px;
+  height: 12px;
+}
+.dplex-pg.dplex-pg-copilot {
+  color: #cbd5e1;
+}
+.dplex-pg.dplex-pg-claude {
+  color: #f59e0b;
+}
+.dplex-pg.dplex-pg-gemini {
+  color: #60a5fa;
+}
+.dplex-pg.dplex-pg-codex {
+  color: #a78bfa;
+}
+.dplex-pg.dplex-pg-gpt {
+  color: #10b981;
+}
+
+/* Switch — themed toggle used in Settings.
+   Same dimensions and colors as the preview .switch rule. */
+.dplex-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--dplex-border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  flex: none;
+}
+.dplex-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: left 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.dplex-switch.dplex-switch-on {
+  background: var(--dplex-accent-2);
+}
+.dplex-switch.dplex-switch-on::after {
+  left: 18px;
+}
+.dplex-switch:focus-visible {
+  outline: 2px solid var(--dplex-accent);
+  outline-offset: 2px;
+}
+
+/* Segmented control — Sidebar Projects/Sessions switcher. */
+.dplex-seg {
+  display: flex;
+  background: var(--dplex-bg-alt);
+  border: 1px solid var(--dplex-border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.dplex-seg button {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  color: var(--dplex-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+}
+.dplex-seg button.dplex-seg-active {
+  background: var(--dplex-bg-elev);
+  color: var(--dplex-text);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.dplex-seg button:hover:not(.dplex-seg-active) {
+  color: var(--dplex-text);
+}
+
+/* Worktree section header — Option A in the preview.
+   Reads as a labelled divider, sits at the same indent as session rows.
+   `flex-wrap: nowrap` + `white-space: nowrap` keep the header on a single
+   line; the label children own their own ellipsis truncation so long
+   branch names degrade gracefully at narrow panel widths. */
+.dplex-wt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 4px;
+  font-size: 11px;
+  color: var(--dplex-text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  min-width: 0;
+}
+.dplex-wt-head:hover {
+  background: var(--dplex-hover);
+}
+.dplex-wt-head .dplex-wt-branch {
+  color: var(--dplex-text);
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.dplex-wt-head .dplex-wt-dir {
+  color: var(--dplex-text-dim);
+  font-weight: 500;
+}
+
+/* Flat tab — VS Code-style. 36 px tall, 2 px accent stripe on active. */
+.dplex-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  height: 36px;
+  font-size: 12.5px;
+  color: var(--dplex-text-muted);
+  border-radius: 0;
+  cursor: pointer;
+  border-right: 1px solid var(--dplex-border);
+  position: relative;
+  flex: none;
+  background: var(--dplex-bg-alt);
+  font-family: inherit;
+}
+.dplex-tab:hover {
+  color: var(--dplex-text);
+  background: var(--dplex-hover);
+}
+.dplex-tab.dplex-tab-active {
+  background: var(--dplex-bg);
+  color: var(--dplex-text);
+}
+.dplex-tab.dplex-tab-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--dplex-accent);
+}
+
+/* File-status badge used in the Git/Changes inspector. */
+.dplex-file-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  flex: none;
+}
+.dplex-file-badge.dplex-file-M {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+.dplex-file-badge.dplex-file-A {
+  background: rgba(74, 222, 128, 0.15);
+  color: #86efac;
+}
+.dplex-file-badge.dplex-file-D {
+  background: rgba(248, 113, 113, 0.15);
+  color: #fca5a5;
+}
+.dplex-file-badge.dplex-file-R {
+  background: rgba(96, 165, 250, 0.15);
+  color: #93c5fd;
+}
+.dplex-file-badge.dplex-file-U {
+  background: rgba(167, 139, 250, 0.15);
+  color: #c4b5fd;
+}
+.dplex-file-badge.dplex-file-default {
+  background: var(--dplex-bg-alt);
+  color: var(--dplex-text-muted);
+  border: 1px solid var(--dplex-border);
 }

@@ -180,6 +180,32 @@ export const ProjectAvatarButton = memo(function ProjectAvatarButton({
       >
         {initials}
       </span>
+      {(() => {
+        // Bottom-right liveness dot — mirrors the dot on the expanded
+        // ProjectItem avatar so the collapsed rail carries the same
+        // signal at a glance. Hidden when the (top-right) attention
+        // badge is showing — the amber count already implies activity
+        // and we don't want two dots fighting for the same avatar.
+        const liveCount = activity.activeCount > 0 ? activity.activeCount : activity.openTabs.length
+        if (liveCount === 0 || attentionCount > 0) return null
+        const live = activity.activeCount > 0
+        return (
+          <span
+            aria-hidden
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              bottom: 0,
+              right: 0,
+              width: 10,
+              height: 10,
+              backgroundColor: live ? STATUS_ACTIVE_COLOR : 'var(--dplex-accent)',
+              border: '1.5px solid var(--dplex-bg-alt)',
+              opacity: statusRevealed ? 1 : 0,
+              transition: 'opacity 200ms ease'
+            }}
+          />
+        )
+      })()}
       {attentionCount > 0 && (
         <span
           aria-hidden

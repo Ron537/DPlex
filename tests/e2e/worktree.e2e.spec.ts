@@ -21,7 +21,8 @@ test.describe('DPlex worktree settings', () => {
     if (!window) throw new Error('Window not available')
 
     await window.getByTitle('Settings', { exact: true }).click()
-    await expect(window.getByText('Settings')).toBeVisible()
+    // Modal opens directly into Appearance after the visual refresh.
+    await expect(window.getByRole('heading', { name: 'Appearance' })).toBeVisible()
 
     await window.getByRole('button', { name: 'Worktrees' }).click()
 

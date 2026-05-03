@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import {
   ChevronRight,
   ChevronDown,
@@ -23,13 +23,14 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useGitBranch } from '../../hooks/useGitBranch'
 import { useWorktrees } from '../../hooks/useWorktrees'
-import { STATUS_ACTIVE_COLOR, STATUS_ACTIVE_BG } from '../../utils/statusColors'
+import { STATUS_ACTIVE_COLOR } from '../../utils/statusColors'
 import { getAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
-import { SessionItem } from '../sessions/SessionItem'
-import { PendingSessionItem } from '../sessions/PendingSessionItem'
+import { isMixedProviderList } from '../../utils/providerHelpers'
+import { aggregateVisual } from '../../utils/aggregateVisual'
 import { PromptsDialog } from '../sessions/PromptsDialog'
+import { ProjectSessionList } from './ProjectSessionList'
+import { WorktreeSection } from './WorktreeSection'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
-import { normalizePath } from '../../hooks/useProjectSessions'
 import { focusFirstTabForPaths } from '../../utils/sessionTabs'
 import { PopoverMenu } from '../common/PopoverMenu'
 import { NewWorktreeModal } from '../worktrees/NewWorktreeModal'
@@ -37,15 +38,12 @@ import { ManageWorktreesModal } from '../worktrees/ManageWorktreesModal'
 import { RemoveWorktreeProjectModal } from '../worktrees/RemoveWorktreeProjectModal'
 import { ProjectWorktreeDefaultsModal } from '../worktrees/ProjectWorktreeDefaultsModal'
 import { handleWorktreeCreated } from '../../services/worktreePostCreate'
+import { useGitPanelStore } from '../../stores/gitPanelStore'
 
 interface ProjectItemProps {
   project: Project
   activity: ProjectActivity
   providers: ProviderInfo[]
-  /** Nesting depth (0 = origin, 1 = worktree-project). Drives the indent. */
-  indent?: number
-  /** Parent project record — used by "Open origin". */
-  parentProject?: Project
   /** Worktree-child projects to render inline within this project's expanded body. */
   childProjects?: Project[]
   /** Resolves activity for a child project path. */
@@ -77,8 +75,6 @@ export function ProjectItem({
   project,
   activity,
   providers,
-  indent = 0,
-  parentProject,
   childProjects,
   getActivity,
   moveUpTargetId = null,
@@ -123,22 +119,33 @@ export function ProjectItem({
   // Only subscribe to worktree info when we actually need it (for the modal
   // or for disk-deletion) — avoids a watcher for every worktree-project.
   const needWtWatch = newWtOpen || manageOpen || removeWtOpen
-  const watchPath = isWorktreeProject
-    ? (parentProject?.path ?? project.parentRepoPath ?? project.path)
-    : project.path
+  // Worktree-projects rendered top-level (filter mode) fall back to their
+  // parentRepoPath for worktree operations; otherwise we use the project's
+  // own path. The parent record is no longer passed down — worktrees nested
+  // inside a project render as `WorktreeSection`, not as nested ProjectItems.
+  const watchPath = isWorktreeProject ? (project.parentRepoPath ?? project.path) : project.path
   const { repoRoot } = useWorktrees(needWtWatch ? watchPath : undefined)
 
   const isExpanded = expandedIds.has(project.id)
-  const lastExpandedId = useProjectStore((s) => s.lastExpandedProjectId)
-  const isActive = useProjectStore((s) => s.activeProjectId === project.id)
-  const isLastExpanded = isExpanded && lastExpandedId === project.id
+  // The project row reads as "active" when it's the directly-active project
+  // OR when one of its worktree-child projects is active. The latter case
+  // is the "ambient parent highlight" — selecting a worktree section under
+  // this project still ought to surface which top-level project it belongs
+  // to. Only fires when worktrees render *nested* inside this row; a
+  // worktree-project loaded standalone (filter mode) is its own row and
+  // doesn't have a parent to ambient-highlight.
+  const childProjectIds = useMemo(
+    () => new Set((childProjects ?? []).map((c) => c.id)),
+    [childProjects]
+  )
+  const activeProjectId = useProjectStore((s) => s.activeProjectId)
+  const isDirectlyActive = activeProjectId === project.id
+  const isAmbientActive = activeProjectId !== null && childProjectIds.has(activeProjectId)
+  const isActive = isDirectlyActive || isAmbientActive
   const branch = useGitBranch(project.path)
   const { sessions, openTabs, activeCount, hasActive, lastActivity } = activity
-  // Worktree children render compactly: a single-line row with a left thread
-  // line connecting them to the origin project. Sessions hang off that thread.
-  const isCompact = isWorktreeProject && indent > 0
-  const avatarColor = !isCompact ? getAvatarColor(project.id) : null
-  const avatarInitials = avatarColor ? getAvatarInitials(project.name) : null
+  const avatarColor = getAvatarColor(project.id)
+  const avatarInitials = getAvatarInitials(project.name)
   // Only top-level origin projects can be pinned. Worktree children ride with
   // their parent — pinning a child has no defined semantics.
   const canPin = !isWorktreeProject
@@ -162,108 +169,80 @@ export function ProjectItem({
     setActiveTerminalInGroup(groupId, tabId)
   }
 
+  // Per-project mixed-provider detection (Option B avatar rule). When the
+  // project's session list spans more than one provider, child rows show
+  // their provider corner badge to disambiguate; otherwise they stay quiet.
+  const inlineMixedProviders = useMemo(() => isMixedProviderList(sessions), [sessions])
+
   // Neighbor sibling ids for "Move up / Move down" are supplied by the parent
   // ProjectList, which already knows the rendered top-level order (and thus
   // correctly skips hidden worktree children). Computing here would subscribe
   // the whole list to store changes and could target invisible rows.
 
   return (
-    <div
-      data-reorderable-id={project.id}
-      className={
-        isCompact
-          ? 'relative'
-          : isExpanded
-            ? 'mb-1.5 rounded-lg overflow-hidden relative'
-            : 'mb-0.5 rounded-lg relative'
-      }
-      style={{
-        marginLeft: indent ? indent * 16 : undefined,
-        // Collapsed rows blend with the container; only expanded cards get a
-        // subtle gradient + border to stand out (mirrors the mockup). The
-        // active project gets a left accent bar (rendered below) instead of
-        // a special border treatment.
-        background: isCompact
-          ? undefined
-          : isExpanded
-            ? 'linear-gradient(180deg, color-mix(in srgb, var(--dplex-status-active-bg) 10%, var(--dplex-bg)) 0%, var(--dplex-bg) 50%, var(--dplex-bg-alt) 100%)'
-            : undefined,
-        border: isCompact ? undefined : isExpanded ? '1px solid var(--dplex-border)' : undefined
-      }}
-    >
-      {/* Active-project accent bar — non-compact rows only. */}
-      {!isCompact && isActive && (
-        <div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            left: 0,
-            top: 6,
-            bottom: 6,
-            width: 2,
-            borderRadius: 2,
-            backgroundColor: 'var(--dplex-accent)',
-            zIndex: 1
-          }}
-        />
-      )}
-      {/* Thread line connecting the worktree row to the parent project. */}
-      {isCompact && (
-        <>
-          <div
-            aria-hidden
-            className="absolute pointer-events-none"
-            style={{
-              left: 6,
-              top: 0,
-              bottom: isExpanded ? 0 : '50%',
-              borderLeft: '1px solid var(--dplex-border)'
-            }}
-          />
-          <div
-            aria-hidden
-            className="absolute pointer-events-none"
-            style={{
-              left: 6,
-              top: 14,
-              width: 8,
-              borderTop: '1px solid var(--dplex-border)'
-            }}
-          />
-        </>
-      )}
-
-      {/* Project section header */}
+    <div data-reorderable-id={project.id} className="mb-0.5 relative">
+      {/* Project row — its own selection target. The entire vertical accent
+          bar and gradient card that previously wrapped this + the expanded
+          body have been removed; selection/expansion now styles the row
+          alone, and the expanded body hangs below with an indent + dashed
+          guide line (matches the mockup's `.proj-children`). */}
       <div
         data-project-id={project.id}
-        className={
-          isCompact
-            ? 'group flex items-center gap-1.5 pl-4 pr-2 py-1 cursor-pointer relative rounded-sm hover:bg-[var(--dplex-hover)]'
+        className="group flex items-center gap-2.5 pl-3 pr-2.5 py-2 cursor-pointer relative rounded-lg transition-colors"
+        style={{
+          backgroundColor: isActive
+            ? 'var(--dplex-accent-soft)'
             : isExpanded
-              ? 'group flex items-center gap-2.5 pl-3 pr-2.5 py-2 cursor-pointer relative'
-              : 'group flex items-center gap-2.5 pl-3 pr-2.5 py-2 cursor-pointer relative rounded-lg hover:bg-[var(--dplex-hover)]'
-        }
-        style={
-          isCompact || !isExpanded ? undefined : { borderBottom: '1px solid var(--dplex-border)' }
-        }
+              ? 'var(--dplex-bg-alt)'
+              : undefined,
+          boxShadow: isActive ? 'inset 0 0 0 1px rgba(167,139,250,0.25)' : undefined
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive && !isExpanded) {
+            e.currentTarget.style.backgroundColor = 'var(--dplex-hover)'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive && !isExpanded) {
+            e.currentTarget.style.backgroundColor = ''
+          }
+        }}
         onClick={() => {
-          // Any click on a project row also makes it the "active" project
-          // for ambient project-scoped UI (Git panel, etc). Independent of
-          // expansion/emphasis state.
+          // Snapshot expansion + emphasis BEFORE side effects. The
+          // `focusFirstTabForPaths` call below switches the active tab,
+          // which synchronously triggers the `useTerminalStore`
+          // subscriber that auto-expands the matching project. Reading
+          // store state after that would mis-classify a freshly-clicked
+          // collapsed project as "already expanded" and immediately
+          // collapse it again.
+          const wasExpandedBefore = useProjectStore
+            .getState()
+            .expandedProjectIds.has(project.id)
+          const wasEmphasizedBefore =
+            useProjectStore.getState().lastExpandedProjectId === project.id
+
           setActiveProject(project.id)
-          // Jump to the first existing tab that belongs to this project
-          // tree (own path or any worktree child) so the editor follows
-          // the panel selection.
           {
             const paths = new Set<string>([project.path])
             if (childProjects) for (const c of childProjects) paths.add(c.path)
             focusFirstTabForPaths(paths)
           }
-          // Clicking an already-expanded card that isn't the emphasized one
-          // promotes it instead of collapsing. Chevron still toggles.
-          if (isExpanded && !isLastExpanded) {
+
+          if (!wasExpandedBefore) {
+            // Was collapsed → expand (subscriber may have already done
+            // so; toggleExpanded is idempotent for the expand direction
+            // because it checks current state).
+            const liveState = useProjectStore.getState()
+            if (!liveState.expandedProjectIds.has(project.id)) {
+              toggleExpanded(project.id)
+            } else if (liveState.lastExpandedProjectId !== project.id) {
+              setLastExpanded(project.id)
+            }
+          } else if (!wasEmphasizedBefore) {
+            // Was expanded but not emphasized → promote (don't collapse).
             setLastExpanded(project.id)
           } else {
+            // Was expanded AND emphasized → user is asking to collapse.
             toggleExpanded(project.id)
           }
         }}
@@ -274,154 +253,90 @@ export function ProjectItem({
           setShowMenu(true)
         }}
       >
-        {/* Rich-mode avatar (origin rows only). Deterministic color per project id. */}
-        {avatarColor && avatarInitials && (
-          <span
-            aria-hidden
-            data-project-avatar={project.id}
-            className="flex-shrink-0 flex items-center justify-center rounded-md text-[10.5px] font-bold leading-none"
-            style={{
-              width: 26,
-              height: 26,
-              backgroundColor: avatarColor.bg,
-              color: avatarColor.fg
-            }}
-          >
-            {avatarInitials}
-          </span>
-        )}
+        {/* Project avatar — deterministic color per project id. */}
+        <span
+          aria-hidden
+          data-project-avatar={project.id}
+          className="flex-shrink-0 relative flex items-center justify-center rounded-md text-[10.5px] font-bold leading-none"
+          style={{
+            width: 26,
+            height: 26,
+            backgroundColor: avatarColor.bg,
+            color: avatarColor.fg
+          }}
+        >
+          {avatarInitials}
+          {(() => {
+            const liveCount = activeCount > 0 ? activeCount : openTabs.length
+            if (liveCount === 0) return null
+            const isLive = activeCount > 0
+            return (
+              <span
+                aria-hidden
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  bottom: -2,
+                  right: -2,
+                  width: 9,
+                  height: 9,
+                  backgroundColor: isLive ? STATUS_ACTIVE_COLOR : 'var(--dplex-accent)',
+                  border: '1.5px solid var(--dplex-bg-panel)'
+                }}
+                title={`${liveCount} ${isLive ? 'live ' : ''}session${liveCount === 1 ? '' : 's'}`}
+              />
+            )
+          })()}
+        </span>
 
-        {/* Branch icon — only for worktree children, where the name IS the branch. */}
-        {isCompact && (
-          <GitBranch
-            size={10}
-            className="flex-shrink-0"
-            style={{ color: 'var(--dplex-text-muted)' }}
-          />
-        )}
-
-        {/* Compact (worktree child) rows stay single-line. Origin rows use a
-            two-line layout: name on top, metadata subline below. */}
-        {isCompact ? (
-          <>
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          {/* Line 1: project name */}
+          <div className="flex items-center gap-1.5 min-w-0">
             <span
-              className="text-[11px] font-medium truncate"
+              className="text-[13px] font-semibold truncate tracking-tight"
               style={{ color: 'var(--dplex-text)' }}
             >
               {project.name}
-              {isWorktreeProject && !parentProject && project.parentRepoName && (
-                <span
-                  className="ml-1 font-normal"
-                  style={{ color: 'var(--dplex-text-muted)', opacity: 0.7 }}
-                >
-                  ({project.parentRepoName})
-                </span>
-              )}
             </span>
-            {hasActive && (
-              <>
-                <span
-                  aria-hidden
-                  className="flex-shrink-0 rounded-full dplex-pulse-dot"
-                  style={{
-                    width: 6,
-                    height: 6,
-                    backgroundColor: STATUS_ACTIVE_COLOR,
-                    boxShadow: `0 0 0 3px ${STATUS_ACTIVE_BG}`
-                  }}
-                />
-                {activeCount > 0 && (
-                  <span
-                    className="text-[10px] font-semibold flex-shrink-0 min-w-[16px] text-center px-1 rounded-full"
-                    style={{ color: STATUS_ACTIVE_COLOR, backgroundColor: STATUS_ACTIVE_BG }}
-                  >
-                    {activeCount}
-                  </span>
-                )}
-              </>
-            )}
-            <div className="flex-1" />
-          </>
-        ) : (
-          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-            {/* Line 1: project name + pulse dot when live */}
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span
-                className="text-[13px] font-semibold truncate tracking-tight"
-                style={{ color: 'var(--dplex-text)' }}
-              >
-                {project.name}
-              </span>
-              {hasActive && (
-                <span
-                  aria-hidden
-                  className="flex-shrink-0 rounded-full dplex-pulse-dot"
-                  style={{
-                    width: 7,
-                    height: 7,
-                    backgroundColor: STATUS_ACTIVE_COLOR
-                  }}
-                  title={`${activeCount} live session${activeCount === 1 ? '' : 's'}`}
-                />
-              )}
-            </div>
-
-            {/* Line 2: metadata subline — branch · session summary · last activity */}
-            <div
-              className="flex items-center gap-1.5 min-w-0 text-[11px]"
-              style={{ color: 'var(--dplex-text-muted)' }}
-            >
-              {branch && (
-                <span className="flex items-center gap-1 min-w-0">
-                  <GitBranch size={9} className="flex-shrink-0" />
-                  <span className="truncate">{branch}</span>
-                </span>
-              )}
-              {branch && <span style={{ opacity: 0.5 }}>·</span>}
-              <span className="truncate">
-                {hasActive
-                  ? `${activeCount} session${activeCount === 1 ? '' : 's'}`
-                  : sessions.length > 0
-                    ? 'idle'
-                    : 'no active'}
-              </span>
-              {lastActivity &&
-                (() => {
-                  const rel = relativeTimeShort(lastActivity)
-                  return (
-                    <>
-                      <span style={{ opacity: 0.5 }}>·</span>
-                      <span className="tabular-nums flex-shrink-0">
-                        {rel === 'now' ? 'just now' : `${rel} ago`}
-                      </span>
-                    </>
-                  )
-                })()}
-            </div>
           </div>
-        )}
+
+          {/* Line 2: metadata subline — branch · count · time. Compact format
+              matches the mockup: just a number for sessions (no "session(s)"
+              suffix that wraps + truncates ugly on long branch names) and a
+              suffix-free relative time on the right. */}
+          <div
+            className="flex items-center gap-1.5 min-w-0 text-[11px]"
+            style={{ color: 'var(--dplex-text-muted)' }}
+          >
+            {branch && (
+              <span className="flex items-center gap-1 min-w-0">
+                <GitBranch size={9} className="flex-shrink-0" />
+                <span className="truncate">{branch}</span>
+              </span>
+            )}
+            {lastActivity &&
+              (() => {
+                const rel = relativeTimeShort(lastActivity)
+                return (
+                  <>
+                    <span style={{ opacity: 0.5 }}>·</span>
+                    <span className="tabular-nums flex-shrink-0">{rel}</span>
+                  </>
+                )
+              })()}
+          </div>
+        </div>
 
         {/* Chevron — right-aligned, grey. Clicking always toggles expansion,
             even when the card click is being reinterpreted as "promote". */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            toggleExpanded(project.id)
-          }}
-          style={{ color: 'var(--dplex-text-muted)' }}
-          className="flex-shrink-0 opacity-100 group-hover:opacity-0 transition-opacity cursor-pointer"
-          aria-label={isExpanded ? 'Collapse project' : 'Expand project'}
-        >
-          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </button>
-
-        {/* Action buttons — overlay on hover so they don't reserve space when hidden. */}
+        {/* Action buttons — slotted left of the chevron on hover so the
+            chevron stays clickable. Absolute-positioned so they don't
+            reserve space when hidden; the small bg + shadow masks any
+            meta text underneath. */}
         <div
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md px-0.5 py-0.5"
+          className="absolute right-9 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md px-0.5 py-0.5 z-10"
           style={{
-            backgroundColor: 'var(--dplex-bg)',
-            boxShadow: '0 0 6px 2px var(--dplex-bg-alt)'
+            backgroundColor: 'var(--dplex-bg-panel)',
+            boxShadow: '0 0 6px 2px var(--dplex-bg-panel)'
           }}
         >
           {primaryProvider && (
@@ -452,6 +367,22 @@ export function ProjectItem({
           </button>
         </div>
 
+        {/* Chevron — right-aligned, always visible so the user can collapse
+            the project with a single click without competing with the
+            hover-revealed action buttons. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleExpanded(project.id)
+          }}
+          style={{ color: 'var(--dplex-text-muted)' }}
+          className="flex-shrink-0 cursor-pointer p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+          aria-label={isExpanded ? 'Collapse project' : 'Expand project'}
+        >
+          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+
         {/* Virtual anchor for right-click context menu. Positioned at the
             cursor so the PopoverMenu opens where the user clicked. */}
         {contextMenuPos && (
@@ -480,20 +411,20 @@ export function ProjectItem({
           }}
           className="min-w-[160px]"
         >
-          {providers.map((p) => (
+          {primaryProvider && (
             <button
-              key={p.id}
+              key={primaryProvider.id}
               onClick={(e) => {
                 e.stopPropagation()
-                startAISession(project, p.id)
+                startAISession(project, primaryProvider.id)
                 setShowMenu(false)
               }}
               className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
               style={{ color: 'var(--dplex-text)' }}
             >
-              <Play size={11} /> Start {p.name}
+              <Play size={11} /> Start {primaryProvider.name}
             </button>
-          ))}
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -508,11 +439,11 @@ export function ProjectItem({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              // The Git panel auto-binds to the active project; making this
-              // project active implicitly surfaces its changes there. Once
-              // gitPanelStore lands (todo 6) we'll also call its expand()
-              // action so the panel pops open even when collapsed.
+              // Surface this project's changes in the Git panel — making it
+              // the active project binds the panel, and `expand()` ensures
+              // the panel is visible (no-op if already expanded).
               setActiveProject(project.id)
+              useGitPanelStore.getState().expand()
               setShowMenu(false)
             }}
             className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
@@ -656,135 +587,66 @@ export function ProjectItem({
         </PopoverMenu>
       </div>
 
-      {/* Expanded: sessions */}
+      {/* Expanded body — nested under the project row with a dashed left
+          guide line. Replaces the previous accordion-card layout that
+          wrapped the project header + body in a single bordered container.
+          Indent shrinks at narrow panel widths so worktree-section labels
+          have actual room to truncate into. */}
       {isExpanded && (
         <div
           style={{
-            backgroundColor: 'transparent',
-            // Indent the compact body so sessions align under the worktree
-            // name; the outer thread line (rendered on the row container) is
-            // the single vertical rule — no second borderLeft here.
-            marginLeft: isCompact ? 18 : undefined
+            margin: '2px 0 6px 12px',
+            paddingLeft: 10,
+            borderLeft: '1px dashed var(--dplex-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            minWidth: 0
           }}
         >
-          {!hasActive && openTabs.length === 0 ? (
-            <div
-              className="px-3 py-1.5 text-[10px]"
-              style={{ color: 'var(--dplex-text-muted)', opacity: 0.7 }}
-            >
-              No active sessions.
-            </div>
-          ) : (
-            (() => {
-              // Pair each open tab to an AI session. First by explicit sessionId
-              // (with provider verification — sessionId alone is unsafe across
-              // providers since Claude/Copilot have independent UUID spaces and
-              // a buggy resolver could otherwise let a same-id collision pair
-              // a Claude tab to a Copilot session). Then fall back to CWD +
-              // provider when the resolver hasn't caught up yet (avoids
-              // rendering a placeholder + the session separately).
-              const claimed = new Set<string>()
-              const sessionKey = (s: AISession): string => `${s.aiTool}:${s.id}`
-              const pairs = openTabs.map((tab) => {
-                let match = tab.sessionId
-                  ? sessions.find(
-                      (s) =>
-                        s.id === tab.sessionId &&
-                        // Only require provider equality when the tab
-                        // declares one — legacy tabs without providerId
-                        // keep best-effort matching.
-                        (!tab.providerId || s.aiTool === tab.providerId) &&
-                        !claimed.has(sessionKey(s))
-                    )
-                  : undefined
-                if (!match) {
-                  match = sessions.find((s) => {
-                    if (claimed.has(sessionKey(s))) return false
-                    if (s.status !== 'active') return false
-                    if (!s.cwd || !tab.cwd) return false
-                    if (normalizePath(s.cwd) !== normalizePath(tab.cwd)) return false
-                    if (tab.providerId && s.aiTool !== tab.providerId) return false
-                    const cmd = tab.command?.toLowerCase() ?? ''
-                    return cmd.length === 0 || cmd.includes(s.aiTool.toLowerCase())
-                  })
-                }
-                if (match) claimed.add(sessionKey(match))
-                return { tab, match }
-              })
-              const unpaired = sessions.filter(
-                (s) => s.status === 'active' && !claimed.has(sessionKey(s))
-              )
-              return (
-                <>
-                  {pairs.map(({ tab, match }) =>
-                    match ? (
-                      <SessionItem
-                        key={tab.id}
-                        session={match}
-                        onDelete={deleteSession}
-                        onShowPrompts={setPromptsSession}
-                        compact
-                        onClick={() => handleFocusTab(tab.id, tab.groupId)}
-                      />
-                    ) : tab.providerId ? (
-                      // AI session tab whose backing session file hasn't
-                      // appeared yet (e.g. Claude only writes its JSONL
-                      // after the first user message). Render a "starting"
-                      // placeholder styled like a real session card so the
-                      // user immediately sees it as an AI session, not a
-                      // generic terminal item.
-                      <PendingSessionItem
-                        key={tab.id}
-                        providerLabel={
-                          providers.find((p) => p.id === tab.providerId)?.name ?? tab.providerId
-                        }
-                        onClick={() => handleFocusTab(tab.id, tab.groupId)}
-                      />
-                    ) : (
-                      <div
-                        key={tab.id}
-                        className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-sm mx-1"
-                        onClick={() => handleFocusTab(tab.id, tab.groupId)}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: STATUS_ACTIVE_COLOR }}
-                        />
-                        <span className="text-xs truncate" style={{ color: 'var(--dplex-text)' }}>
-                          {tab.title}
-                        </span>
-                      </div>
-                    )
-                  )}
-                  {unpaired.map((session) => (
-                    <SessionItem
-                      key={session.id}
-                      session={session}
-                      onDelete={deleteSession}
-                      onShowPrompts={setPromptsSession}
-                      compact
-                    />
-                  ))}
-                </>
-              )
-            })()
-          )}
-
-          {/* Worktree children — rendered inline inside this project's card so
-              they visually belong to it (origin only). */}
-          {!isCompact && childProjects && childProjects.length > 0 && getActivity && (
-            <div className="pb-1">
-              {childProjects.map((child) => (
-                <ProjectItem
-                  key={child.id}
-                  project={child}
+          {childProjects && childProjects.length > 0 && getActivity ? (
+            <>
+              {/* Parent's "main checkout" section — shown when worktrees exist
+                  so the user can distinguish sessions running on main from
+                  worktree-scoped sessions. Always visible, label = parent name. */}
+              {(hasActive || openTabs.length > 0) && (
+                <WorktreeSection
+                  project={project}
                   parentProject={project}
-                  indent={1}
-                  activity={getActivity(child.path)}
+                  sessions={sessions}
+                  openTabs={openTabs}
+                  visual={aggregateVisual(sessions)}
                   providers={providers}
+                  isMainCheckout
+                  mainBranchOverride={branch}
                 />
-              ))}
-            </div>
+              )}
+              {childProjects.map((child) => {
+                const childActivity = getActivity(child.path)
+                return (
+                  <WorktreeSection
+                    key={child.id}
+                    project={child}
+                    parentProject={project}
+                    sessions={childActivity.sessions}
+                    openTabs={childActivity.openTabs}
+                    visual={aggregateVisual(childActivity.sessions)}
+                    providers={providers}
+                  />
+                )
+              })}
+            </>
+          ) : (
+            <ProjectSessionList
+              sessions={sessions}
+              openTabs={openTabs}
+              providers={providers}
+              showProviderBadge={inlineMixedProviders}
+              emptyMessage={!hasActive && openTabs.length === 0 ? 'No active sessions.' : undefined}
+              onFocusTab={handleFocusTab}
+              onDeleteSession={deleteSession}
+              onShowPrompts={setPromptsSession}
+            />
           )}
         </div>
       )}

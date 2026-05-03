@@ -25,34 +25,74 @@ export function applyCssVarsSync(themeId: string): void {
   const root = document.documentElement
   root.style.setProperty('--dplex-bg', theme.ui.bg)
   root.style.setProperty('--dplex-bg-alt', theme.ui.bgAlt)
+  root.style.setProperty('--dplex-bg-panel', theme.ui.bgPanel ?? theme.ui.bgAlt)
+  root.style.setProperty('--dplex-bg-elev', theme.ui.bgElev ?? theme.ui.bgAlt)
   root.style.setProperty('--dplex-border', theme.ui.border)
+  root.style.setProperty('--dplex-border-strong', theme.ui.borderStrong ?? theme.ui.border)
   root.style.setProperty('--dplex-text', theme.ui.text)
   root.style.setProperty('--dplex-text-muted', theme.ui.textMuted)
+  root.style.setProperty('--dplex-text-dim', theme.ui.textDim ?? theme.ui.textMuted)
   root.style.setProperty('--dplex-accent', theme.ui.accent)
-  root.style.setProperty('--dplex-hover', theme.ui.hover || 'rgba(255,255,255,0.1)')
+  root.style.setProperty('--dplex-accent-2', theme.ui.accent2 ?? theme.ui.accent)
+  root.style.setProperty('--dplex-accent-soft', hexToRgba(theme.ui.accent, 0.14))
+  root.style.setProperty('--dplex-hover', theme.ui.hover || 'rgba(255,255,255,0.04)')
   root.style.setProperty('--dplex-scrollbar', theme.ui.scrollbar || 'rgba(255,255,255,0.15)')
   root.style.setProperty(
     '--dplex-scrollbar-hover',
     theme.ui.scrollbarHover || 'rgba(255,255,255,0.25)'
   )
 
-  // Status colors — adapted for contrast on light vs dark backgrounds
+  // Status colors — adapted for contrast on light vs dark backgrounds.
+  // Each token must remain visually distinct from every other token in
+  // both variants. The dark hues match the soft-pill rules in main.css.
   const isLight = theme.variant === 'light'
-  root.style.setProperty('--dplex-status-idle', isLight ? '#9ca3af' : '#6b7280')
-  root.style.setProperty('--dplex-status-thinking', isLight ? '#2563eb' : '#3b82f6')
-  root.style.setProperty('--dplex-status-executing', isLight ? '#d97706' : '#f59e0b')
-  root.style.setProperty('--dplex-status-approval', isLight ? '#dc2626' : '#ef4444')
-  root.style.setProperty('--dplex-status-waiting', isLight ? '#16a34a' : '#22c55e')
-  root.style.setProperty('--dplex-status-active', isLight ? '#16a34a' : '#22c55e')
+  root.style.setProperty('--dplex-status-idle', isLight ? '#9ca3af' : '#8a8a99')
+  root.style.setProperty('--dplex-status-thinking', isLight ? '#2563eb' : '#60a5fa')
+  root.style.setProperty('--dplex-status-executing', isLight ? '#16a34a' : '#4ade80')
+  root.style.setProperty('--dplex-status-approval', isLight ? '#dc2626' : '#f87171')
+  root.style.setProperty('--dplex-status-waiting', isLight ? '#d97706' : '#f59e0b')
+  root.style.setProperty('--dplex-status-active', isLight ? '#16a34a' : '#4ade80')
   root.style.setProperty(
     '--dplex-status-active-bg',
-    isLight ? 'rgba(22,163,74,0.12)' : 'rgba(34,197,94,0.12)'
+    isLight ? 'rgba(22,163,74,0.12)' : 'rgba(74,222,128,0.12)'
   )
 
   document.body.style.backgroundColor = theme.ui.bg
   // Tell the browser to render native form controls (checkboxes, radios, ranges,
   // time inputs, scrollbars) in the matching light/dark mode.
   root.style.colorScheme = isLight ? 'light' : 'dark'
+}
+
+/**
+ * Best-effort color → rgba() with the supplied alpha. Accepts #rgb, #rrggbb,
+ * `rgb(r,g,b)`, or `rgba(r,g,b,a)`. The supplied `alpha` always wins —
+ * any alpha encoded in an input `rgba(...)` string is overridden so callers
+ * get the requested opacity regardless of the theme token's source format.
+ * Used to derive the soft accent tint from any theme's accent color.
+ */
+function hexToRgba(color: string, alpha: number): string {
+  const trimmed = color.trim()
+  // rgb()/rgba() passthrough — re-emit with the requested alpha.
+  const rgbMatch = trimmed.match(
+    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)$/i
+  )
+  if (rgbMatch) {
+    return `rgba(${rgbMatch[1]},${rgbMatch[2]},${rgbMatch[3]},${alpha})`
+  }
+  const hex = trimmed.replace(/^#/, '')
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16)
+    const g = parseInt(hex[1] + hex[1], 16)
+    const b = parseInt(hex[2] + hex[2], 16)
+    return `rgba(${r},${g},${b},${alpha})`
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16)
+    const g = parseInt(hex.slice(2, 4), 16)
+    const b = parseInt(hex.slice(4, 6), 16)
+    return `rgba(${r},${g},${b},${alpha})`
+  }
+  return color
 }
 
 const cachedTheme = getCachedTheme()

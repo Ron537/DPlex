@@ -12,6 +12,16 @@ export interface AppTheme {
     text: string
     textMuted: string
     accent: string
+    /** Optional richer-than-bg surface for cards / sidebar / panels. Falls back to bgAlt. */
+    bgPanel?: string
+    /** Optional elevated surface (popovers, segmented "active" pill). Falls back to bg shifted lighter. */
+    bgElev?: string
+    /** Optional secondary accent used for gradient pairs (e.g. button gradient). Falls back to accent. */
+    accent2?: string
+    /** Optional stronger border for elevated surfaces. Falls back to border. */
+    borderStrong?: string
+    /** Optional dimmer text level — between text-muted and bg. Falls back to a desaturated mix. */
+    textDim?: string
     hover?: string
     scrollbar?: string
     scrollbarHover?: string
@@ -24,20 +34,20 @@ export const THEMES: Record<string, AppTheme> = {
     name: 'DPlex',
     variant: 'dark',
     terminal: {
-      background: '#131313',
-      foreground: '#d4d4d4',
+      background: '#0e0e13',
+      foreground: '#e8e8ee',
       cursor: '#a78bfa',
-      cursorAccent: '#131313',
+      cursorAccent: '#0e0e13',
       selectionBackground: '#3b3560',
-      black: '#131313',
+      black: '#0e0e13',
       red: '#f87171',
       green: '#4ade80',
       yellow: '#facc15',
       blue: '#818cf8',
       magenta: '#c084fc',
       cyan: '#67e8f9',
-      white: '#d4d4d4',
-      brightBlack: '#555555',
+      white: '#e8e8ee',
+      brightBlack: '#5d5d6e',
       brightRed: '#fca5a5',
       brightGreen: '#86efac',
       brightYellow: '#fde68a',
@@ -47,12 +57,20 @@ export const THEMES: Record<string, AppTheme> = {
       brightWhite: '#ffffff'
     },
     ui: {
-      bg: '#131313',
-      bgAlt: '#0a0a0a',
-      border: '#2a2a2a',
-      text: '#d4d4d4',
-      textMuted: '#666666',
-      accent: '#8b5cf6'
+      bg: '#0e0e13',
+      bgAlt: '#0a0a0f',
+      bgPanel: '#131319',
+      bgElev: '#181822',
+      border: '#23232f',
+      borderStrong: '#2e2e3d',
+      text: '#e8e8ee',
+      textMuted: '#8a8a99',
+      textDim: '#5d5d6e',
+      accent: '#a78bfa',
+      accent2: '#8b5cf6',
+      hover: 'rgba(255,255,255,0.04)',
+      scrollbar: 'rgba(255,255,255,0.12)',
+      scrollbarHover: 'rgba(255,255,255,0.22)'
     }
   },
   'dplex-light': {

@@ -133,7 +133,7 @@ export function ManageWorktreesModal({
                     color: wt.detached
                       ? 'var(--dplex-text-muted)'
                       : dirty
-                        ? 'var(--dplex-status-executing)'
+                        ? 'var(--dplex-status-waiting)'
                         : 'var(--dplex-text)'
                   }}
                   className="flex-shrink-0"
@@ -161,15 +161,15 @@ export function ManageWorktreesModal({
                       <span
                         className="text-[9px] uppercase px-1 rounded"
                         style={{
-                          color: 'var(--dplex-status-executing)',
-                          border: '1px solid var(--dplex-status-executing)'
+                          color: 'var(--dplex-status-waiting)',
+                          border: '1px solid var(--dplex-status-waiting)'
                         }}
                       >
                         orphan
                       </span>
                     )}
                     {dirty && (
-                      <AlertCircle size={10} style={{ color: 'var(--dplex-status-executing)' }} />
+                      <AlertCircle size={10} style={{ color: 'var(--dplex-status-waiting)' }} />
                     )}
                   </div>
                   <div

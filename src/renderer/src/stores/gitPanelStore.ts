@@ -334,16 +334,28 @@ export function wireGitPanelGlobals(): () => void {
   if (wired) return () => undefined
   wired = true
 
+  // Coalesce rapid fs events per repo. Without this, a burst of file
+  // changes (e.g., during a build) triggers a refresh per event and the
+  // "Refreshing…" indicator flickers on every cycle. Trailing-edge fire
+  // means the user always gets the *latest* state, but only one fetch
+  // per quiet interval.
+  const REFRESH_DEBOUNCE_MS = 600
+  const pendingTimers = new Map<string, number>()
   const offChanges = window.dplex.diff.onChangesChanged((p) => {
-    const store = useGitPanelStore.getState()
-    const cur = store.byRepo[p.repoRootFs]
-    if (!cur) return
-    // Re-fetch via bindToProject: find any project that maps to this repo.
-    const projects = useProjectStore.getState().projects
-    const owners = projects.filter((proj) => store.resolveActiveRoot(proj) === p.repoRootFs)
-    if (owners.length === 0) return
-    // Force-refresh once — all owners share the cache.
-    store.bindToProject(owners[0].id, { force: true })
+    const repoRoot = p.repoRootFs
+    const existing = pendingTimers.get(repoRoot)
+    if (existing !== undefined) window.clearTimeout(existing)
+    const t = window.setTimeout(() => {
+      pendingTimers.delete(repoRoot)
+      const store = useGitPanelStore.getState()
+      const cur = store.byRepo[repoRoot]
+      if (!cur) return
+      const projects = useProjectStore.getState().projects
+      const owners = projects.filter((proj) => store.resolveActiveRoot(proj) === repoRoot)
+      if (owners.length === 0) return
+      store.bindToProject(owners[0].id, { force: true })
+    }, REFRESH_DEBOUNCE_MS)
+    pendingTimers.set(repoRoot, t)
   })
 
   // Watcher lifecycle is owned EXCLUSIVELY by this subscription.
@@ -412,6 +424,8 @@ export function wireGitPanelGlobals(): () => void {
 
   return () => {
     offChanges()
+    for (const t of pendingTimers.values()) window.clearTimeout(t)
+    pendingTimers.clear()
     unsubProj()
     unsubProjList()
     if (prevRoot) {

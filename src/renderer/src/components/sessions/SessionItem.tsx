@@ -18,6 +18,8 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useProvidersStore } from '../../stores/providersStore'
 import { PopoverMenu } from '../common/PopoverMenu'
+import { StatusAvatar } from '../common/StatusAvatar'
+import { visualForStatus } from '../../utils/sessionStatusVisual'
 import { closeOpenTabsForSession, focusSessionTab, hasOpenTab } from '../../utils/sessionTabs'
 
 interface SessionItemProps {
@@ -28,6 +30,12 @@ interface SessionItemProps {
   compact?: boolean
   /** Override the default click handler (resume/focus). Used to focus a specific tab. */
   onClick?: () => void
+  /**
+   * When true, the (yet-to-be-added) status avatar shows a small provider
+   * corner badge. Wired here in the projects phase so call sites compile;
+   * the visual lands in the sessions phase that swaps the avatar style.
+   */
+  showProviderBadge?: boolean
 }
 
 const STATUS_CONFIG: Record<SessionStatus, { color: string; label: string; pulse: boolean }> = {
@@ -66,7 +74,8 @@ export function SessionItem({
   onDelete,
   onShowPrompts,
   compact,
-  onClick
+  onClick,
+  showProviderBadge
 }: SessionItemProps): React.JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeSession = useSessionStore((s) => s.closeSession)
@@ -77,6 +86,31 @@ export function SessionItem({
   const status = session.detailedStatus ?? (session.status === 'active' ? 'thinking' : 'idle')
   const config = STATUS_CONFIG[status]
   const isOpen = hasOpenTab(session.id, session.aiTool)
+  // The tab id (if any) backing this session — used for the
+  // scroll-into-view selector when the active tab changes. Derived from
+  // any group's tabs (not just the active one) so the highlight + scroll
+  // also work for rows whose tab lives in an inactive group.
+  const backingTabId = useTerminalStore((s) => {
+    for (const group of s.groups) {
+      for (const tab of group.tabs) {
+        if (tab.kind === 'fileDiff') continue
+        if (tab.providerId === session.aiTool && tab.sessionId === session.id) {
+          return tab.id
+        }
+      }
+    }
+    return null
+  })
+  // Active when the editor's currently-focused tab is backed by this
+  // session. Subscribed via Zustand so the row re-highlights immediately
+  // on tab switch — no project click required.
+  const isActiveTab = useTerminalStore((s) => {
+    const group = s.groups.find((g) => g.id === s.activeGroupId)
+    if (!group) return false
+    const tab = group.tabs.find((t) => t.id === group.activeTabId)
+    if (!tab || tab.kind === 'fileDiff') return false
+    return tab.providerId === session.aiTool && tab.sessionId === session.id
+  })
 
   const handleResume = async (): Promise<void> => {
     const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
@@ -108,29 +142,47 @@ export function SessionItem({
 
   return (
     <div
-      className="group flex items-start gap-2 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-sm mx-1 relative"
+      data-row-tab-id={backingTabId ?? undefined}
+      className="group flex items-start gap-2.5 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1 relative"
+      style={
+        isActiveTab
+          ? {
+              // Subtle "selected tab" lift — soft outer drop shadow with a
+              // slight accent tint. Reads as elevation without competing
+              // with the parent project's selection card.
+              boxShadow: '0 0 0 1px rgba(167,139,250,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
+            }
+          : undefined
+      }
       onClick={onClick ?? handleResume}
       onContextMenu={(e) => {
         e.preventDefault()
         setShowMenu(!showMenu)
       }}
     >
-      {/* Status dot */}
-      <div className="flex-shrink-0 mt-1.5">
-        <div
-          className="w-2 h-2 rounded-full"
-          style={{
-            backgroundColor: config.color,
-            animation: config.pulse ? 'pulse 2s ease-in-out infinite' : undefined
-          }}
+      {/* Status avatar — replaces the bare dot. The avatar slot reflects
+          state; the corner badge appears only when the surrounding list
+          contains more than one provider (showProviderBadge prop). */}
+      <div className="flex-shrink-0 mt-0.5">
+        <StatusAvatar
+          visual={visualForStatus(status)}
+          providerId={session.aiTool}
+          showProviderBadge={showProviderBadge}
+          title={`${config.label} · ${providerLabel}`}
         />
       </div>
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
-        {/* Row 1: name + badges */}
+        {/* Row 1: name + open-tab badge. Active-tab cue is a typographic
+            color shift on the title — same pattern the active worktree
+            section uses for its branch name, deliberately quiet so the
+            parent project's selection card stays the dominant surface. */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium truncate" style={{ color: 'var(--dplex-text)' }}>
+          <span
+            className="text-[12.5px] font-medium truncate"
+            style={{ color: 'var(--dplex-text)' }}
+          >
             {session.displayName}
           </span>
           {isOpen && (
@@ -138,7 +190,7 @@ export function SessionItem({
               className="text-[8px] font-bold px-1 rounded flex-shrink-0"
               style={{
                 color: 'var(--dplex-accent)',
-                backgroundColor: 'color-mix(in srgb, var(--dplex-accent) 15%, transparent)'
+                backgroundColor: 'var(--dplex-accent-soft)'
               }}
             >
               OPEN
@@ -148,68 +200,72 @@ export function SessionItem({
 
         {/* Row 2: CWD subtitle */}
         {!compact && session.cwd && (
-          <div className="text-[10px] truncate mt-0.5" style={{ color: 'var(--dplex-text-muted)' }}>
+          <div
+            className="text-[10.5px] truncate mt-0.5"
+            style={{ color: 'var(--dplex-text-muted)' }}
+          >
             {folderName(session.cwd)}
           </div>
         )}
 
-        {/* Row 3: metadata chips */}
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
-          {/* Status label (only when non-idle) */}
-          {status !== 'idle' && (
-            <span className="text-[9px] font-medium" style={{ color: config.color }}>
-              {config.label}
-            </span>
+        {/* Row 3: metadata. In compact mode (inside a project body) we keep
+            this minimal — `provider · time ago` — to match the mockup and
+            stop branch/count chips from making the row read busy beneath an
+            already context-rich worktree section header. The richer chip
+            row (branch, message count, tool count) shows only in the full
+            global Sessions tab.
+
+            `min-w-0` + an inner `truncate` on the branch chip stop long
+            branch names from overflowing the row at narrow panel widths
+            (the meta row would otherwise expand to the branch's natural
+            width and clip against the trash button or wrap awkwardly). */}
+        <div
+          className="flex items-center gap-2 mt-0.5 flex-wrap text-[10.5px] min-w-0"
+          style={{ color: 'var(--dplex-text-muted)' }}
+        >
+          <span className="flex-shrink-0">{providerLabel}</span>
+
+          {!compact && session.branch && (
+            <>
+              <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
+                ·
+              </span>
+              <span className="flex items-center gap-1 min-w-0 max-w-full">
+                <GitBranch size={9} className="flex-shrink-0" />
+                <span className="truncate">{session.branch}</span>
+              </span>
+            </>
           )}
 
-          {/* Provider badge */}
-          <span
-            className="text-[9px] px-1 rounded"
-            style={{
-              color: 'var(--dplex-text-muted)',
-              backgroundColor: 'var(--dplex-bg)',
-              border: '1px solid var(--dplex-border)'
-            }}
-          >
-            {providerLabel}
+          {!compact && (session.messageCount ?? 0) > 0 && (
+            <>
+              <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
+                ·
+              </span>
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <MessageSquare size={9} />
+                {session.messageCount}
+              </span>
+            </>
+          )}
+
+          {!compact && (session.toolCallCount ?? 0) > 0 && (
+            <>
+              <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
+                ·
+              </span>
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <Wrench size={9} />
+                {session.toolCallCount}
+              </span>
+            </>
+          )}
+
+          <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
+            ·
           </span>
-
-          {/* Branch */}
-          {session.branch && (
-            <span
-              className="flex items-center gap-0.5 text-[9px]"
-              style={{ color: 'var(--dplex-text-muted)' }}
-            >
-              <GitBranch size={8} />
-              {session.branch}
-            </span>
-          )}
-
-          {/* Prompt count */}
-          {(session.messageCount ?? 0) > 0 && (
-            <span
-              className="flex items-center gap-0.5 text-[9px]"
-              style={{ color: 'var(--dplex-text-muted)' }}
-            >
-              <MessageSquare size={8} />
-              {session.messageCount}
-            </span>
-          )}
-
-          {/* Tool count */}
-          {(session.toolCallCount ?? 0) > 0 && (
-            <span
-              className="flex items-center gap-0.5 text-[9px]"
-              style={{ color: 'var(--dplex-text-muted)' }}
-            >
-              <Wrench size={8} />
-              {session.toolCallCount}
-            </span>
-          )}
-
-          {/* Time */}
-          <span className="text-[9px]" style={{ color: 'var(--dplex-text-muted)' }}>
-            {timeAgo(session.updatedAt)}
+          <span className="flex-shrink-0">
+            {compact ? `${timeAgo(session.updatedAt)} ago` : timeAgo(session.updatedAt)}
           </span>
         </div>
       </div>

@@ -7,6 +7,142 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-05-03
+
+### Changed
+
+- **Visual refresh across the entire app.** Refined dark palette (warmer
+  black `#0e0e13`, richer purple accent `#a78bfa`, soft 1-px borders),
+  tighter 4-px rhythm, glassy elevated panels, modernized search input
+  with leading icon and `⌘F` adornment, segmented Projects/Sessions
+  switcher with provider sprite, slim chip-style status bar. Logic,
+  IPC, store schema, hot-keys all unchanged.
+- **Worktree section headers.** Worktrees no longer render as deeply
+  nested project rows. When a project is expanded, each worktree is a
+  collapsible labelled section header inside the parent at the same
+  indent as direct project sessions; the parent's main checkout gets
+  its own header so users can distinguish on-main work from
+  worktree-scoped work. Right-click on a header opens a worktree
+  context menu (start session, copy path/branch, remove worktree).
+- **Status-as-avatar with adaptive provider badge.** Session rows show
+  a status motif (running spinner, thinking dots, waiting `i`, idle
+  dot, attention exclaim) tinted by status color in the avatar slot.
+  A small provider corner badge appears only when the surrounding
+  list contains more than one provider — solo-tool users get a quiet
+  status-driven rail, mixed-tool users still get provenance.
+- **Flat tabs.** Editor group tabs lose their top-corner radius and
+  gain a 2-px accent stripe along the active tab's top edge. Sticky
+  split/new-terminal action area on the right.
+- **Settings modal.** 900×560 modal with a 220-px left rail grouped
+  into **General / AI Tools / Terminal** sections, polished theme
+  picker swatches (4-color theme strip + variant tag), and a footer
+  with a primary "Done" gradient button. The keyboard shortcut for
+  opening Settings is preserved on the status bar trigger via
+  `aria-label` so screen readers still hear it.
+- **Git/Changes panel.** Polished header with a `GitPullRequest`
+  accent icon and bold "Changes" title. File rows now show colored
+  badge chips (M / A / D / R / U) and dim secondary directory text
+  beneath the filename. Worktree switcher lives on a panel-tone
+  background instead of a pill chip.
+- **Status bar.** Slim 26-px chip-style segments with hover affordances
+  and a live "active sessions" indicator with pulsing green dot.
+
+### Added
+
+- New shared components in `src/renderer/src/components/common/`:
+  `StatusAvatar`, `StatusPill`, `StatusIcon`, `ProviderGlyph`,
+  `ProviderIconSprite`, `Switch`, `Segmented`. Each owns a single
+  visual responsibility and reads exclusively from CSS theme
+  variables so themes keep working.
+- New helpers `utils/providerHelpers.ts` (provider mark resolution +
+  `isMixedProviderList`), `utils/sessionStatusVisual.ts`
+  (`SessionStatus` → visual category + label), `utils/aggregateVisual.ts`
+  (most-interesting status across a list), and
+  `utils/sessionPairing.ts` (single source of truth for pairing open
+  AI tabs to backing sessions, used by both the renderer list and the
+  worktree-section count badge).
+- `tests/unit/provider-helpers.test.ts` covers the mixed-provider
+  detection helper.
+
+### Fixed
+
+- **Light-theme color collision** (was: `--dplex-status-executing` and
+  `--dplex-status-waiting` collapsed onto the same orange in light
+  mode). The two tokens are now distinct — `executing` is green, in
+  line with the new "running" pill semantics, and `waiting` is amber.
+  Pre-existing worktree-deletion warnings that piggybacked on the
+  executing token were repointed to `--dplex-status-waiting` so they
+  retain their warning hue.
+
+### Internal
+
+- ProjectItem dropped its `indent`, `parentProject`, and `isCompact`
+  branches (~80 lines) — those code paths were unreachable after
+  switching to the worktree-section-header layout. Filter mode still
+  surfaces worktree-projects at the top level, but they now render
+  with the same single-card style as origin projects.
+
+### Refinements (post-redesign polish)
+
+- **Cross-group `⌘1`–`⌘9` tab switching.** Number shortcuts now walk
+  the layout tree to flatten tabs across split groups in visual order,
+  so `⌘5` always selects the 5th tab globally and switches the active
+  group as needed.
+- **Default-provider context menus.** Right-click on a project or
+  worktree now offers a single "Start <provider>" entry using the
+  configured default AI tool, rather than one entry per installed
+  provider. The hover play-button already used this rule.
+- **Live session badge** on project avatars. A small dot in the
+  avatar's bottom-right shows green when the project has an active
+  AI session and the accent color when it has open tabs but nothing
+  live. Same indicator appears on collapsed-rail avatars (suppressed
+  when the amber attention badge is up). The redundant pulse dot next
+  to the project name is gone.
+- **Click-to-collapse fix.** Clicking an expanded, emphasized project
+  row again collapses it (chevron behavior unchanged); the previous
+  fix that made row clicks expand-only was replaced with a snapshot of
+  pre-click state to dodge the auto-expand subscriber race.
+- **Auto-expand and scroll** when the active tab changes — the
+  matching project + worktree section open and the row is scrolled
+  into view via `[data-row-tab-id]`.
+- **Active row marker.** Active session/terminal rows in the panel get
+  a soft drop shadow with subtle accent ring (`0 0 0 1px rgba(167,
+  139,250,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)`) instead of a hard
+  background or stripe.
+- **Branch-name truncation** in the Sessions panel meta row so long
+  branches no longer overlap the relative-time chip.
+- **Plain-terminal rows** in the project body. Plain terminals
+  (no `providerId`, no `command`) now render via a new `TerminalRow`
+  with a transparent dashed avatar and `>_` glyph so they're visually
+  distinct from AI sessions while sharing layout rhythm.
+- **Empty state** for worktree sections with no sessions matches the
+  rest of the panel ("No active sessions.").
+- **Git Changes refresh indicator** stays silent for background
+  refreshes pushed by the fs watcher; only shown on the initial load.
+  The watcher itself is now coalesced through a 600 ms trailing
+  debounce per repo so rapid bursts collapse into one fetch.
+- **Sessions count** removed from the segmented switcher tab label.
+
+### Fixed (review-driven)
+
+- **Cross-platform path matching** in `SidePanel` — the toolbar's
+  "X projects · Y active" count now routes both `cwd` and project
+  paths through `normalizePath` so Windows backslashes and
+  case-insensitive platforms match correctly.
+- **Selected diff row highlight** — replaced the undefined
+  `--dplex-bg-active` token with `--dplex-accent-soft`.
+- **"Show in Git Panel"** menu action now also expands the Git panel
+  if it was collapsed.
+- **Duplicate git-branch watcher** removed from main-checkout
+  worktree sections — they now reuse the parent's `useGitBranch`
+  result via a `mainBranchOverride` prop.
+- **`hexToRgba` alpha override** — now parses `rgb()/rgba()` inputs
+  and re-emits with the requested alpha (was previously a passthrough
+  that silently ignored alpha for non-hex inputs).
+- **`PendingSessionItem` provider id** — the placeholder row now
+  receives the canonical provider id for `StatusAvatar`, with the
+  display label kept separate.
+
 ## [0.5.0] — 2026-05-02
 
 ### Added
@@ -373,7 +509,8 @@ AI-assisted development.
 - Eight built-in themes across dark and light variants.
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Ron537/DPlex/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Ron537/DPlex/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Ron537/DPlex/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Ron537/DPlex/compare/v0.2.1...v0.3.0

@@ -9,6 +9,7 @@ import type { AISession } from '../../types'
 import { isTerminalTab } from '../../types'
 import type { SessionGroupMode } from '../layout/SidePanel'
 import { filterSessions } from '../../utils/sessionFilters'
+import { isMixedProviderList } from '../../utils/providerHelpers'
 
 /**
  * Active-section sort priority. Lower number = higher in the list.
@@ -120,12 +121,15 @@ export function SessionList({
     return set
   }, [groups])
 
-
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [promptsSession, setPromptsSession] = useState<AISession | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  const { active, groups: idleGroups, flatList } = useMemo(() => {
+  const {
+    active,
+    groups: idleGroups,
+    flatList
+  } = useMemo(() => {
     const filtered = filterSessions(sessions, {
       searchQuery,
       providerFilter,
@@ -202,6 +206,11 @@ export function SessionList({
     setSelectedIndex(-1)
   }, [searchQuery, providerFilter, statusFilters])
 
+  // Mixed-provider detection at the global Sessions tab scope.
+  // When the visible sessions span more than one provider, each row gets
+  // a small provider corner badge on its status avatar (Option B).
+  const sessionsMixedProviders = useMemo(() => isMixedProviderList(flatList), [flatList])
+
   if (loading && active.length === 0 && idleGroups.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-zinc-500">
@@ -244,6 +253,7 @@ export function SessionList({
                 session={session}
                 onDelete={deleteSession}
                 onShowPrompts={setPromptsSession}
+                showProviderBadge={sessionsMixedProviders}
               />
             ))}
           </CollapsibleGroup>
@@ -261,6 +271,7 @@ export function SessionList({
                 session={session}
                 onDelete={deleteSession}
                 onShowPrompts={setPromptsSession}
+                showProviderBadge={sessionsMixedProviders}
               />
             ))}
           </CollapsibleGroup>

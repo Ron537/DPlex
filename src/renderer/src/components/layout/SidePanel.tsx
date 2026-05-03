@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Search, RefreshCw, SlidersHorizontal, Check, Plus, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
+import {
+  Search,
+  RefreshCw,
+  SlidersHorizontal,
+  Check,
+  Plus,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  FolderKanban,
+  MessagesSquare
+} from 'lucide-react'
 import { MOD } from '../../utils/shortcuts'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -8,7 +18,9 @@ import { useProjectStore } from '../../stores/projectStore'
 import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
 import { ProjectPanelFooter } from '../projects/ProjectPanelFooter'
+import { Segmented } from '../common/Segmented'
 import { useProjectAvatarFlip } from '../../hooks/useProjectAvatarFlip'
+import { normalizePath } from '../../utils/normalizePath'
 
 export type SessionGroupMode = 'time' | 'workspace'
 
@@ -85,8 +97,42 @@ export function SidePanel(): React.JSX.Element | null {
     return options
   }, [sessions, getProviderLabel])
 
+  const projects = useProjectStore((s) => s.projects)
   const hasActiveFilters =
     !statusFilters.has('all') || providerFilter !== 'all' || groupMode !== 'time'
+
+  // Toolbar meta — small uppercase summary on the left of the toolbar row.
+  // Mirrors the preview's "5 projects · 3 active" / "12 sessions" labels.
+  // "active" counts distinct projects whose path matches a project's prefix
+  // for at least one active session — *not* the raw active session count,
+  // which would over-state when one project hosts multiple agents.
+  const projectsWithActiveCount = useMemo(() => {
+    if (projects.length === 0) return 0
+    // Normalize project paths once for cross-platform comparison (handles
+    // backslashes on Windows + case-insensitive matching on macOS/Windows).
+    // Sort longest-first so nested project paths win over shorter parents.
+    const normalizedProjects = projects
+      .map((p) => normalizePath(p.path))
+      .sort((a, b) => b.length - a.length)
+    const owners = new Set<string>()
+    for (const s of sessions) {
+      if (s.status !== 'active' || !s.cwd) continue
+      const cwd = normalizePath(s.cwd)
+      const owner = normalizedProjects.find((p) => cwd === p || cwd.startsWith(p + '/'))
+      if (owner) owners.add(owner)
+    }
+    return owners.size
+  }, [projects, sessions])
+  const toolbarMetaProjects = useMemo(() => {
+    const total = projects.length
+    const word = total === 1 ? 'project' : 'projects'
+    if (projectsWithActiveCount === 0) return `${total} ${word}`
+    return `${total} ${word} · ${projectsWithActiveCount} active`
+  }, [projects.length, projectsWithActiveCount])
+  const toolbarMetaSessions = useMemo(() => {
+    const word = sessions.length === 1 ? 'session' : 'sessions'
+    return `${sessions.length} ${word}`
+  }, [sessions.length])
 
   const toggleStatusFilter = (id: string): void => {
     setStatusFilters((prev) => {
@@ -148,7 +194,7 @@ export function SidePanel(): React.JSX.Element | null {
         className="flex flex-col h-full flex-shrink-0"
         style={{
           width: COLLAPSED_WIDTH,
-          backgroundColor: 'var(--dplex-bg-alt)',
+          backgroundColor: 'var(--dplex-bg-panel)',
           borderRight: '1px solid var(--dplex-border)'
         }}
       >
@@ -164,57 +210,108 @@ export function SidePanel(): React.JSX.Element | null {
       className="flex flex-col h-full flex-shrink-0 relative"
       style={{
         width: `${sidebarWidth}px`,
-        backgroundColor: 'var(--dplex-bg-alt)',
+        backgroundColor: 'var(--dplex-bg-panel)',
         borderRight: '1px solid var(--dplex-border)'
       }}
     >
-      {/* Header: segmented Projects/Sessions toggle + per-tab actions. The
-          toggle replaces the standalone activity-bar — switching tabs lives
-          inside the panel itself. */}
+      {/* Header — segmented Projects/Sessions switcher + full-width search.
+          Adornment buttons (filter, refresh) sit inside the search trail to
+          keep the header tidy and match the preview rhythm. */}
       <div
-        className="flex items-center justify-between px-2 h-9 gap-2"
+        className="flex flex-col gap-2.5 px-3 pt-3 pb-2.5"
+        style={{ borderBottom: '1px solid var(--dplex-border)' }}
+      >
+        <Segmented<'projects' | 'sessions'>
+          value={activeTab}
+          onChange={(next) => updateSettings({ sidebarActiveTab: next })}
+          options={[
+            {
+              value: 'projects',
+              label: 'Projects',
+              icon: <FolderKanban size={13} />,
+              ariaLabel: 'Projects'
+            },
+            {
+              value: 'sessions',
+              label: 'Sessions',
+              icon: <MessagesSquare size={13} />,
+              ariaLabel: 'Sessions'
+            }
+          ]}
+        />
+        <div className="relative">
+          <Search
+            size={13}
+            style={{
+              position: 'absolute',
+              left: 9,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--dplex-text-dim)',
+              pointerEvents: 'none'
+            }}
+          />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder={activeTab === 'projects' ? 'Search projects...' : 'Search sessions...'}
+            value={activeTab === 'projects' ? projectSearchQuery : searchQuery}
+            onChange={(e) =>
+              activeTab === 'projects'
+                ? setProjectSearchQuery(e.target.value)
+                : setSearchQuery(e.target.value)
+            }
+            className="w-full text-[12.5px] outline-none transition-colors"
+            style={{
+              backgroundColor: 'var(--dplex-bg-alt)',
+              border: '1px solid var(--dplex-border)',
+              borderRadius: 8,
+              color: 'var(--dplex-text)',
+              padding: '8px 32px',
+              fontFamily: 'inherit'
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--dplex-accent)'
+              e.currentTarget.style.boxShadow = '0 0 0 3px var(--dplex-accent-soft)'
+              e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--dplex-border)'
+              e.currentTarget.style.boxShadow = 'none'
+              e.currentTarget.style.backgroundColor = 'var(--dplex-bg-alt)'
+            }}
+          />
+          <kbd
+            className="absolute select-none text-[10px] font-medium pointer-events-none"
+            style={{
+              right: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--dplex-text-dim)',
+              fontFamily: 'inherit'
+            }}
+            title={`Focus search (${MOD}F)`}
+          >
+            {MOD}F
+          </kbd>
+        </div>
+      </div>
+
+      {/* Toolbar — meta on the left, action buttons on the right. The exact
+          buttons differ per tab. */}
+      <div
+        className="flex items-center justify-between px-3 py-2 relative"
         style={{ borderBottom: '1px solid var(--dplex-border)' }}
       >
         <div
-          role="tablist"
-          aria-label="Side panel view"
-          className="relative flex items-center gap-0.5 rounded-full p-0.5 select-none flex-shrink-0"
-          style={{ backgroundColor: 'var(--dplex-bg)' }}
+          className="text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: 'var(--dplex-text-dim)' }}
         >
-          {(['projects', 'sessions'] as const).map((tab) => {
-            const active = activeTab === tab
-            return (
-              <button
-                key={tab}
-                role="tab"
-                aria-selected={active}
-                onClick={() => updateSettings({ sidebarActiveTab: tab })}
-                className="relative px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full transition-colors"
-                style={{
-                  backgroundColor: active ? 'var(--dplex-bg-alt)' : 'transparent',
-                  color: active ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
-                  boxShadow: active
-                    ? '0 1px 2px rgba(0,0,0,0.18), 0 0 0 1px color-mix(in srgb, var(--dplex-border) 60%, transparent)'
-                    : undefined
-                }}
-                data-testid={`side-panel-tab-${tab}`}
-              >
-                {tab === 'projects' ? 'Projects' : 'Sessions'}
-              </button>
-            )
-          })}
+          {activeTab === 'projects' ? toolbarMetaProjects : toolbarMetaSessions}
         </div>
         <div className="flex items-center gap-0.5">
           {activeTab === 'projects' && (
             <>
-              <button
-                onClick={() => addProject()}
-                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-                style={{ color: 'var(--dplex-text-muted)' }}
-                title="Add project"
-              >
-                <Plus size={13} />
-              </button>
               <div className="relative">
                 <button
                   onClick={() => setShowProjectFilterMenu(!showProjectFilterMenu)}
@@ -224,7 +321,7 @@ export function SidePanel(): React.JSX.Element | null {
                   }}
                   title="Filter projects"
                 >
-                  <SlidersHorizontal size={12} />
+                  <SlidersHorizontal size={13} />
                 </button>
 
                 {showProjectFilterMenu && (
@@ -234,15 +331,15 @@ export function SidePanel(): React.JSX.Element | null {
                       onClick={() => setShowProjectFilterMenu(false)}
                     />
                     <div
-                      className="absolute right-0 top-7 z-50 rounded shadow-xl py-1 min-w-[180px]"
+                      className="absolute right-0 top-7 z-50 rounded-lg shadow-xl py-1 min-w-[200px]"
                       style={{
-                        backgroundColor: 'var(--dplex-bg)',
-                        border: '1px solid var(--dplex-border)'
+                        backgroundColor: 'var(--dplex-bg-elev)',
+                        border: '1px solid var(--dplex-border-strong)'
                       }}
                     >
                       <div
-                        className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--dplex-text-muted)' }}
+                        className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                        style={{ color: 'var(--dplex-text-dim)' }}
                       >
                         Show
                       </div>
@@ -272,8 +369,8 @@ export function SidePanel(): React.JSX.Element | null {
                         style={{ borderTop: '1px solid var(--dplex-border)' }}
                       />
                       <div
-                        className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--dplex-text-muted)' }}
+                        className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                        style={{ color: 'var(--dplex-text-dim)' }}
                       >
                         Appearance
                       </div>
@@ -290,32 +387,36 @@ export function SidePanel(): React.JSX.Element | null {
                   </>
                 )}
               </div>
+              <button
+                onClick={() => addProject()}
+                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+                style={{ color: 'var(--dplex-text-muted)' }}
+                title="Add project"
+              >
+                <Plus size={13} />
+              </button>
             </>
           )}
           {activeTab === 'sessions' && (
             <>
-              {/* Collapse / Expand all groups */}
               <button
                 onClick={() =>
                   setSessionCollapseAll((s) => ({ nonce: s.nonce + 1, collapsed: !s.collapsed }))
                 }
                 className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
                 style={{ color: 'var(--dplex-text-muted)' }}
-                title={
-                  sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'
-                }
+                title={sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'}
                 aria-label={
                   sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'
                 }
                 data-testid="sessions-toggle-collapse-all"
               >
                 {sessionCollapseAll.collapsed ? (
-                  <ChevronsUpDown size={12} />
+                  <ChevronsUpDown size={13} />
                 ) : (
-                  <ChevronsDownUp size={12} />
+                  <ChevronsDownUp size={13} />
                 )}
               </button>
-              {/* Filter button */}
               <div className="relative">
                 <button
                   onClick={() => setShowFilterMenu(!showFilterMenu)}
@@ -325,24 +426,22 @@ export function SidePanel(): React.JSX.Element | null {
                   }}
                   title="Filter & group options"
                 >
-                  <SlidersHorizontal size={12} />
+                  <SlidersHorizontal size={13} />
                 </button>
 
-                {/* Filter dropdown menu */}
                 {showFilterMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
                     <div
-                      className="absolute right-0 top-7 z-50 rounded shadow-xl py-1 min-w-[200px]"
+                      className="absolute right-0 top-7 z-50 rounded-lg shadow-xl py-1 min-w-[220px]"
                       style={{
-                        backgroundColor: 'var(--dplex-bg)',
-                        border: '1px solid var(--dplex-border)'
+                        backgroundColor: 'var(--dplex-bg-elev)',
+                        border: '1px solid var(--dplex-border-strong)'
                       }}
                     >
-                      {/* Group by section */}
                       <div
-                        className="px-3 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--dplex-text-muted)' }}
+                        className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                        style={{ color: 'var(--dplex-text-dim)' }}
                       >
                         Group by
                       </div>
@@ -372,10 +471,9 @@ export function SidePanel(): React.JSX.Element | null {
                         style={{ borderTop: '1px solid var(--dplex-border)' }}
                       />
 
-                      {/* Status filter section (multi-select) */}
                       <div
-                        className="px-3 pt-1 pb-1 text-[9px] font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--dplex-text-muted)' }}
+                        className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                        style={{ color: 'var(--dplex-text-dim)' }}
                       >
                         Status
                       </div>
@@ -393,7 +491,6 @@ export function SidePanel(): React.JSX.Element | null {
                         </button>
                       ))}
 
-                      {/* Provider filter section — only if multiple providers */}
                       {providerOptions.length > 2 && (
                         <>
                           <div
@@ -403,8 +500,8 @@ export function SidePanel(): React.JSX.Element | null {
                             }}
                           />
                           <div
-                            className="px-3 pt-1 pb-1 text-[9px] font-semibold uppercase tracking-wider"
-                            style={{ color: 'var(--dplex-text-muted)' }}
+                            className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                            style={{ color: 'var(--dplex-text-dim)' }}
                           >
                             Provider
                           </div>
@@ -438,51 +535,10 @@ export function SidePanel(): React.JSX.Element | null {
                 style={{ color: 'var(--dplex-text-muted)' }}
                 title="Refresh sessions"
               >
-                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
               </button>
             </>
           )}
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="px-2 py-2">
-        <div
-          className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors"
-          style={{
-            backgroundColor: 'var(--dplex-bg)',
-            border: '1px solid var(--dplex-border)'
-          }}
-        >
-          <Search
-            size={12}
-            style={{ color: 'var(--dplex-text-muted)' }}
-            className="flex-shrink-0"
-          />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder={activeTab === 'projects' ? 'Search projects...' : 'Search sessions...'}
-            value={activeTab === 'projects' ? projectSearchQuery : searchQuery}
-            onChange={(e) =>
-              activeTab === 'projects'
-                ? setProjectSearchQuery(e.target.value)
-                : setSearchQuery(e.target.value)
-            }
-            className="bg-transparent text-xs placeholder-zinc-600 outline-none w-full"
-            style={{ color: 'var(--dplex-text)' }}
-          />
-          <kbd
-            className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded select-none"
-            style={{
-              color: 'var(--dplex-text-muted)',
-              backgroundColor: 'var(--dplex-bg-alt)',
-              border: '1px solid var(--dplex-border)'
-            }}
-            title={`Focus search (${MOD}F)`}
-          >
-            {MOD}F
-          </kbd>
         </div>
       </div>
 

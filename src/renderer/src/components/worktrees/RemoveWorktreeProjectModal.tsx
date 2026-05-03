@@ -122,7 +122,7 @@ export function RemoveWorktreeProjectModal({
           {openTabs.length > 0 && (
             <div
               className="flex items-center gap-1.5 text-[11px]"
-              style={{ color: 'var(--dplex-status-executing)' }}
+              style={{ color: 'var(--dplex-status-waiting)' }}
             >
               <AlertTriangle size={11} /> {openTabs.length} open tab
               {openTabs.length === 1 ? '' : 's'} in this project
@@ -164,7 +164,7 @@ export function RemoveWorktreeProjectModal({
                 onChange={(e) => setForceDelete(e.target.checked)}
                 className="mt-0.5"
               />
-              <span style={{ color: 'var(--dplex-status-executing)' }}>
+              <span style={{ color: 'var(--dplex-status-waiting)' }}>
                 Force (discard uncommitted changes)
               </span>
             </label>

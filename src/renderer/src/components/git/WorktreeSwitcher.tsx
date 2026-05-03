@@ -34,28 +34,29 @@ export function WorktreeSwitcher({ project }: WorktreeSwitcherProps): React.JSX.
 
   return (
     <div
-      className="px-2 py-1 flex-shrink-0"
+      className="px-3 py-2 flex-shrink-0"
       style={{ borderBottom: '1px solid var(--dplex-border)' }}
     >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 w-full px-1.5 py-1 rounded text-[11px] hover:bg-[var(--dplex-hover)]"
+        className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-[12px] hover:bg-[var(--dplex-hover)]"
+        style={{ color: 'var(--dplex-text)' }}
         aria-haspopup="listbox"
         aria-expanded={open}
         data-testid="git-panel-worktree-switcher"
       >
-        <GitBranch size={11} />
+        <GitBranch size={12} style={{ color: 'var(--dplex-text-muted)' }} />
         <span className="truncate flex-1 text-left">{activeMatch.name}</span>
-        <ChevronDown size={11} />
+        <ChevronDown size={12} style={{ color: 'var(--dplex-text-muted)' }} />
       </button>
       {open && (
         <ul
           role="listbox"
-          className="mt-1 rounded overflow-hidden"
+          className="mt-1 rounded-md overflow-hidden"
           style={{
-            backgroundColor: 'var(--dplex-bg)',
-            border: '1px solid var(--dplex-border)'
+            backgroundColor: 'var(--dplex-bg-elev)',
+            border: '1px solid var(--dplex-border-strong)'
           }}
         >
           {candidates.map((p) => (
@@ -64,14 +65,10 @@ export function WorktreeSwitcher({ project }: WorktreeSwitcherProps): React.JSX.
               role="option"
               aria-selected={p.id === activeMatch.id}
               onClick={() => {
-                // Switching the active project IS the switch — no need to
-                // also persist `activeWorktreeRoot`. (Persisting on the
-                // current project would make every later click on it
-                // redirect to its sibling.)
                 setActiveProject(p.id)
                 setOpen(false)
               }}
-              className="px-2 py-1 text-[11px] cursor-pointer hover:bg-[var(--dplex-hover)] truncate"
+              className="px-2.5 py-1.5 text-[12px] cursor-pointer hover:bg-[var(--dplex-hover)] truncate"
               style={{
                 color: p.id === activeMatch.id ? 'var(--dplex-text)' : 'var(--dplex-text-muted)'
               }}

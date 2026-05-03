@@ -1,7 +1,12 @@
 import React from 'react'
-import { STATUS_ACTIVE_COLOR } from '../../utils/statusColors'
+import { StatusAvatar } from '../common/StatusAvatar'
+import { useTerminalStore } from '../../stores/terminalStore'
 
 interface PendingSessionItemProps {
+  /** The tab id this row represents — used to read active state from the store. */
+  tabId: string
+  /** Canonical provider id (e.g. "copilotCli", "claudeCode") — drives the avatar's provider badge. */
+  providerId: string
   /** Provider display name (e.g. "Claude Code", "Copilot CLI"). */
   providerLabel: string
   onClick: () => void
@@ -18,51 +23,56 @@ interface PendingSessionItemProps {
  * exists but no `AISession` record does yet.
  */
 export function PendingSessionItem({
+  tabId,
+  providerId,
   providerLabel,
   onClick
 }: PendingSessionItemProps): React.JSX.Element {
+  const isActiveTab = useTerminalStore((s) => {
+    const group = s.groups.find((g) => g.id === s.activeGroupId)
+    return group?.activeTabId === tabId
+  })
   return (
     <div
-      className="group flex items-start gap-2 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-sm mx-1"
+      data-row-tab-id={tabId}
+      className="group flex items-start gap-2.5 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1"
+      style={
+        isActiveTab
+          ? {
+              boxShadow: '0 0 0 1px rgba(167,139,250,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
+            }
+          : undefined
+      }
       onClick={onClick}
     >
-      <div className="flex-shrink-0 mt-1.5">
-        <div
-          className="w-2 h-2 rounded-full"
-          style={{
-            backgroundColor: STATUS_ACTIVE_COLOR,
-            animation: 'pulse 2s ease-in-out infinite'
-          }}
-        />
+      <div className="flex-shrink-0 mt-0.5">
+        <StatusAvatar visual="thinking" providerId={providerId} title="Starting…" />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium truncate" style={{ color: 'var(--dplex-text)' }}>
+          <span
+            className="text-[12.5px] font-medium truncate"
+            style={{ color: 'var(--dplex-text)' }}
+          >
             Starting…
           </span>
           <span
             className="text-[8px] font-bold px-1 rounded flex-shrink-0"
             style={{
               color: 'var(--dplex-accent)',
-              backgroundColor: 'color-mix(in srgb, var(--dplex-accent) 15%, transparent)'
+              backgroundColor: 'var(--dplex-accent-soft)'
             }}
           >
             OPEN
           </span>
         </div>
 
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <span
-            className="text-[9px] px-1 rounded"
-            style={{
-              color: 'var(--dplex-text-muted)',
-              backgroundColor: 'var(--dplex-bg)',
-              border: '1px solid var(--dplex-border)'
-            }}
-          >
-            {providerLabel}
-          </span>
+        <div
+          className="flex items-center gap-2 mt-1 flex-wrap text-[10.5px]"
+          style={{ color: 'var(--dplex-text-muted)' }}
+        >
+          <span>{providerLabel}</span>
         </div>
       </div>
     </div>

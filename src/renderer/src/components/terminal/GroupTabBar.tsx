@@ -20,10 +20,18 @@ const DOT_COLOR: Record<AttentionKind, string> = {
 
 interface GroupTabBarProps {
   group: EditorGroup
+  /**
+   * Currently unused after the visual refresh — the active-group accent
+   * was previously a bottom border on the whole tabbar. The new design
+   * highlights the active *tab* with a top stripe, and the surrounding
+   * group container provides the border. Kept in the prop signature so
+   * callers don't break and so the design can re-use it later (e.g.
+   * ambient glow on the active group).
+   */
   isActiveGroup: boolean
 }
 
-export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.JSX.Element {
+export function GroupTabBar({ group }: GroupTabBarProps): React.JSX.Element {
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const closeTerminal = useTerminalStore((s) => s.closeTerminal)
@@ -100,12 +108,11 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
 
   return (
     <div
-      className="flex items-center h-8 select-none"
+      className="flex items-center select-none"
       style={{
+        height: 36,
         backgroundColor: 'var(--dplex-bg-alt)',
-        borderBottom: isActiveGroup
-          ? '1px solid var(--dplex-accent)'
-          : '1px solid var(--dplex-border)'
+        borderBottom: '1px solid var(--dplex-border)'
       }}
       onDragOver={(e) => {
         e.preventDefault()
@@ -128,15 +135,15 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               onDragOver={(e) => handleDragOver(e, index)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, index)}
-              className={`group flex items-center gap-1 px-2.5 h-8 cursor-pointer text-[11px] transition-colors relative ${
+              className={`group flex items-center gap-2 px-3.5 cursor-pointer text-[12.5px] transition-colors relative ${
                 dragOverIndex === index ? 'border-l-2' : ''
               }`}
               style={{
+                height: 36,
                 borderRight: '1px solid var(--dplex-border)',
                 borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
-                backgroundColor: isActive ? 'var(--dplex-bg)' : 'transparent',
-                color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
-                boxShadow: isActive ? 'inset 0 -2px 0 0 var(--dplex-accent)' : undefined
+                backgroundColor: isActive ? 'var(--dplex-bg)' : 'var(--dplex-bg-alt)',
+                color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)'
               }}
               onClick={() => {
                 setActiveGroup(group.id)
@@ -150,10 +157,26 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 }
               }}
             >
+              {/* Active tab gets a 2-px accent stripe along the top edge — flat
+                  VS Code style. */}
+              {isActive && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    backgroundColor: 'var(--dplex-accent)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              )}
               <TerminalIcon
-                size={11}
+                size={13}
                 className="flex-shrink-0"
-                style={{ color: 'var(--dplex-text-muted)' }}
+                style={{ color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)' }}
               />
               {(() => {
                 if (!tabSessionId || !tabProviderId) return null
@@ -180,12 +203,13 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                     if (e.key === 'Enter') commitRename()
                     if (e.key === 'Escape') setEditingTabId(null)
                   }}
-                  className="bg-transparent border-none outline-none text-[11px] text-white w-20"
+                  className="bg-transparent border-none outline-none text-[12.5px] w-24"
+                  style={{ color: 'var(--dplex-text)' }}
                   autoFocus
                 />
               ) : (
                 <span
-                  className="truncate max-w-[100px]"
+                  className="truncate max-w-[140px]"
                   style={{ fontStyle: isPreview ? 'italic' : undefined }}
                 >
                   {tab.title}
@@ -197,8 +221,9 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   closeTerminal(tab.id)
                 }}
                 className="opacity-0 group-hover:opacity-100 hover:bg-[var(--dplex-hover)] rounded p-0.5 transition-opacity ml-0.5"
+                style={{ color: 'var(--dplex-text-dim)' }}
               >
-                <X size={9} />
+                <X size={11} />
               </button>
             </div>
           )
@@ -209,11 +234,11 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
             setActiveGroup(group.id)
             createTerminal(group.id)
           }}
-          className="flex items-center justify-center w-7 h-8 hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
-          style={{ color: 'var(--dplex-text-muted)' }}
+          className="flex items-center justify-center hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
+          style={{ width: 32, height: 36, color: 'var(--dplex-text-muted)' }}
           title="New terminal (default shell)"
         >
-          <Plus size={12} />
+          <Plus size={13} />
         </button>
         <ShellSelector
           onSelect={(shell) => {
@@ -223,23 +248,26 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
         />
       </div>
 
-      {/* Split controls */}
-      <div className="flex items-center gap-0.5 px-1 flex-shrink-0">
+      {/* Split controls — sticky on the right with a left separator. */}
+      <div
+        className="flex items-center gap-0.5 px-1.5 flex-shrink-0"
+        style={{ borderLeft: '1px solid var(--dplex-border)', height: 36 }}
+      >
         <button
           onClick={() => splitGroup(group.id, 'horizontal')}
-          className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+          className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
           style={{ color: 'var(--dplex-text-muted)' }}
           title="Split right"
         >
-          <SplitSquareHorizontal size={12} />
+          <SplitSquareHorizontal size={13} />
         </button>
         <button
           onClick={() => splitGroup(group.id, 'vertical')}
-          className="p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+          className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
           style={{ color: 'var(--dplex-text-muted)' }}
           title="Split down"
         >
-          <SplitSquareVertical size={12} />
+          <SplitSquareVertical size={13} />
         </button>
       </div>
     </div>

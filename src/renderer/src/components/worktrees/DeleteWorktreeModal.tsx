@@ -210,7 +210,7 @@ export function DeleteWorktreeModal({
                     onChange={(e) => setForceDeleteBranch(e.target.checked)}
                     className="mt-0.5"
                   />
-                  <span style={{ color: 'var(--dplex-status-executing)' }}>
+                  <span style={{ color: 'var(--dplex-status-waiting)' }}>
                     Force delete branch (unmerged / no upstream)
                   </span>
                 </label>
@@ -267,7 +267,7 @@ function Warning({ children }: { children: React.ReactNode }): React.JSX.Element
   return (
     <div
       className="flex items-center gap-1.5 text-[11px]"
-      style={{ color: 'var(--dplex-status-executing)' }}
+      style={{ color: 'var(--dplex-status-waiting)' }}
     >
       <AlertTriangle size={11} /> {children}
     </div>

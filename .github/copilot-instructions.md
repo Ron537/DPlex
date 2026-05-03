@@ -76,7 +76,7 @@ After every major change (project refactors, new features, architectural changes
 
 1. Launch **two parallel code-review agents** using the `task` tool with `agent_type: "code-review"`:
    - One with `model: "claude-opus-4.7"` 
-   - One with `model: "gpt-5.4"`
+   - One with `model: "gpt-5.5"`
 2. Both reviews must cover **all** of the following:
    - **Dead code** — unused imports, variables, functions, classes, types, exports, IPC handlers, and anything else that is no longer referenced
    - **Duplicate code** — near-identical logic across files that should be extracted into a shared helper/module for reuse

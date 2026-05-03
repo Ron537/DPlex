@@ -20,7 +20,7 @@ test.describe('DPlex Electron app', () => {
   test('renders main layout and status controls', async () => {
     if (!window) throw new Error('Window not available')
     await expect(window.getByText('DPlex')).toBeVisible()
-    await expect(window.getByRole('button', { name: 'Projects', exact: true })).toBeVisible()
+    await expect(window.getByRole('tab', { name: 'Projects' })).toBeVisible()
     await expect(window.getByPlaceholder('Search projects...')).toBeVisible()
     await expect(window.getByText(/terminals? · \d+ groups?/)).toBeVisible()
   })
@@ -28,13 +28,17 @@ test.describe('DPlex Electron app', () => {
   test('opens settings and navigates tabs', async () => {
     if (!window) throw new Error('Window not available')
     await window.getByTitle('Settings', { exact: true }).click()
-    await expect(window.getByText('Settings')).toBeVisible()
+    // After the visual refresh the modal opens directly into the
+    // Appearance tab — no longer a "Settings" wordmark in the header.
+    await expect(window.getByRole('heading', { name: 'Appearance' })).toBeVisible()
 
     await window.getByRole('button', { name: 'Notifications' }).click()
     await expect(window.getByText('Enable notifications')).toBeVisible()
 
     await window.getByRole('button', { name: 'Shortcuts' }).click()
-    await expect(window.getByText('General')).toBeVisible()
+    // The Shortcuts pane has a "General" section heading rendered as <h4>;
+    // disambiguate from the left-rail "General" group label (<h3>).
+    await expect(window.locator('h4').filter({ hasText: 'General' })).toBeVisible()
 
     await window.keyboard.press('Escape')
     await expect(window.getByText('Enable notifications')).toHaveCount(0)

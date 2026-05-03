@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react'
-import { RefreshCw, X } from 'lucide-react'
+import { GitPullRequest, RefreshCw, X } from 'lucide-react'
 import { useGitPanelStore } from '../../stores/gitPanelStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -107,11 +107,11 @@ export function GitPanel(): React.JSX.Element | null {
       />
       <div
         className="flex flex-col h-full flex-1 min-w-0"
-        style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
+        style={{ backgroundColor: 'var(--dplex-bg-panel)' }}
       >
         <PanelHeader
           project={activeProject}
-          isLoading={isLoading}
+          isLoading={isLoading && (repoEntry?.files.length ?? 0) === 0}
           onRefresh={() => activeProjectId && refresh(activeProjectId)}
           onCollapse={collapse}
         />
@@ -205,44 +205,43 @@ function PanelHeader({
 }: PanelHeaderProps): React.JSX.Element {
   return (
     <div
-      className="flex items-center gap-1.5 px-2 h-8 flex-shrink-0"
-      style={{ borderBottom: '1px solid var(--dplex-border)' }}
+      className="flex items-center gap-2 px-3.5 flex-shrink-0"
+      style={{ height: 40, borderBottom: '1px solid var(--dplex-border)' }}
     >
-      <span
-        className="text-[10px] font-semibold uppercase tracking-wider truncate"
-        style={{ color: 'var(--dplex-text-muted)' }}
-      >
-        Git
+      <GitPullRequest size={14} style={{ color: 'var(--dplex-accent)' }} />
+      <span className="text-[12.5px] font-semibold" style={{ color: 'var(--dplex-text)' }}>
+        Changes
       </span>
       {project && (
         <span
-          className="text-[11px] truncate flex items-center gap-1"
+          className="text-[11.5px] truncate"
           style={{ color: 'var(--dplex-text-muted)' }}
           title={project.path}
         >
-          <span className="opacity-60">·</span>
-          <span className="truncate">{project.name}</span>
+          · {project.name}
         </span>
       )}
       <div className="ml-auto flex items-center gap-0.5">
         <button
           type="button"
           className="p-1 rounded hover:bg-[var(--dplex-hover)] disabled:opacity-50"
+          style={{ color: 'var(--dplex-text-muted)' }}
           onClick={onRefresh}
           disabled={!project}
           title="Refresh"
           aria-label="Refresh changes"
         >
-          <RefreshCw size={12} className={isLoading ? 'animate-spin' : undefined} />
+          <RefreshCw size={13} className={isLoading ? 'animate-spin' : undefined} />
         </button>
         <button
           type="button"
           className="p-1 rounded hover:bg-[var(--dplex-hover)]"
+          style={{ color: 'var(--dplex-text-muted)' }}
           onClick={onCollapse}
           title={`Collapse Git panel (${SHIFT}${MOD}G)`}
           aria-label="Collapse Git panel"
         >
-          <X size={12} />
+          <X size={13} />
         </button>
       </div>
     </div>
