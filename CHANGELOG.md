@@ -9,504 +9,202 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] — 2026-05-03
 
-### Changed
+### Features
 
-- **Visual refresh across the entire app.** Refined dark palette (warmer
-  black `#0e0e13`, richer purple accent `#a78bfa`, soft 1-px borders),
-  tighter 4-px rhythm, glassy elevated panels, modernized search input
-  with leading icon and `⌘F` adornment, segmented Projects/Sessions
-  switcher with provider sprite, slim chip-style status bar. Logic,
-  IPC, store schema, hot-keys all unchanged.
-- **Worktree section headers.** Worktrees no longer render as deeply
-  nested project rows. When a project is expanded, each worktree is a
-  collapsible labelled section header inside the parent at the same
-  indent as direct project sessions; the parent's main checkout gets
-  its own header so users can distinguish on-main work from
-  worktree-scoped work. Right-click on a header opens a worktree
-  context menu (start session, copy path/branch, remove worktree).
-- **Status-as-avatar with adaptive provider badge.** Session rows show
-  a status motif (running spinner, thinking dots, waiting `i`, idle
-  dot, attention exclaim) tinted by status color in the avatar slot.
-  A small provider corner badge appears only when the surrounding
-  list contains more than one provider — solo-tool users get a quiet
-  status-driven rail, mixed-tool users still get provenance.
-- **Flat tabs.** Editor group tabs lose their top-corner radius and
-  gain a 2-px accent stripe along the active tab's top edge. Sticky
-  split/new-terminal action area on the right.
-- **Settings modal.** 900×560 modal with a 220-px left rail grouped
-  into **General / AI Tools / Terminal** sections, polished theme
-  picker swatches (4-color theme strip + variant tag), and a footer
-  with a primary "Done" gradient button. The keyboard shortcut for
-  opening Settings is preserved on the status bar trigger via
-  `aria-label` so screen readers still hear it.
-- **Git/Changes panel.** Polished header with a `GitPullRequest`
-  accent icon and bold "Changes" title. File rows now show colored
-  badge chips (M / A / D / R / U) and dim secondary directory text
-  beneath the filename. Worktree switcher lives on a panel-tone
-  background instead of a pill chip.
-- **Status bar.** Slim 26-px chip-style segments with hover affordances
-  and a live "active sessions" indicator with pulsing green dot.
+- Comprehensive visual refresh across the entire app — refined dark
+  palette, modernized Settings modal, polished Git panel, slimmer
+  status bar.
+- `Cmd/Ctrl+1`–`Cmd/Ctrl+9` now switches to any tab across split
+  groups, not just the active group.
+- Worktrees now appear as collapsible section headers inside their
+  parent project, with the parent's main checkout in its own header,
+  so on-main work is easy to tell apart from worktree-scoped work.
+- Project avatars show a small live-session indicator (green when an
+  AI session is running, accent when there are open tabs).
+- Plain terminal rows in the project sidebar are visually distinct
+  from AI session rows.
 
-### Added
+### Improvements
 
-- New shared components in `src/renderer/src/components/common/`:
-  `StatusAvatar`, `StatusPill`, `StatusIcon`, `ProviderGlyph`,
-  `ProviderIconSprite`, `Switch`, `Segmented`. Each owns a single
-  visual responsibility and reads exclusively from CSS theme
-  variables so themes keep working.
-- New helpers `utils/providerHelpers.ts` (provider mark resolution +
-  `isMixedProviderList`), `utils/sessionStatusVisual.ts`
-  (`SessionStatus` → visual category + label), `utils/aggregateVisual.ts`
-  (most-interesting status across a list), and
-  `utils/sessionPairing.ts` (single source of truth for pairing open
-  AI tabs to backing sessions, used by both the renderer list and the
-  worktree-section count badge).
-- `tests/unit/provider-helpers.test.ts` covers the mixed-provider
-  detection helper.
+- Right-click "Start session" on a project or worktree now uses your
+  default AI tool instead of listing every installed provider.
+- The active session or terminal in the sidebar gets a soft highlight
+  that's easy to spot but not distracting.
+- Activating a tab automatically expands the matching project in the
+  sidebar and scrolls it into view.
+- Worktree sections with no sessions now show the same "No active
+  sessions." empty state as regular projects.
+- Sessions panel branch names no longer overlap the time chip on
+  long branches.
 
-### Fixed
+### Bug Fixes
 
-- **Light-theme color collision** (was: `--dplex-status-executing` and
-  `--dplex-status-waiting` collapsed onto the same orange in light
-  mode). The two tokens are now distinct — `executing` is green, in
-  line with the new "running" pill semantics, and `waiting` is amber.
-  Pre-existing worktree-deletion warnings that piggybacked on the
-  executing token were repointed to `--dplex-status-waiting` so they
-  retain their warning hue.
+- Clicking an expanded project row collapses it again (chevron click
+  still works as before).
+- "Show in Git Panel" now opens the Git panel when it was collapsed.
+- The "X projects · Y active" count in the sidebar header is now
+  correct on Windows and case-insensitive file systems.
+- The selected file in the Git Changes list now stays highlighted.
+- Light-theme color collision between two status colors fixed —
+  warning labels keep their amber hue.
 
-### Internal
+### Performance
 
-- ProjectItem dropped its `indent`, `parentProject`, and `isCompact`
-  branches (~80 lines) — those code paths were unreachable after
-  switching to the worktree-section-header layout. Filter mode still
-  surfaces worktree-projects at the top level, but they now render
-  with the same single-card style as origin projects.
-
-### Refinements (post-redesign polish)
-
-- **Cross-group `⌘1`–`⌘9` tab switching.** Number shortcuts now walk
-  the layout tree to flatten tabs across split groups in visual order,
-  so `⌘5` always selects the 5th tab globally and switches the active
-  group as needed.
-- **Default-provider context menus.** Right-click on a project or
-  worktree now offers a single "Start <provider>" entry using the
-  configured default AI tool, rather than one entry per installed
-  provider. The hover play-button already used this rule.
-- **Live session badge** on project avatars. A small dot in the
-  avatar's bottom-right shows green when the project has an active
-  AI session and the accent color when it has open tabs but nothing
-  live. Same indicator appears on collapsed-rail avatars (suppressed
-  when the amber attention badge is up). The redundant pulse dot next
-  to the project name is gone.
-- **Click-to-collapse fix.** Clicking an expanded, emphasized project
-  row again collapses it (chevron behavior unchanged); the previous
-  fix that made row clicks expand-only was replaced with a snapshot of
-  pre-click state to dodge the auto-expand subscriber race.
-- **Auto-expand and scroll** when the active tab changes — the
-  matching project + worktree section open and the row is scrolled
-  into view via `[data-row-tab-id]`.
-- **Active row marker.** Active session/terminal rows in the panel get
-  a soft drop shadow with subtle accent ring (`0 0 0 1px rgba(167,
-  139,250,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)`) instead of a hard
-  background or stripe.
-- **Branch-name truncation** in the Sessions panel meta row so long
-  branches no longer overlap the relative-time chip.
-- **Plain-terminal rows** in the project body. Plain terminals
-  (no `providerId`, no `command`) now render via a new `TerminalRow`
-  with a transparent dashed avatar and `>_` glyph so they're visually
-  distinct from AI sessions while sharing layout rhythm.
-- **Empty state** for worktree sections with no sessions matches the
-  rest of the panel ("No active sessions.").
-- **Git Changes refresh indicator** stays silent for background
-  refreshes pushed by the fs watcher; only shown on the initial load.
-  The watcher itself is now coalesced through a 600 ms trailing
-  debounce per repo so rapid bursts collapse into one fetch.
-- **Sessions count** removed from the segmented switcher tab label.
-
-### Fixed (review-driven)
-
-- **Cross-platform path matching** in `SidePanel` — the toolbar's
-  "X projects · Y active" count now routes both `cwd` and project
-  paths through `normalizePath` so Windows backslashes and
-  case-insensitive platforms match correctly.
-- **Selected diff row highlight** — replaced the undefined
-  `--dplex-bg-active` token with `--dplex-accent-soft`.
-- **"Show in Git Panel"** menu action now also expands the Git panel
-  if it was collapsed.
-- **Duplicate git-branch watcher** removed from main-checkout
-  worktree sections — they now reuse the parent's `useGitBranch`
-  result via a `mainBranchOverride` prop.
-- **`hexToRgba` alpha override** — now parses `rgb()/rgba()` inputs
-  and re-emits with the requested alpha (was previously a passthrough
-  that silently ignored alpha for non-hex inputs).
-- **`PendingSessionItem` provider id** — the placeholder row now
-  receives the canonical provider id for `StatusAvatar`, with the
-  display label kept separate.
+- Smoother Git Changes panel during heavy file activity.
+- "Refreshing…" indicator no longer flickers on background refreshes;
+  it only appears on the initial load.
 
 ## [0.5.0] — 2026-05-02
 
-### Added
+### Features
 
-- **Project avatar rail.** When the side panel is collapsed it now becomes
-  a 52 px rail of project avatars (instead of disappearing entirely).
-  Avatars carry the project's deterministic color/initials, an active-
-  project accent bar, and a status ring. Clicking an avatar re-expands
-  the panel, marks that project active, and focuses the first existing
-  tab in the project tree.
-- **FLIP layout animation** glides avatars between the expanded row
-  layout and the collapsed rail layout when the panel toggles. No
-  animation library — just `useLayoutEffect` + a single CSS transform
-  pass per avatar, driven by a shared `data-project-avatar` attribute.
-- **In-panel segmented toggle** for switching between Projects and
-  Sessions views (replaces the standalone activity bar). Pill-style
-  control lives in the side-panel header.
-- **Project status taxonomy** on the rail: avatars dim subtly when the
-  project has no live session or open tab, show full opacity when live,
-  add a green pulsing border when an agent is actively running
-  (`detailedStatus` is `thinking` or `executingTool`), and an amber
-  border + corner attention badge when sessions need approval / input.
-  All transitions animate (no snap-in), and the status reveal is held
-  back until the FLIP finishes so it doesn't jitter mid-glide.
-- **Bidirectional project ↔ tab sync.** Activating a tab now also marks
-  the matching project active (longest-prefix path match, normalized
-  for case + separator). Clicking a project (in row or rail) focuses
-  the first existing tab whose path is in the project tree (own path
-  + worktree children), or no-ops if the focused tab already belongs.
-- Active-session list sort buckets in the Sessions view: pending-
-  approval / waiting-for-user first, thinking / executing-tool next,
-  then "active but idle" sorted by has-open-tab and recency.
-- Cross-platform-safe `normalizePath` extracted to its own util module.
-- New `focusFirstTabForPaths(paths)` helper in `utils/sessionTabs`.
-- New `useProjectAvatarFlip(triggerKey)` hook for cross-layout FLIP.
+- Collapsing the sidebar now turns it into a vertical rail of project
+  avatars instead of disappearing. Click an avatar to re-expand and
+  switch to that project.
+- Smooth animated transition between the expanded sidebar and the
+  collapsed avatar rail.
+- New in-panel Projects/Sessions toggle replaces the old standalone
+  activity bar.
+- Project avatars indicate status at a glance: dimmed when idle,
+  full opacity when live, green pulsing border when an agent is
+  running, amber when something needs your attention.
+- Activating a tab also selects the matching project in the sidebar;
+  clicking a project jumps to its first open tab.
+- New right-side Git panel that follows the active project, with a
+  Changes section, worktree switcher, and clear empty/error states
+  for non-standard repo states (detached HEAD, mid-merge, mid-rebase,
+  mid-cherry-pick, mid-bisect). Toggle with `Cmd/Ctrl+Shift+G`.
+- VS Code–style preview tabs in the Git panel: single-click to
+  preview, double-click to pin.
+- Per-file diff tabs with side-by-side / inline toggle, syntax
+  highlighting, and live refresh as the working tree changes.
+- Sessions panel "Collapse / Expand all groups" toolbar button.
+- DPlex now reopens the project that was active when you last quit.
+- **Claude Code** is now supported alongside Copilot CLI.
+- Staged / Unstaged toggle in the diff viewer for files with both
+  kinds of changes.
+- Diff viewer minimap and overview ruler — see all changes in long
+  files at a glance.
 
-### Changed
+### Improvements
 
-- Active project signal in the expanded panel switched from a
-  highlighted border + glow on the last-expanded card to a thin left
-  accent bar on the active row (matches the collapsed-rail treatment).
-- Tabs no longer get tinted with the focused project's color — both
-  background tint and the left color strip in `GroupTabBar` are gone.
-  Tabs use the standard active/inactive styling regardless of which
-  project is selected.
-- "Discovered" project rows lost their dashed row border; they remain
-  visually distinguished by a slight opacity dim and the inline
-  "Discovered" badge.
-- Settings: **Session Max Age** slider + number input now cap at 15
-  days (previously slider 90, input 365).
+- Active-project indicator switched to a thin accent bar — clearer
+  and matches the collapsed-rail look.
+- Tabs no longer get tinted with the focused project's color, making
+  the focused tab easier to read.
+- Discovered project rows get a subtle dim + badge instead of a
+  dashed border.
+- Settings: Session Max Age range now caps at 15 days.
+- Git panel collapsed strip redesigned in VS Code activity-bar style,
+  with a branch glyph and a changed-file count badge that's visible
+  even when the panel is collapsed.
+- "View Changes" project context-menu entry renamed to "Show in
+  Git Panel" and now opens the panel directly.
 
-### Removed
+### Bug Fixes
 
-- The standalone **Activity Bar** component (Projects/Sessions/Settings
-  icons in a 52 px rail). The Projects/Sessions toggle moved into the
-  side-panel header; Settings is reachable from the status bar gear.
-- Unused `@tanstack/react-virtual` dependency.
+- Active-project indicator and click-to-focus work correctly on
+  Windows and case-insensitive file systems.
+- Git panel now shows the worktree's own changes when a worktree
+  child is the active project (was showing the parent repo's).
+- Diff viewer updates correctly on consecutive saves to the same
+  file.
+- Diff viewer works correctly on linked worktrees — file watches
+  now fire as expected.
+- Switching files in the diff viewer no longer briefly shows the old
+  file's content under the new file's language.
+- Conflicted files during a merge now show a meaningful diff instead
+  of an empty pane.
+- Diff viewer no longer flickers on background refreshes — scroll
+  position, cursor, and selection are preserved.
+- Tightened session-id validation to reject crafted filenames in
+  session directories that could otherwise execute shell commands
+  when clicking Resume.
+- Diff viewer rejects writes that would escape the repo via
+  symlinks.
 
-### Fixed
+### Performance
 
-- Path comparisons in tab → project sync and project → tab focus now
-  go through `normalizePath`, so the active-project indicator and
-  click-to-focus work correctly on Windows (backslashes,
-  case-insensitive filesystem) and on macOS where casing can differ
-  between registration and tab creation.
-- `useProjectAvatarFlip` no longer forces a synchronous layout on every
-  unrelated `SidePanel` re-render — the measurement effect runs only
-  when the trigger key changes.
-- FLIP cleanup now restores the avatar's prior inline `transition` /
-  `transform-origin` so the component's own border-color and opacity
-  transitions keep working after the first toggle.
-- Clicking a rail avatar while the Sessions tab was last-active now
-  expands into the Projects view (where the user expects to see the
-  emphasized project) instead of leaving them on Sessions.
-- Empty-attention array prop on `ProjectAvatarButton` is now a shared
-  constant, restoring `memo()` shallow-comparison so rail avatars
-  don't all rerender on unrelated SidePanel updates.
-
-### Added
-
-- **Right-side Git panel.** Auto-binds to the active project and hosts a
-  collapsible **Changes** section. Replaces the standalone "View Changes"
-  diff tab. Toggle with **Cmd/Ctrl+Shift+G** (suppressed in inputs and
-  the Monaco find widget). Defaults to collapsed but the watcher stays
-  alive so the count badge in the collapsed strip is always accurate.
-- Git panel: **VS Code-style preview tabs.** Single-click a changed file
-  opens a preview tab (italic title) in the active editor group; clicking
-  another file replaces the preview slot in place. Double-click the file
-  in the panel — or the tab title itself — promotes it to a permanent
-  tab. Preview tabs are not persisted across restarts; permanent file
-  diff tabs are.
-- Git panel: **Worktree switcher** that lists the project-registered
-  worktrees only (hidden when ≤ 1). Selection is per-project and
-  validated on every refresh — falls back to the project root if the
-  active worktree is removed.
-- Git panel: **First-class empty / error states** dispatched on a new
-  `diff:getRepoStatus` IPC: not-a-repo, missing-path, detached HEAD,
-  mid-merge, mid-rebase, mid-cherry-pick, mid-bisect, generic error.
-- **Per-file diff tabs** (`kind: 'fileDiff'`) powered by Monaco's
-  `DiffEditor` with side-by-side ⇄ inline toggle, syntax highlighting,
-  and live refresh as the working tree changes. Forces inline mode for
-  newly-created files (one side empty). Read-only in v1.
-- Diff viewer: **Staged / Unstaged toggle** in the bottom-left of the
-  editor pane for files that have changes in both the index and the
-  working tree (porcelain status `MM`, `MD`, `AM`, etc.), so both
-  halves of the change can be inspected without leaving the tab.
-- Diff viewer: refreshes the changes list and selected diff when the
-  app window regains focus or becomes visible, so changes made in an
-  external editor show up immediately on Linux where `fs.watch` can
-  miss deep edits.
-- Git panel collapsed strip redesigned in VS Code activity-bar style: a
-  44 px rail with a 36 × 36 icon button, branch glyph, accent stripe,
-  and corner count badge that surfaces the changed-file count even
-  when the panel is collapsed.
-- Diff viewer: enabled Monaco's minimap (with hunk-tinted overlay) and
-  overview ruler so changes in long files are visible on the scrollbar
-  without scrolling. Also lowered the side-by-side ⇄ inline breakpoint
-  from 900 px to 600 px (and disabled Monaco's internal auto-fallback)
-  so split view stays available on narrower panels.
-- Sessions panel: **Collapse / Expand all groups** toolbar button that
-  toggles every group at once in both grouping modes (Time and
-  Workspace). Individual group toggles still work in between presses.
-- **Persist last active project across app restarts.** Reopening the
-  app re-selects the project that was active when you last quit, and
-  walks the parent-project chain so the row is actually visible (e.g.
-  worktree children expand their parent automatically). Collapsing the
-  active project (or any ancestor of an active worktree child) clears
-  the persisted selection so the next launch starts fresh.
-
-### Changed
-
-- Diff watcher: **`.gitignore`-aware filtering.** Replaces the previous
-  hardcoded "noisy directory" list with a per-repo matcher built from
-  every `.gitignore` in the worktree, plus `.git/info/exclude` and the
-  user's global `core.excludesfile`. Events under ignored paths are
-  dropped before triggering a `git status`, so build outputs and tooling
-  caches that the old list didn't know about (Rust `target/`, Bazel
-  outputs, custom log dirs, etc.) no longer keep the panel in a
-  perpetual refresh. Hardened against hostile input (`.gitignore`
-  symlinks rejected, 1 MiB size cap, 5 s `git config` timeout) and
-  defers matcher construction off the IPC critical path so subscribing
-  never blocks on a large-repo walk. The matcher is rebuilt
-  automatically (debounced) when any `.gitignore`, `.git/info/exclude`,
-  or the user's global excludes file changes; linked worktrees follow
-  the `commondir` pointer to find the shared `info/exclude`.
-- The standalone repo-level `diff` tab kind is removed; opening changes
-  is now exclusively through the Git panel. The project context menu
-  entry is renamed **View Changes → Show in Git Panel**, which expands
-  the panel and binds to that project. Legacy `kind: 'diff'` entries in
-  persisted workspaces are quietly dropped on restore.
-- Editor groups gained a `previewTabId` invariant (always undefined or
-  pointing at an existing tab), kept in sync across close, move, split,
-  and restore mutations.
-
-### Fixed
-
-- (Internal) Generation-based stale-response protection in the Git
-  panel store so a slow `diff:listChanges` from a previous project
-  cannot overwrite the cache after the user switches projects.
-
-### Fixed
-
-- Diff viewer no longer fails to update the editor pane when a file
-  is edited again while already selected (e.g. consecutive saves to
-  the same file). The changes-list dedup that was meant to suppress
-  needless "Refreshing…" spinners was also suppressing the editor
-  re-fetch — content-change detection is now decoupled from the
-  list-signature check.
-- Diff viewer now resolves the watcher's `.git` directory through the
-  `gitdir:` pointer when a project is a **linked worktree**, so file
-  watches actually fire (previously the watcher was looking at a
-  non-existent `.git/HEAD` inside the worktree).
-- Diff viewer: per-WebContents subscription counts are now released
-  in full on tab/window destroy. A single tab subscribing to several
-  diff scopes for the same repo no longer leaves dangling watcher
-  refs after close.
-- Diff viewer: hunk patches now emit `\ No newline at end of file`
-  markers when either side lacks a trailing newline, so
-  `git apply --check` accepts patches over files without a trailing
-  newline (previously the apply would silently fail).
-- Diff viewer: conflicted files (`UU`/`AA`/`DD`) now fall back from
-  stage 0 to stage 2 (`ours`) and then `HEAD` when reading the left
-  side, so the diff renders meaningful content during a merge instead
-  of showing an empty pane.
-- Diff viewer: the `diff:saveWorkingFile` IPC handler now realpaths
-  the parent directory (and the file itself, when it exists) and
-  rejects writes that would escape the repo root via a symlink.
-- Diff viewer: `safeScope` rejects refs starting with whitespace or
-  `-` and refs containing NUL, defense-in-depth against argv-style
-  flag injection.
-- Diff viewer: switching files in the editor pane no longer briefly
-  shows the previous file's content under the new file's language —
-  content is cleared synchronously on selection change.
-- Diff viewer: eliminated the editor flicker that occurred on every
-  background watcher refresh. The editor now reuses Monaco's diff
-  models via `setValue()` when the same file is re-fetched (preserves
-  scroll position, cursor, and selection); content is no longer
-  cleared to empty on refresh; byte-identical refetches are skipped
-  entirely; and the "Loading…" badge only appears on the initial
-  load or when the selected file changes — not on background refreshes.
-- Git panel: showed the parent repo's changes when a worktree child
-  was active. The vestigial `gitPanelState.activeWorktreeRoot` field —
-  never written by current code but persisted by older builds with the
-  parent's path on worktree children — caused the panel to resolve to
-  the parent repo. Removed the field, simplified the active-root
-  resolver to just use the project's path, and added a one-shot
-  migration in `loadProjects` that strips the legacy field on load and
-  re-persists the cleaned project list.
-- Diff viewer: disabled Monaco's F1 command palette and right-click
-  context menu in the diff editor. Both surfaced edit/refactor actions
-  that aren't applicable to DPlex's read-only diff view and were a
-  source of confusion.
-
-### Added (continued)
-
-- New `git:listChanges`, `git:fileDiffContent`, `git:listBranches`,
-  `git:stage*/unstage*/discard*/revert*/applyHunk` IPC channels for
-  full SCM parity (renderer hookup is partial in v1).
-- Monaco editor lazy-loaded on first diff tab open — keeps the cold
-  start bundle small (~1.4 MB main chunk; ~6 MB Monaco loaded only
-  when needed). CSP relaxed to allow `worker-src 'self' blob:` for
-  Monaco's language workers.
-
-- **Claude Code provider.** DPlex now discovers, monitors, resumes,
-  closes, and deletes sessions from the `claude` CLI alongside Copilot
-  CLI. Sessions live at `~/.claude/projects/<slug-of-cwd>/<id>.jsonl`,
-  and live status is read from the per-process pidfile registry at
-  `~/.claude/sessions/<pid>.json`. Live status maps to dplex's existing
-  status taxonomy: `waiting` + `approve …` → awaitingApproval, `busy` +
-  tool detail → executingTool, `busy` (no tool) → thinking, `idle` →
-  idle, and `tempo: blocked` → waitingForUser. `approve AskUserQuestion`
-  is treated as `waitingForUser` since it's an interactive question
-  rather than a side-effecting permission gate.
-- New `processUtils` module sharing `killProcess`, `isProcessAlive`,
-  and `waitForProcessesToExit` between providers.
-
-### Changed
-
-- **`BaseSessionProvider` refactor** to support providers whose storage
-  shape doesn't match Copilot CLI's "one directory per session + lock
-  files" convention. New `SessionEntry` abstraction and overridable
-  hooks (`listSessionEntries`, `getEntryForSessionId`,
-  `getActivePidsForEntry`, `parseSession`, `removeSessionData`,
-  `sessionIdFromWatchPath`, `pushSessionUpdate`) allow alternative
-  storage layouts. Copilot provider behavior is unchanged.
-
-### Security
-
-- **Tightened `validateSessionId`** to a strict `[A-Za-z0-9_-]+`
-  charset (max 128 chars). Previously only `/`, `\`, and `..` were
-  rejected, leaving shell metacharacters (`;`, `$()`, backticks, `|`,
-  `&&`, whitespace) free to slip through. A malicious tarball or
-  project that planted a crafted filename under `~/.claude/projects/`
-  or `~/.copilot/` could otherwise execute arbitrary shell when the
-  user clicked Resume. Discovered entries with invalid ids are now
-  filtered out at discovery time as well as at resolve time.
+- Faster, smoother Git Changes updates — the watcher now respects
+  `.gitignore`, so build outputs no longer keep the panel in a
+  perpetual refresh.
+- Smaller cold-start bundle: the Monaco editor is loaded only when
+  you open your first diff.
+- Reduced sidebar re-renders.
 
 ## [0.4.0] — 2026-04-24
 
-### Added
+### Features
 
-- Keyboard shortcut `⌘F` / `Ctrl+F` focuses the side panel search
-  input. If the panel is collapsed, it auto-expands first. Works for
-  any future search-enabled panel via the `dplex:focus-search` custom
-  event.
-- The most recently expanded project card is now emphasized with an
-  accent border and subtle glow, making it easy to tell which project
-  you're currently focused on when several are expanded at once.
-- Terminal and AI-session tabs whose working directory matches the
-  focused project (or any of its worktree children) now share the
-  project's deterministic avatar color via a subtle background tint and
-  a thin left strip — the active tab remains the most prominent and
-  also picks up a stronger tint of the same project color.
-- New `setLastExpanded` action on the project store that promotes an
-  already-expanded project to be the emphasized one without toggling
-  its expansion state.
+- New `Cmd/Ctrl+F` shortcut focuses the sidebar search (auto-expands
+  the panel if collapsed).
+- The most recently expanded project is highlighted with an accent
+  border so it's easy to tell which project you're focused on.
+- Tabs whose working directory matches the focused project pick up
+  that project's color — the active tab gets a stronger tint.
 
-### Changed
+### Improvements
 
-- Clicking an already-expanded project card that isn't the emphasized
-  one now promotes it to "focused" instead of collapsing it. The
-  chevron control still toggles expansion directly.
-- The project-card chevron is now a proper `<button>` with an
-  `aria-label` (`Expand project` / `Collapse project`).
+- Clicking an already-expanded project that isn't the focused one
+  now promotes it instead of collapsing (the chevron still toggles).
+- Project chevron is now a proper button with screen-reader labels.
 
 ## [0.3.0] — 2026-04-24
 
-### Changed
+### Features
 
-- Sidebar redesigned in VS Code style: a vertical activity bar (44 px
-  icon strip) now sits on the far left and is always visible. Clicking
-  the active icon collapses the panel (icons remain); clicking another
-  icon switches tabs. The panel header shows the tab title
-  (`PROJECTS` / `SESSIONS`) with action icons aligned right. The
-  Settings gear moved to the bottom of the activity bar.
-- `⌘B` now toggles only the side panel; the activity bar stays visible.
-- New settings `sidebarActiveTab` and `sidebarPanelCollapsed` persist
-  the active tab and collapsed state across restarts.
+- VS Code–style sidebar with a vertical activity bar always visible
+  on the left. Click the active icon to collapse the panel; click
+  another icon to switch between Projects and Sessions.
+- The Settings gear moved to the bottom of the activity bar.
+- DPlex now remembers your active sidebar tab and collapsed state
+  across restarts.
+
+### Improvements
+
+- `Cmd/Ctrl+B` now toggles only the side panel; the activity bar
+  stays visible.
 
 ## [0.2.1] — 2026-04-23
 
-### Fixed
+### Bug Fixes
 
-- Release workflow: the macOS build no longer uses the local
-  `dmgbuild-wrapper.sh` (which patches around a Spotlight-holds-DMG-open
-  flake that only occurs on developer machines). CI now uses a
-  dedicated `build:mac:ci` script that lets electron-builder use its
-  bundled dmgbuild directly.
+- Fixed macOS DMG build failures so packaged macOS releases ship
+  reliably.
 
 ## [0.2.0] — 2026-04-23
 
-### Added
+### Features
 
-- Open-source release scaffolding: `LICENSE` (MIT), `CONTRIBUTING.md`,
-  `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue and pull-request templates,
-  Dependabot, and CodeQL workflows.
-- GitHub Actions release workflow (`release.yml`) — tag-triggered
-  multi-OS build that publishes signed binaries to GitHub Releases.
-- Auto-update support via `electron-updater`. Packaged builds check
-  GitHub Releases on launch, download new versions in the background,
-  and install on next quit.
-- Architecture and provider authoring guides (`docs/architecture.md`,
-  `docs/providers.md`).
-- Comprehensive `README.md` overhaul with badges, alternatives
-  comparison, install instructions, and FAQ.
-- `CHANGELOG.md` following the Keep a Changelog format.
-- Versioning and changelog policy documented in
-  `.github/copilot-instructions.md`.
+- **Auto-updates**: packaged builds now check for new versions on
+  launch and install them on next quit.
+- DPlex is now open source under MIT, with signed multi-OS binaries
+  published to GitHub Releases.
 
-### Changed
+### Bug Fixes
 
-- `package.json` metadata now reflects the real author, repository, and
-  license.
-- `electron-builder.yml` uses a real `appId` (`dev.dplex.app`),
-  `productName`, maintainer, and a GitHub publish target.
-- CI (`tests.yml`) split into `typecheck`, `unit-tests`, and `e2e-tests`
-  jobs. Runs on Ubuntu only to stay well under the free-tier quota.
-
-### Security
-
-- `shell.openExternal` and `will-navigate` now validate URL schemes;
-  only `http(s)` and `mailto` are allowed. Closes the classic Electron
-  protocol-handler RCE vector.
+- Closed a security vector around opening external links.
 
 ## [0.1.0] — Initial public release
 
 First public release of DPlex — a terminal multiplexer built for
 AI-assisted development.
 
-### Added
+### Features
 
-- Tabbed terminal multiplexer with split panes (xterm.js + node-pty).
-- Workspace persistence: AI-session tabs restore across app restarts.
-- Project sidebar with one-click AI session creation, per-project git
-  branch display, pinned projects, worktree support, and drag-to-reorder.
-- Session discovery for GitHub Copilot CLI with automatic active-session
-  detection and PID-based session resolution.
-- Attention inbox with notification bell, three event kinds
-  (waiting-for-approval, waiting-for-input, finished), configurable
-  cooldown, and jump-to-session.
-- Prompt history viewer for past sessions.
-- Pluggable provider system (`SessionProvider` interface) for adding
-  new AI CLI tools.
-- Eight built-in themes across dark and light variants.
+- Tabbed terminal multiplexer with split panes.
+- Workspace persistence: AI session tabs restore across app
+  restarts.
+- Project sidebar with one-click AI session creation, per-project
+  Git branch display, pinned projects, worktree support, and
+  drag-to-reorder.
+- GitHub Copilot CLI session discovery, active-session detection,
+  and Resume.
+- Attention inbox with a notification bell for sessions waiting on
+  approval, waiting for input, or finished.
+- Prompt-history viewer for past sessions.
+- Pluggable provider system for adding new AI CLI tools.
+- Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
 [Unreleased]: https://github.com/Ron537/DPlex/compare/v0.6.0...HEAD

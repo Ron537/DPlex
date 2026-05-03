@@ -131,3 +131,34 @@ Workflow before pushing:
 
 The changelog is maintained by the agent as part of the same commit —
 the user should not have to remember to update it.
+
+### Changelog content rules (customer-facing)
+
+The changelog is read by **end users**, not contributors. Write every
+entry from the user's point of view: what they will notice, not what
+was changed in the code.
+
+- **Use these sections only**, in this order, omitting any that have
+  no entries for the release:
+  - `### Features` — new user-visible capabilities
+  - `### Improvements` — refinements to existing behavior or UI
+  - `### Bug Fixes` — things that were broken and now work
+  - `### Performance` — single-line mentions of areas that got faster
+    or smoother (no implementation detail)
+- **Do not** include sections like `Internal`, `Refactor`, `Refinements`,
+  `Review-driven`, `Chores`, or `Security` unless they describe
+  something the user actually experiences.
+- **Each entry is one short bullet** (ideally one line, max two).
+  Lead with the user benefit; cut implementation details, file names,
+  store/IPC names, CSS variable names, line counts, and code-review
+  attribution. No "we replaced X with Y" — the user doesn't care.
+- **Performance entries** must just name the area that got faster
+  (e.g. "Faster Git changes panel updates", "Smoother sidebar
+  resizing"). No timings, watcher names, or debounce values.
+- **Don't over-organize.** If a release has only a handful of bullets,
+  don't pad it. A 3-line `### Bug Fixes` is fine.
+- **No internal jargon.** Replace store / hook / IPC channel names
+  with the user-facing surface (e.g. "Sessions sidebar", "Git panel",
+  "project context menu", "command palette").
+- The same rules apply to entries staged under `[Unreleased]`.
+
