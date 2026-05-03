@@ -31,7 +31,7 @@ interface GroupTabBarProps {
   isActiveGroup: boolean
 }
 
-export function GroupTabBar({ group }: GroupTabBarProps): React.JSX.Element {
+export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.JSX.Element {
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const closeTerminal = useTerminalStore((s) => s.closeTerminal)
@@ -125,7 +125,7 @@ export function GroupTabBar({ group }: GroupTabBarProps): React.JSX.Element {
           const isFileDiff = tab.kind === 'fileDiff'
           const tabSessionId = isFileDiff ? undefined : tab.sessionId
           const tabProviderId = isFileDiff ? undefined : tab.providerId
-          const isActive = tab.id === group.activeTabId
+          const isActive = isActiveGroup && tab.id === group.activeTabId
           const isPreview = isFileDiff && (tab as { preview?: boolean }).preview === true
           return (
             <div
@@ -140,10 +140,18 @@ export function GroupTabBar({ group }: GroupTabBarProps): React.JSX.Element {
               }`}
               style={{
                 height: 36,
-                borderRight: '1px solid var(--dplex-border)',
+                // Active tab loses its right separator and is pulled 1px
+                // below the bar (and grows by 1px to keep its top edge
+                // aligned) so it covers the bar's bottom border directly
+                // beneath itself — the tab visually merges with the
+                // editor content below, like VS Code / browser tabs.
+                borderRight: isActive ? 'none' : '1px solid var(--dplex-border)',
+                marginBottom: isActive ? -1 : 0,
+                paddingBottom: isActive ? 1 : 0,
                 borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
                 backgroundColor: isActive ? 'var(--dplex-bg)' : 'var(--dplex-bg-alt)',
-                color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)'
+                color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+                zIndex: isActive ? 1 : 0
               }}
               onClick={() => {
                 setActiveGroup(group.id)

@@ -194,7 +194,7 @@ export function SidePanel(): React.JSX.Element | null {
         className="flex flex-col h-full flex-shrink-0"
         style={{
           width: COLLAPSED_WIDTH,
-          backgroundColor: 'var(--dplex-bg-panel)',
+          backgroundColor: 'var(--dplex-bg-activity)',
           borderRight: '1px solid var(--dplex-border)'
         }}
       >
@@ -263,7 +263,7 @@ export function SidePanel(): React.JSX.Element | null {
             }
             className="w-full text-[12.5px] outline-none transition-colors"
             style={{
-              backgroundColor: 'var(--dplex-bg-alt)',
+              backgroundColor: 'var(--dplex-bg-input)',
               border: '1px solid var(--dplex-border)',
               borderRadius: 8,
               color: 'var(--dplex-text)',
@@ -278,7 +278,7 @@ export function SidePanel(): React.JSX.Element | null {
             onBlur={(e) => {
               e.currentTarget.style.borderColor = 'var(--dplex-border)'
               e.currentTarget.style.boxShadow = 'none'
-              e.currentTarget.style.backgroundColor = 'var(--dplex-bg-alt)'
+              e.currentTarget.style.backgroundColor = 'var(--dplex-bg-input)'
             }}
           />
           <kbd

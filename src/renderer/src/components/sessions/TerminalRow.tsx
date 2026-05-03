@@ -32,7 +32,7 @@ export function TerminalRow({ tabId, title, onClick }: TerminalRowProps): JSX.El
       style={
         isActiveTab
           ? {
-              boxShadow: '0 0 0 1px rgba(167,139,250,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
+              boxShadow: '0 0 0 1px rgba(123,162,255,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
             }
           : undefined
       }

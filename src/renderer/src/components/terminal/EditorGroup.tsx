@@ -115,6 +115,17 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
           )
         })}
 
+        {/* Inactive-group dimming wash. Tinted toward the panel/sidebar
+            tone so a non-focused group's content visually matches its
+            inactive-looking tab without fully obscuring the content. */}
+        {!isActiveGroup && (
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none z-10"
+            style={{ backgroundColor: 'rgba(15,19,27,0.45)' }}
+          />
+        )}
+
         {/* Drop zone overlays */}
         {dropZone && (
           <div className="absolute inset-0 pointer-events-none z-20">

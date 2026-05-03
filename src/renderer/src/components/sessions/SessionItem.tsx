@@ -150,7 +150,7 @@ export function SessionItem({
               // Subtle "selected tab" lift — soft outer drop shadow with a
               // slight accent tint. Reads as elevation without competing
               // with the parent project's selection card.
-              boxShadow: '0 0 0 1px rgba(167,139,250,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
+              boxShadow: '0 0 0 1px rgba(123,162,255,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
             }
           : undefined
       }

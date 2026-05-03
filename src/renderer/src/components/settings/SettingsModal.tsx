@@ -223,7 +223,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       style={{
                         backgroundColor: isActive ? 'var(--dplex-accent-soft)' : 'transparent',
                         color: isActive ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)',
-                        boxShadow: isActive ? 'inset 0 0 0 1px rgba(167,139,250,0.25)' : undefined
+                        boxShadow: isActive ? 'inset 0 0 0 1px rgba(123,162,255,0.25)' : undefined
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
@@ -894,17 +894,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                   background: 'linear-gradient(180deg, var(--dplex-accent), var(--dplex-accent-2))',
                   color: '#fff',
                   border: 0,
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(124,58,237,0.4)'
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(123,162,255,0.4)'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-1px)'
                   e.currentTarget.style.boxShadow =
-                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 6px 16px rgba(124,58,237,0.5)'
+                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 6px 16px rgba(123,162,255,0.5)'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = ''
                   e.currentTarget.style.boxShadow =
-                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(124,58,237,0.4)'
+                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(123,162,255,0.4)'
                 }}
               >
                 Done

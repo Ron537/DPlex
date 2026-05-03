@@ -27,6 +27,11 @@ export function applyCssVarsSync(themeId: string): void {
   root.style.setProperty('--dplex-bg-alt', theme.ui.bgAlt)
   root.style.setProperty('--dplex-bg-panel', theme.ui.bgPanel ?? theme.ui.bgAlt)
   root.style.setProperty('--dplex-bg-elev', theme.ui.bgElev ?? theme.ui.bgAlt)
+  root.style.setProperty(
+    '--dplex-bg-activity',
+    theme.ui.bgActivity ?? theme.ui.bgPanel ?? theme.ui.bgAlt
+  )
+  root.style.setProperty('--dplex-bg-input', theme.ui.bgInput ?? theme.ui.bgAlt)
   root.style.setProperty('--dplex-border', theme.ui.border)
   root.style.setProperty('--dplex-border-strong', theme.ui.borderStrong ?? theme.ui.border)
   root.style.setProperty('--dplex-text', theme.ui.text)

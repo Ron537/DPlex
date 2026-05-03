@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-05-04
+
+### Improvements
+
+- DPlex theme refreshed with a softer blue palette across both dark
+  and light variants.
+- Active tab and editor content now merge visually — no seam between
+  the tab and the content area.
+- The active-tab marker is now global: only the focused split group
+  highlights its tab.
+- Inactive split groups are subtly dimmed so the focused group is
+  easier to spot.
+- Search inputs adapt per theme so they stand out cleanly from the
+  surrounding sidebar.
+
+### Bug Fixes
+
+- Status-bar chips no longer wrap to two lines when the active tab
+  title is long.
+- Fixed a thin gap that appeared below the terminal after resizing.
+- The Settings "Done" button now uses the current accent color
+  (was a leftover purple highlight).
+
 ## [0.6.0] — 2026-05-03
 
 ### Features
@@ -207,7 +230,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Ron537/DPlex/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Ron537/DPlex/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Ron537/DPlex/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Ron537/DPlex/compare/v0.3.0...v0.4.0

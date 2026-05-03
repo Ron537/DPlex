@@ -195,7 +195,7 @@ export function ProjectItem({
             : isExpanded
               ? 'var(--dplex-bg-alt)'
               : undefined,
-          boxShadow: isActive ? 'inset 0 0 0 1px rgba(167,139,250,0.25)' : undefined
+          boxShadow: isActive ? 'inset 0 0 0 1px rgba(123,162,255,0.25)' : undefined
         }}
         onMouseEnter={(e) => {
           if (!isActive && !isExpanded) {

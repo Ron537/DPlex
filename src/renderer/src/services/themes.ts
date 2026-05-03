@@ -16,6 +16,10 @@ export interface AppTheme {
     bgPanel?: string
     /** Optional elevated surface (popovers, segmented "active" pill). Falls back to bg shifted lighter. */
     bgElev?: string
+    /** Optional activity-bar / collapsed-rail surface. Falls back to bgPanel. */
+    bgActivity?: string
+    /** Optional input/search field background. Falls back to bgAlt. */
+    bgInput?: string
     /** Optional secondary accent used for gradient pairs (e.g. button gradient). Falls back to accent. */
     accent2?: string
     /** Optional stronger border for elevated surfaces. Falls back to border. */
@@ -34,16 +38,16 @@ export const THEMES: Record<string, AppTheme> = {
     name: 'DPlex',
     variant: 'dark',
     terminal: {
-      background: '#0e0e13',
+      background: '#141925',
       foreground: '#e8e8ee',
-      cursor: '#a78bfa',
-      cursorAccent: '#0e0e13',
-      selectionBackground: '#3b3560',
-      black: '#0e0e13',
+      cursor: '#7ba2ff',
+      cursorAccent: '#141925',
+      selectionBackground: '#1f3360',
+      black: '#141925',
       red: '#f87171',
       green: '#4ade80',
       yellow: '#facc15',
-      blue: '#818cf8',
+      blue: '#7ba2ff',
       magenta: '#c084fc',
       cyan: '#67e8f9',
       white: '#e8e8ee',
@@ -51,23 +55,25 @@ export const THEMES: Record<string, AppTheme> = {
       brightRed: '#fca5a5',
       brightGreen: '#86efac',
       brightYellow: '#fde68a',
-      brightBlue: '#a5b4fc',
+      brightBlue: '#a8c1ff',
       brightMagenta: '#d8b4fe',
       brightCyan: '#a5f3fc',
       brightWhite: '#ffffff'
     },
     ui: {
-      bg: '#0e0e13',
-      bgAlt: '#0a0a0f',
-      bgPanel: '#131319',
-      bgElev: '#181822',
-      border: '#23232f',
-      borderStrong: '#2e2e3d',
+      bg: '#141925',
+      bgAlt: '#0f131b',
+      bgPanel: '#0f131b',
+      bgElev: '#1c2333',
+      bgActivity: '#131318',
+      bgInput: '#0a0e14',
+      border: '#1f2536',
+      borderStrong: '#2a3148',
       text: '#e8e8ee',
       textMuted: '#8a8a99',
       textDim: '#5d5d6e',
-      accent: '#a78bfa',
-      accent2: '#8b5cf6',
+      accent: '#7ba2ff',
+      accent2: '#5b87e8',
       hover: 'rgba(255,255,255,0.04)',
       scrollbar: 'rgba(255,255,255,0.12)',
       scrollbarHover: 'rgba(255,255,255,0.22)'
@@ -78,16 +84,16 @@ export const THEMES: Record<string, AppTheme> = {
     name: 'DPlex Light',
     variant: 'light',
     terminal: {
-      background: '#fafafa',
+      background: '#f8f9fc',
       foreground: '#1f1f1f',
-      cursor: '#7c3aed',
-      cursorAccent: '#fafafa',
-      selectionBackground: '#ddd6fe',
+      cursor: '#3b82f6',
+      cursorAccent: '#f8f9fc',
+      selectionBackground: '#cfdcfb',
       black: '#1f1f1f',
       red: '#dc2626',
       green: '#16a34a',
       yellow: '#ca8a04',
-      blue: '#4f46e5',
+      blue: '#3b82f6',
       magenta: '#9333ea',
       cyan: '#0891b2',
       white: '#1f1f1f',
@@ -95,19 +101,23 @@ export const THEMES: Record<string, AppTheme> = {
       brightRed: '#ef4444',
       brightGreen: '#22c55e',
       brightYellow: '#eab308',
-      brightBlue: '#6366f1',
+      brightBlue: '#60a5fa',
       brightMagenta: '#a855f7',
       brightCyan: '#06b6d4',
       brightWhite: '#111111'
     },
     ui: {
-      bg: '#fafafa',
-      bgAlt: '#f1f1f1',
-      border: '#e2e2e2',
+      bg: '#f8f9fc',
+      bgAlt: '#eef0f6',
+      bgPanel: '#eef0f6',
+      bgElev: '#ffffff',
+      bgActivity: '#e8ebf2',
+      bgInput: '#f5f7fc',
+      border: '#dfe3eb',
       text: '#1f1f1f',
       textMuted: '#6b7280',
-      accent: '#7c3aed',
-      hover: 'rgba(124,58,237,0.08)',
+      accent: '#3b82f6',
+      hover: 'rgba(59,130,246,0.08)',
       scrollbar: 'rgba(0,0,0,0.15)',
       scrollbarHover: 'rgba(0,0,0,0.25)'
     }
@@ -142,6 +152,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#1a1a2e',
       bgAlt: '#16162a',
+      bgInput: '#0e0e1c',
       border: '#2a2a4a',
       text: '#e0e0e0',
       textMuted: '#888',
@@ -178,6 +189,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#282a36',
       bgAlt: '#21222c',
+      bgInput: '#16171f',
       border: '#44475a',
       text: '#f8f8f2',
       textMuted: '#6272a4',
@@ -214,6 +226,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#272822',
       bgAlt: '#1e1f1c',
+      bgInput: '#141511',
       border: '#49483e',
       text: '#f8f8f2',
       textMuted: '#75715e',
@@ -250,6 +263,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#2e3440',
       bgAlt: '#272c36',
+      bgInput: '#1c2029',
       border: '#3b4252',
       text: '#d8dee9',
       textMuted: '#4c566a',
@@ -286,6 +300,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#002b36',
       bgAlt: '#001f27',
+      bgInput: '#00141a',
       border: '#073642',
       text: '#839496',
       textMuted: '#586e75',
@@ -322,6 +337,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#0d1117',
       bgAlt: '#010409',
+      bgInput: '#000000',
       border: '#21262d',
       text: '#c9d1d9',
       textMuted: '#484f58',
@@ -358,6 +374,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#ffffff',
       bgAlt: '#f6f8fa',
+      bgInput: '#fcfdfe',
       border: '#d0d7de',
       text: '#24292f',
       textMuted: '#57606a',
@@ -397,6 +414,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#fdf6e3',
       bgAlt: '#eee8d5',
+      bgInput: '#f7f1de',
       border: '#d3cbb7',
       text: '#657b83',
       textMuted: '#93a1a1',
@@ -436,6 +454,7 @@ export const THEMES: Record<string, AppTheme> = {
     ui: {
       bg: '#f5f5f5',
       bgAlt: '#e8e8e8',
+      bgInput: '#f0f0f0',
       border: '#d1d1d1',
       text: '#333333',
       textMuted: '#777777',

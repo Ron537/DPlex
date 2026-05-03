@@ -21,17 +21,18 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
 
   return (
     <div
-      className="flex items-center justify-between select-none"
+      className="flex items-center justify-between select-none flex-shrink-0"
       style={{
         height: 26,
         padding: '0 8px 0 4px',
         backgroundColor: 'var(--dplex-bg-alt)',
         borderTop: '1px solid var(--dplex-border)',
         fontSize: 11,
-        color: 'var(--dplex-text-muted)'
+        color: 'var(--dplex-text-muted)',
+        whiteSpace: 'nowrap'
       }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <button
           onClick={toggleSidebar}
           className="hover:bg-[var(--dplex-hover)] rounded transition-colors"
@@ -41,10 +42,10 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
           {panelCollapsed ? <PanelLeftOpen size={13} /> : <PanelLeftClose size={13} />}
         </button>
       </div>
-      <div className="flex items-center gap-3 pr-1">
+      <div className="flex items-center gap-3 pr-1 min-w-0">
         {activeSessionCount > 0 && (
           <span
-            className="inline-flex items-center gap-1.5 px-2 rounded-full"
+            className="inline-flex items-center gap-1.5 px-2 rounded-full flex-shrink-0"
             style={{ height: 18, color: '#86efac' }}
             title={`${activeSessionCount} active AI session${activeSessionCount !== 1 ? 's' : ''}`}
           >
@@ -62,15 +63,18 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         )}
         {activeTab && (
           <span
-            className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)]"
+            className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] min-w-0"
             style={{ height: 18 }}
+            title={activeTab.title}
           >
-            <Terminal size={11} />
-            {activeTab.title}
+            <Terminal size={11} className="flex-shrink-0" />
+            <span className="truncate" style={{ maxWidth: 240 }}>
+              {activeTab.title}
+            </span>
           </span>
         )}
         <span
-          className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)]"
+          className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] flex-shrink-0"
           style={{ height: 18 }}
         >
           {totalTerminals} terminal{totalTerminals !== 1 ? 's' : ''} · {groups.length} group
@@ -78,7 +82,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         </span>
         <button
           onClick={onOpenSettings}
-          className="hover:bg-[var(--dplex-hover)] rounded transition-colors"
+          className="hover:bg-[var(--dplex-hover)] rounded transition-colors flex-shrink-0"
           style={{ padding: 4, color: 'var(--dplex-text-muted)' }}
           title="Settings"
           aria-label={`Settings (${MOD},)`}

@@ -36,10 +36,31 @@ export function TerminalView({
 
   return (
     <div
-      className={`terminal-container w-full h-full relative ${isActive ? 'ring-1 ring-[var(--dplex-accent)]/30' : ''}`}
+      className="terminal-container w-full h-full relative"
       onClick={onFocus}
+      style={{
+        // Match the terminal palette's background so any unused space
+        // below the last fitted row (xterm's canvas only covers full
+        // rows × cell-height) shows the same color, not the parent's
+        // darker chrome.
+        backgroundColor: 'var(--dplex-bg)',
+        ...(isActive
+          ? {
+              // Three-sided active ring — top edge is intentionally
+              // omitted so the active tab and the terminal area read as
+              // a single continuous surface (no visible seam under the
+              // tab).
+              boxShadow:
+                'inset 1px 0 0 rgba(123,162,255,0.3), inset -1px 0 0 rgba(123,162,255,0.3), inset 0 -1px 0 rgba(123,162,255,0.3)'
+            }
+          : {})
+      }}
     >
-      <div ref={containerRef} className="w-full h-full" />
+      <div
+        ref={containerRef}
+        className="w-full h-full"
+        style={{ backgroundColor: 'var(--dplex-bg)' }}
+      />
       {!ready && (
         <div
           className="absolute inset-0 flex items-center justify-center z-10"

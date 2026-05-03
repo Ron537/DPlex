@@ -89,6 +89,17 @@ body {
   height: 100%;
 }
 
+/* Force xterm's chrome elements to match the renderer-controlled bg
+   so any sub-row remainder space (xterm canvas only covers full
+   rows × cell-height) doesn't expose a stale theme background after
+   resize or theme change. */
+.terminal-container,
+.terminal-container .xterm,
+.terminal-container .xterm-viewport,
+.terminal-container .xterm-screen {
+  background-color: var(--dplex-bg) !important;
+}
+
 .split-view-view .sash-container .sash {
   background-color: var(--dplex-border);
 }
@@ -227,9 +238,9 @@ body {
   background: var(--dplex-status-idle);
 }
 .dplex-pill.dplex-pill-thinking {
-  background: rgba(96, 165, 250, 0.12);
+  background: rgba(123, 162, 255, 0.12);
   color: #93c5fd;
-  border-color: rgba(96, 165, 250, 0.25);
+  border-color: rgba(123, 162, 255, 0.25);
 }
 .dplex-pill.dplex-pill-thinking .dplex-pill-led {
   background: var(--dplex-status-thinking);
@@ -287,8 +298,8 @@ body {
   display: block;
 }
 .dplex-sav.dplex-sav-thinking {
-  background: rgba(96, 165, 250, 0.1);
-  border-color: rgba(96, 165, 250, 0.3);
+  background: rgba(123, 162, 255, 0.1);
+  border-color: rgba(123, 162, 255, 0.3);
   color: #93c5fd;
 }
 .dplex-sav.dplex-sav-running {
@@ -561,7 +572,7 @@ body {
   color: #fca5a5;
 }
 .dplex-file-badge.dplex-file-R {
-  background: rgba(96, 165, 250, 0.15);
+  background: rgba(123, 162, 255, 0.15);
   color: #93c5fd;
 }
 .dplex-file-badge.dplex-file-U {
