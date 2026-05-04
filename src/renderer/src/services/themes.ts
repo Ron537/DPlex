@@ -122,6 +122,52 @@ export const THEMES: Record<string, AppTheme> = {
       scrollbarHover: 'rgba(0,0,0,0.25)'
     }
   },
+  'dark': {
+    id: 'dark',
+    name: 'Dark',
+    variant: 'dark',
+    terminal: {
+      background: '#1e1e1e',
+      foreground: '#cccccc',
+      cursor: '#aeafad',
+      cursorAccent: '#1e1e1e',
+      selectionBackground: '#264f78',
+      black: '#1e1e1e',
+      red: '#f14c4c',
+      green: '#23d18b',
+      yellow: '#f5f543',
+      blue: '#3b8eea',
+      magenta: '#d670d6',
+      cyan: '#29b8db',
+      white: '#cccccc',
+      brightBlack: '#666666',
+      brightRed: '#f14c4c',
+      brightGreen: '#23d18b',
+      brightYellow: '#f5f543',
+      brightBlue: '#3b8eea',
+      brightMagenta: '#d670d6',
+      brightCyan: '#29b8db',
+      brightWhite: '#e5e5e5'
+    },
+    ui: {
+      bg: '#1e1f22',
+      bgAlt: '#17181b',
+      bgPanel: '#17181b',
+      bgElev: '#26282d',
+      bgActivity: '#17181b',
+      bgInput: '#2b2d31',
+      border: '#2a2c30',
+      borderStrong: '#3a3c41',
+      text: '#d3d4d7',
+      textMuted: '#9a9ba0',
+      textDim: '#6a6b70',
+      accent: '#3b82f6',
+      accent2: '#1d4ed8',
+      hover: 'rgba(255,255,255,0.05)',
+      scrollbar: 'rgba(255,255,255,0.12)',
+      scrollbarHover: 'rgba(255,255,255,0.22)'
+    }
+  },
   midnight: {
     id: 'midnight',
     name: 'Midnight',

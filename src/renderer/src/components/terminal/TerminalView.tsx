@@ -51,7 +51,7 @@ export function TerminalView({
               // a single continuous surface (no visible seam under the
               // tab).
               boxShadow:
-                'inset 1px 0 0 rgba(123,162,255,0.3), inset -1px 0 0 rgba(123,162,255,0.3), inset 0 -1px 0 rgba(123,162,255,0.3)'
+                'inset 1px 0 0 var(--dplex-accent-ring), inset -1px 0 0 var(--dplex-accent-ring), inset 0 -1px 0 var(--dplex-accent-ring)'
             }
           : {})
       }}

@@ -19,6 +19,8 @@ import { useProjectStore } from '../../stores/projectStore'
 import { useProvidersStore } from '../../stores/providersStore'
 import { PopoverMenu } from '../common/PopoverMenu'
 import { StatusAvatar } from '../common/StatusAvatar'
+import { StatusDot } from '../common/StatusDot'
+import { ProviderGlyph } from '../common/ProviderGlyph'
 import { visualForStatus } from '../../utils/sessionStatusVisual'
 import { closeOpenTabsForSession, focusSessionTab, hasOpenTab } from '../../utils/sessionTabs'
 
@@ -143,14 +145,19 @@ export function SessionItem({
   return (
     <div
       data-row-tab-id={backingTabId ?? undefined}
-      className="group flex items-start gap-2.5 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1 relative"
+      className={
+        compact
+          ? 'group flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1 relative'
+          : 'group flex items-start gap-2.5 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1 relative'
+      }
       style={
         isActiveTab
           ? {
               // Subtle "selected tab" lift — soft outer drop shadow with a
               // slight accent tint. Reads as elevation without competing
               // with the parent project's selection card.
-              boxShadow: '0 0 0 1px rgba(123,162,255,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
+              backgroundColor: 'var(--dplex-accent-faint)',
+              boxShadow: '0 0 0 1px var(--dplex-accent-ring), 0 4px 12px -2px rgba(0,0,0,0.35)'
             }
           : undefined
       }
@@ -160,127 +167,153 @@ export function SessionItem({
         setShowMenu(!showMenu)
       }}
     >
-      {/* Status avatar — replaces the bare dot. The avatar slot reflects
-          state; the corner badge appears only when the surrounding list
-          contains more than one provider (showProviderBadge prop). */}
-      <div className="flex-shrink-0 mt-0.5">
-        <StatusAvatar
-          visual={visualForStatus(status)}
-          providerId={session.aiTool}
-          showProviderBadge={showProviderBadge}
-          title={`${config.label} · ${providerLabel}`}
-        />
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        {/* Row 1: name + open-tab badge. Active-tab cue is a typographic
-            color shift on the title — same pattern the active worktree
-            section uses for its branch name, deliberately quiet so the
-            parent project's selection card stays the dominant surface. */}
-        <div className="flex items-center gap-1.5">
+      {compact ? (
+        <>
+          {/* Compact single-line layout: dot · glyph · "provider · title" · time.
+              Used inside expanded project bodies where vertical real-estate
+              is at a premium and each session shares the project's context. */}
+          <StatusDot visual={visualForStatus(status)} title={config.label} />
+          <ProviderGlyph providerId={session.aiTool} size="xs" title={providerLabel} />
           <span
-            className="text-[12.5px] font-medium truncate"
-            style={{ color: 'var(--dplex-text)' }}
+            className="text-[12.5px] truncate flex-1 min-w-0"
+            style={{ color: 'var(--dplex-text)', fontWeight: 500 }}
           >
             {session.displayName}
           </span>
-          {isOpen && (
-            <span
-              className="text-[8px] font-bold px-1 rounded flex-shrink-0"
-              style={{
-                color: 'var(--dplex-accent)',
-                backgroundColor: 'var(--dplex-accent-soft)'
-              }}
-            >
-              OPEN
-            </span>
-          )}
-        </div>
-
-        {/* Row 2: CWD subtitle */}
-        {!compact && session.cwd && (
-          <div
-            className="text-[10.5px] truncate mt-0.5"
-            style={{ color: 'var(--dplex-text-muted)' }}
+          <span
+            className="text-[10.5px] flex-shrink-0 tabular-nums"
+            style={{ color: 'var(--dplex-text-dim)' }}
           >
-            {folderName(session.cwd)}
+            {timeAgo(session.updatedAt)}
+          </span>
+          <button
+            ref={menuAnchorRef}
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowMenu(!showMenu)
+            }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-opacity flex-shrink-0"
+          >
+            <MoreVertical size={11} style={{ color: 'var(--dplex-text-muted)' }} />
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Status avatar — replaces the bare dot. The avatar slot reflects
+              state; the corner badge appears only when the surrounding list
+              contains more than one provider (showProviderBadge prop). */}
+          <div className="flex-shrink-0 mt-0.5">
+            <StatusAvatar
+              visual={visualForStatus(status)}
+              providerId={session.aiTool}
+              showProviderBadge={showProviderBadge}
+              title={`${config.label} · ${providerLabel}`}
+            />
           </div>
-        )}
 
-        {/* Row 3: metadata. In compact mode (inside a project body) we keep
-            this minimal — `provider · time ago` — to match the mockup and
-            stop branch/count chips from making the row read busy beneath an
-            already context-rich worktree section header. The richer chip
-            row (branch, message count, tool count) shows only in the full
-            global Sessions tab.
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            {/* Row 1: name + open-tab badge. Active-tab cue is a typographic
+                color shift on the title — same pattern the active worktree
+                section uses for its branch name, deliberately quiet so the
+                parent project's selection card stays the dominant surface. */}
+            <div className="flex items-center gap-1.5">
+              <span
+                className="text-[12.5px] font-medium truncate"
+                style={{ color: 'var(--dplex-text)' }}
+              >
+                {session.displayName}
+              </span>
+              {isOpen && (
+                <span
+                  className="text-[8px] font-bold px-1 rounded flex-shrink-0"
+                  style={{
+                    color: 'var(--dplex-accent)',
+                    backgroundColor: 'var(--dplex-accent-soft)'
+                  }}
+                >
+                  OPEN
+                </span>
+              )}
+            </div>
 
-            `min-w-0` + an inner `truncate` on the branch chip stop long
-            branch names from overflowing the row at narrow panel widths
-            (the meta row would otherwise expand to the branch's natural
-            width and clip against the trash button or wrap awkwardly). */}
-        <div
-          className="flex items-center gap-2 mt-0.5 flex-wrap text-[10.5px] min-w-0"
-          style={{ color: 'var(--dplex-text-muted)' }}
-        >
-          <span className="flex-shrink-0">{providerLabel}</span>
+            {/* Row 2: CWD subtitle */}
+            {session.cwd && (
+              <div
+                className="text-[10.5px] truncate mt-0.5"
+                style={{ color: 'var(--dplex-text-muted)' }}
+              >
+                {folderName(session.cwd)}
+              </div>
+            )}
 
-          {!compact && session.branch && (
-            <>
+            {/* Row 3: metadata. Full chip row (branch, message count, tool
+                count) is the global Sessions tab's signature density.
+                `min-w-0` + an inner `truncate` on the branch chip stop
+                long branch names from overflowing the row at narrow panel
+                widths. */}
+            <div
+              className="flex items-center gap-2 mt-0.5 flex-wrap text-[10.5px] min-w-0"
+              style={{ color: 'var(--dplex-text-muted)' }}
+            >
+              <span className="flex-shrink-0">{providerLabel}</span>
+
+              {session.branch && (
+                <>
+                  <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
+                    ·
+                  </span>
+                  <span className="flex items-center gap-1 min-w-0 max-w-full">
+                    <GitBranch size={9} className="flex-shrink-0" />
+                    <span className="truncate">{session.branch}</span>
+                  </span>
+                </>
+              )}
+
+              {(session.messageCount ?? 0) > 0 && (
+                <>
+                  <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
+                    ·
+                  </span>
+                  <span className="flex items-center gap-1 flex-shrink-0">
+                    <MessageSquare size={9} />
+                    {session.messageCount}
+                  </span>
+                </>
+              )}
+
+              {(session.toolCallCount ?? 0) > 0 && (
+                <>
+                  <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
+                    ·
+                  </span>
+                  <span className="flex items-center gap-1 flex-shrink-0">
+                    <Wrench size={9} />
+                    {session.toolCallCount}
+                  </span>
+                </>
+              )}
+
               <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
                 ·
               </span>
-              <span className="flex items-center gap-1 min-w-0 max-w-full">
-                <GitBranch size={9} className="flex-shrink-0" />
-                <span className="truncate">{session.branch}</span>
-              </span>
-            </>
-          )}
+              <span className="flex-shrink-0">{timeAgo(session.updatedAt)}</span>
+            </div>
+          </div>
 
-          {!compact && (session.messageCount ?? 0) > 0 && (
-            <>
-              <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
-                ·
-              </span>
-              <span className="flex items-center gap-1 flex-shrink-0">
-                <MessageSquare size={9} />
-                {session.messageCount}
-              </span>
-            </>
-          )}
-
-          {!compact && (session.toolCallCount ?? 0) > 0 && (
-            <>
-              <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
-                ·
-              </span>
-              <span className="flex items-center gap-1 flex-shrink-0">
-                <Wrench size={9} />
-                {session.toolCallCount}
-              </span>
-            </>
-          )}
-
-          <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
-            ·
-          </span>
-          <span className="flex-shrink-0">
-            {compact ? `${timeAgo(session.updatedAt)} ago` : timeAgo(session.updatedAt)}
-          </span>
-        </div>
-      </div>
-
-      {/* Three-dot menu button */}
-      <button
-        ref={menuAnchorRef}
-        onClick={(e) => {
-          e.stopPropagation()
-          setShowMenu(!showMenu)
-        }}
-        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-opacity flex-shrink-0 mt-0.5"
-      >
-        <MoreVertical size={12} style={{ color: 'var(--dplex-text-muted)' }} />
-      </button>
+          {/* Three-dot menu button */}
+          <button
+            ref={menuAnchorRef}
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowMenu(!showMenu)
+            }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[var(--dplex-hover)] rounded transition-opacity flex-shrink-0 mt-0.5"
+          >
+            <MoreVertical size={12} style={{ color: 'var(--dplex-text-muted)' }} />
+          </button>
+        </>
+      )}
 
       {/* Context menu */}
       <PopoverMenu

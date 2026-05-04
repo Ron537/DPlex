@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { StatusDot } from '../common/StatusDot'
 
 interface TerminalRowProps {
   /** The tab id this row represents — used to read active state from the store. */
@@ -10,15 +11,11 @@ interface TerminalRowProps {
 }
 
 /**
- * Plain-terminal row inside a project's expanded body. Shares the row
- * rhythm of `SessionItem.compact` (same gap, same two-line typography)
- * but uses a deliberately distinct avatar — transparent dashed-border
- * card with a mono `>_` glyph — so a glance separates "ephemeral shell"
- * from "AI session card" in a mixed list.
- *
- * The meta line shows the literal "Terminal" where AI rows show their
- * provider name. No relative-time suffix because terminal tabs don't
- * carry a meaningful "last activity" — they're either focused or not.
+ * Plain-terminal row inside a project's expanded body. Shares the
+ * single-line compact rhythm of `SessionItem.compact` so AI sessions
+ * and shells line up in a mixed list. The leading status dot is muted
+ * (no live state) and the avatar slot is a small mono `>_` glyph so a
+ * glance separates "ephemeral shell" from "AI session card".
  */
 export function TerminalRow({ tabId, title, onClick }: TerminalRowProps): JSX.Element {
   const isActiveTab = useTerminalStore((s) => {
@@ -28,37 +25,41 @@ export function TerminalRow({ tabId, title, onClick }: TerminalRowProps): JSX.El
   return (
     <div
       data-row-tab-id={tabId}
-      className="group flex items-start gap-2.5 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1"
+      className="group flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1"
       style={
         isActiveTab
           ? {
-              boxShadow: '0 0 0 1px rgba(123,162,255,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
+              backgroundColor: 'var(--dplex-accent-faint)',
+              boxShadow: '0 0 0 1px var(--dplex-accent-ring), 0 4px 12px -2px rgba(0,0,0,0.35)'
             }
           : undefined
       }
       onClick={onClick}
     >
-      <div className="flex-shrink-0 mt-0.5">
-        <span className="dplex-term-av" aria-hidden title="Terminal">
-          {'>_'}
-        </span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span
-            className="text-[12.5px] font-medium truncate"
-            style={{ color: 'var(--dplex-text)' }}
-          >
-            {title}
-          </span>
-        </div>
-        <div
-          className="flex items-center gap-2 mt-0.5 flex-wrap text-[10.5px]"
-          style={{ color: 'var(--dplex-text-muted)' }}
-        >
-          <span>Terminal</span>
-        </div>
-      </div>
+      <StatusDot visual="terminal" title="Terminal" />
+      <span
+        aria-hidden
+        title="Terminal"
+        className="flex-shrink-0 inline-flex items-center justify-center"
+        style={{
+          width: 16,
+          height: 16,
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: '-0.04em',
+          color: 'var(--dplex-text-dim)'
+        }}
+      >
+        {'>_'}
+      </span>
+      <span
+        className="text-[12.5px] truncate flex-1 min-w-0"
+        style={{ color: 'var(--dplex-text)', fontWeight: 500 }}
+      >
+        {title}
+      </span>
     </div>
   )
 }
+

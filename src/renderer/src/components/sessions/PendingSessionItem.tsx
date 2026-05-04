@@ -1,11 +1,13 @@
 import React from 'react'
-import { StatusAvatar } from '../common/StatusAvatar'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { StatusDot } from '../common/StatusDot'
+import { ProviderGlyph } from '../common/ProviderGlyph'
+import type { ProviderId } from '../../utils/providerHelpers'
 
 interface PendingSessionItemProps {
   /** The tab id this row represents — used to read active state from the store. */
   tabId: string
-  /** Canonical provider id (e.g. "copilotCli", "claudeCode") — drives the avatar's provider badge. */
+  /** Canonical provider id (e.g. "copilotCli", "claudeCode") — drives the provider glyph. */
   providerId: string
   /** Provider display name (e.g. "Claude Code", "Copilot CLI"). */
   providerLabel: string
@@ -13,14 +15,14 @@ interface PendingSessionItemProps {
 }
 
 /**
- * Placeholder card shown in the project list for an AI session tab whose
- * backing session file hasn't appeared yet. Styled to match a compact
- * SessionItem so the user immediately recognises it as an AI session
- * (with provider badge and "OPEN" pill) rather than a generic terminal.
+ * Placeholder row shown in the project list for an AI session tab whose
+ * backing session file hasn't appeared yet. Matches the compact
+ * single-line rhythm of `SessionItem.compact` so it lines up with sibling
+ * AI session rows. The status dot pulses (thinking) and the title reads
+ * "Starting…" until the real session record materialises.
  *
  * Used primarily for Claude Code, which only writes its session JSONL
- * after the first user message — leaving a brief window where the tab
- * exists but no `AISession` record does yet.
+ * after the first user message.
  */
 export function PendingSessionItem({
   tabId,
@@ -35,46 +37,25 @@ export function PendingSessionItem({
   return (
     <div
       data-row-tab-id={tabId}
-      className="group flex items-start gap-2.5 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1"
+      className="group flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1"
       style={
         isActiveTab
           ? {
-              boxShadow: '0 0 0 1px rgba(123,162,255,0.18), 0 4px 12px -2px rgba(0,0,0,0.35)'
+              backgroundColor: 'var(--dplex-accent-faint)',
+              boxShadow: '0 0 0 1px var(--dplex-accent-ring), 0 4px 12px -2px rgba(0,0,0,0.35)'
             }
           : undefined
       }
       onClick={onClick}
     >
-      <div className="flex-shrink-0 mt-0.5">
-        <StatusAvatar visual="thinking" providerId={providerId} title="Starting…" />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span
-            className="text-[12.5px] font-medium truncate"
-            style={{ color: 'var(--dplex-text)' }}
-          >
-            Starting…
-          </span>
-          <span
-            className="text-[8px] font-bold px-1 rounded flex-shrink-0"
-            style={{
-              color: 'var(--dplex-accent)',
-              backgroundColor: 'var(--dplex-accent-soft)'
-            }}
-          >
-            OPEN
-          </span>
-        </div>
-
-        <div
-          className="flex items-center gap-2 mt-1 flex-wrap text-[10.5px]"
-          style={{ color: 'var(--dplex-text-muted)' }}
-        >
-          <span>{providerLabel}</span>
-        </div>
-      </div>
+      <StatusDot visual="thinking" title="Starting…" />
+      <ProviderGlyph providerId={providerId as ProviderId} size="xs" title={providerLabel} />
+      <span
+        className="text-[12.5px] truncate flex-1 min-w-0"
+        style={{ color: 'var(--dplex-text)', fontWeight: 500 }}
+      >
+        Starting…
+      </span>
     </div>
   )
 }

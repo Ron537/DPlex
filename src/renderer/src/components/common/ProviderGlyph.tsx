@@ -3,7 +3,7 @@ import { providerSymbolId, providerTintClass, type ProviderId } from '../../util
 
 interface ProviderGlyphProps {
   providerId: ProviderId
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md'
   title?: string
   className?: string
   style?: CSSProperties
@@ -24,6 +24,7 @@ export function ProviderGlyph({
   const cls = [
     'dplex-pg',
     size === 'sm' ? 'dplex-pg-sm' : '',
+    size === 'xs' ? 'dplex-pg-xs' : '',
     providerTintClass(providerId),
     className
   ]

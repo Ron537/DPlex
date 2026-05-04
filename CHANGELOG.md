@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-05-04
+
+### Features
+
+- New **Dark** theme — a clean, cool-grey palette inspired by classic
+  editor dark themes.
+
+### Improvements
+
+- Sessions and terminals inside a project are now compact single-line
+  rows, so projects with many sessions stay scannable.
+- The selected session or terminal row is highlighted with a soft
+  background fill so the active item is easier to spot at a glance.
+- Project avatars now show the highest-priority status across their
+  sessions — amber when something needs your input, not just plain
+  "live green".
+- The collapsed project rail keeps the amber "needs input" border but
+  drops the green running border, so attention pops more clearly.
+- Selection highlights (project cards, session rows, active tab ring)
+  now follow the active theme's accent color instead of always using
+  the DPlex blue.
+
 ## [0.7.0] — 2026-05-04
 
 ### Improvements
@@ -230,7 +252,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/Ron537/DPlex/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Ron537/DPlex/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Ron537/DPlex/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Ron537/DPlex/compare/v0.4.0...v0.5.0

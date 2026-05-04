@@ -195,7 +195,7 @@ export function ProjectItem({
             : isExpanded
               ? 'var(--dplex-bg-alt)'
               : undefined,
-          boxShadow: isActive ? 'inset 0 0 0 1px rgba(123,162,255,0.25)' : undefined
+          boxShadow: isActive ? 'inset 0 0 0 1px var(--dplex-accent-ring)' : undefined
         }}
         onMouseEnter={(e) => {
           if (!isActive && !isExpanded) {
@@ -270,6 +270,30 @@ export function ProjectItem({
             const liveCount = activeCount > 0 ? activeCount : openTabs.length
             if (liveCount === 0) return null
             const isLive = activeCount > 0
+            // Aggregate the highest-priority status across this project's
+            // own sessions plus any worktree-child sessions, so the dot
+            // surfaces "needs approval" / "waiting for input" sub-states
+            // instead of always reading as plain "live green".
+            const allSessions = isLive
+              ? [
+                  ...sessions,
+                  ...(childProjects && getActivity
+                    ? childProjects.flatMap((c) => getActivity(c.path).sessions)
+                    : [])
+                ]
+              : []
+            const visual = isLive ? aggregateVisual(allSessions) : 'idle'
+            const dotColor = !isLive
+              ? 'var(--dplex-accent)'
+              : visual === 'attn'
+                ? 'var(--dplex-status-approval)'
+                : visual === 'waiting'
+                  ? 'var(--dplex-status-waiting)'
+                  : visual === 'running'
+                    ? 'var(--dplex-status-executing)'
+                    : visual === 'thinking'
+                      ? 'var(--dplex-status-thinking)'
+                      : STATUS_ACTIVE_COLOR
             return (
               <span
                 aria-hidden
@@ -279,7 +303,7 @@ export function ProjectItem({
                   right: -2,
                   width: 9,
                   height: 9,
-                  backgroundColor: isLive ? STATUS_ACTIVE_COLOR : 'var(--dplex-accent)',
+                  backgroundColor: dotColor,
                   border: '1.5px solid var(--dplex-bg-panel)'
                 }}
                 title={`${liveCount} ${isLive ? 'live ' : ''}session${liveCount === 1 ? '' : 's'}`}
@@ -595,9 +619,8 @@ export function ProjectItem({
       {isExpanded && (
         <div
           style={{
-            margin: '2px 0 6px 12px',
+            margin: '6px 0 6px 12px',
             paddingLeft: 10,
-            borderLeft: '1px dashed var(--dplex-border)',
             display: 'flex',
             flexDirection: 'column',
             gap: 2,

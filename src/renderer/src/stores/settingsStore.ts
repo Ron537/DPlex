@@ -40,6 +40,8 @@ export function applyCssVarsSync(themeId: string): void {
   root.style.setProperty('--dplex-accent', theme.ui.accent)
   root.style.setProperty('--dplex-accent-2', theme.ui.accent2 ?? theme.ui.accent)
   root.style.setProperty('--dplex-accent-soft', hexToRgba(theme.ui.accent, 0.14))
+  root.style.setProperty('--dplex-accent-faint', hexToRgba(theme.ui.accent, 0.07))
+  root.style.setProperty('--dplex-accent-ring', hexToRgba(theme.ui.accent, 0.28))
   root.style.setProperty('--dplex-hover', theme.ui.hover || 'rgba(255,255,255,0.04)')
   root.style.setProperty('--dplex-scrollbar', theme.ui.scrollbar || 'rgba(255,255,255,0.15)')
   root.style.setProperty(

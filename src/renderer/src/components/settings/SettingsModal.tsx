@@ -223,7 +223,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       style={{
                         backgroundColor: isActive ? 'var(--dplex-accent-soft)' : 'transparent',
                         color: isActive ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)',
-                        boxShadow: isActive ? 'inset 0 0 0 1px rgba(123,162,255,0.25)' : undefined
+                        boxShadow: isActive ? 'inset 0 0 0 1px var(--dplex-accent-ring)' : undefined
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {

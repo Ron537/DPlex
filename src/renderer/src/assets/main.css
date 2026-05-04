@@ -357,6 +357,20 @@ body {
   letter-spacing: -0.04em;
 }
 
+/* Status dot — compact colored marker (8px) for single-line rows.
+   Lives alongside a provider glyph and title in the project panel
+   compact rows. Live states pulse via the existing @keyframes pulse. */
+.dplex-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.dplex-status-dot-pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
 /* Provider glyph — neutral monochrome card carrying a provider mark.
    Used in places where we deliberately want provider identity even
    when status takes the avatar slot (e.g. tab title, settings). */
@@ -384,6 +398,17 @@ body {
 .dplex-pg.dplex-pg-sm svg {
   width: 12px;
   height: 12px;
+}
+.dplex-pg.dplex-pg-xs {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+}
+.dplex-pg.dplex-pg-xs svg {
+  width: 13px;
+  height: 13px;
 }
 .dplex-pg.dplex-pg-copilot {
   color: #cbd5e1;

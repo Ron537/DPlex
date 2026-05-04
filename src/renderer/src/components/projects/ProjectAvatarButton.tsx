@@ -4,6 +4,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { getAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
 import { focusFirstTabForPaths } from '../../utils/sessionTabs'
 import { STATUS_ACTIVE_COLOR } from '../../utils/statusColors'
+import { aggregateVisual } from '../../utils/aggregateVisual'
 import type { Project } from '../../types'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
 import type { AttentionEvent } from '../../../../preload/attentionTypes'
@@ -155,23 +156,16 @@ export const ProjectAvatarButton = memo(function ProjectAvatarButton({
           borderRadius: 10,
           backgroundColor: color.bg,
           color: color.fg,
-          // Status ring: amber when something needs input (highest signal),
-          // green when a running agent is active, neutral otherwise. Held
-          // back until the FLIP into the rail has finished so the ring
-          // doesn't snap in mid-glide; after that, every status change
-          // transitions in instead of popping.
+          // Status ring: amber only when something needs input. Running
+          // state is signalled by the bottom-right status dot (which now
+          // covers all five status visuals) so the border stays quiet
+          // unless attention is required.
           border: `1.5px solid ${
             statusRevealed && attentionCount > 0
               ? 'var(--dplex-status-approval)'
-              : statusRevealed && isRunning
-                ? STATUS_ACTIVE_COLOR
-                : 'var(--dplex-border)'
+              : 'var(--dplex-border)'
           }`,
           transition: 'border-color 280ms ease, opacity 280ms ease',
-          animation:
-            statusRevealed && isRunning && attentionCount === 0
-              ? 'dplex-pulse 2s ease-in-out infinite'
-              : undefined,
           // Dim avatars for projects that are not "live" so the rail clearly
           // surfaces in-use projects. The transition is shared with the
           // border so reveal feels coordinated.
@@ -189,6 +183,21 @@ export const ProjectAvatarButton = memo(function ProjectAvatarButton({
         const liveCount = activity.activeCount > 0 ? activity.activeCount : activity.openTabs.length
         if (liveCount === 0 || attentionCount > 0) return null
         const live = activity.activeCount > 0
+        // Mirror the expanded ProjectItem dot: aggregate the highest-priority
+        // visual across active sessions so the rail conveys "running" /
+        // "waiting for input" instead of always reading as plain green.
+        const visual = live ? aggregateVisual(activity.sessions) : 'idle'
+        const dotColor = !live
+          ? 'var(--dplex-accent)'
+          : visual === 'attn'
+            ? 'var(--dplex-status-approval)'
+            : visual === 'waiting'
+              ? 'var(--dplex-status-waiting)'
+              : visual === 'running'
+                ? 'var(--dplex-status-executing)'
+                : visual === 'thinking'
+                  ? 'var(--dplex-status-thinking)'
+                  : STATUS_ACTIVE_COLOR
         return (
           <span
             aria-hidden
@@ -198,7 +207,7 @@ export const ProjectAvatarButton = memo(function ProjectAvatarButton({
               right: 0,
               width: 10,
               height: 10,
-              backgroundColor: live ? STATUS_ACTIVE_COLOR : 'var(--dplex-accent)',
+              backgroundColor: dotColor,
               border: '1.5px solid var(--dplex-bg-alt)',
               opacity: statusRevealed ? 1 : 0,
               transition: 'opacity 200ms ease'
