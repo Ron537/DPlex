@@ -66,6 +66,24 @@ export function pairTabsToSessions(
         })
       }
     }
+    if (!match && tab.providerId && !tab.sessionId) {
+      // Pending-tab fallback: a tab that was started AS an AI session but
+      // hasn't been resolved to a sessionId yet. The session may have
+      // already materialised on disk; we want to claim it so the user
+      // doesn't see "Starting…" and the resolved session as two rows for
+      // the same logical agent. We only apply this when sessionId is
+      // missing (so a tab with a stale sessionId never silently snaps to
+      // a different session) and require providerId to match. If both
+      // sides have a cwd we still demand it matches; if either is
+      // missing, providerId equality is enough.
+      match = sessions.find((s) => {
+        if (claimed.has(sessionKey(s))) return false
+        if (s.status !== 'active') return false
+        if (s.aiTool !== tab.providerId) return false
+        if (s.cwd && tab.cwd && normalizePath(s.cwd) !== normalizePath(tab.cwd)) return false
+        return true
+      })
+    }
     if (match) claimed.add(sessionKey(match))
     return { tab, match }
   })

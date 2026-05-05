@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improvements
+
+- The Projects / Sessions switcher is now a clean underline tab strip
+  with count badges, replacing the segmented pill.
+- Action buttons (filter, add project, refresh) sit inline with the
+  tabs, freeing up vertical space.
+- The Sessions panel now has a footer showing live / total counts,
+  matching the Projects panel.
+- Side-panel scrollbar fades out when idle and only appears while you
+  hover or scroll the list.
+
+### Bug Fixes
+
+- A starting AI session no longer shows up twice in the project list
+  (once as "Starting…" and once as the resolved session).
+
 ## [0.8.0] — 2026-05-04
 
 ### Features

@@ -84,4 +84,28 @@ describe('pairTabsToSessions', () => {
     expect(r.unpaired).toHaveLength(0)
     expect(r.visibleCount).toBe(5)
   })
+
+  it('pending tab (providerId set, sessionId missing) claims a same-provider session even when cwd is missing on the tab', () => {
+    const sessions = [s('a', 'claude-code')]
+    const tabs = [term('t1', { providerId: 'claude-code', cwd: undefined })]
+    const r = pairTabsToSessions(sessions, tabs)
+    expect(r.pairs[0].match?.id).toBe('a')
+    expect(r.unpaired).toHaveLength(0)
+  })
+
+  it('pending tab does not claim a session whose cwd disagrees with the tab cwd', () => {
+    const sessions = [s('a', 'claude-code')]
+    const tabs = [term('t1', { providerId: 'claude-code', cwd: '/Users/me/other' })]
+    const r = pairTabsToSessions(sessions, tabs)
+    expect(r.pairs[0].match).toBeUndefined()
+    expect(r.unpaired.map((u) => u.id)).toEqual(['a'])
+  })
+
+  it('pending tab does not claim a session of a different provider', () => {
+    const sessions = [s('a', 'copilot-cli')]
+    const tabs = [term('t1', { providerId: 'claude-code' })]
+    const r = pairTabsToSessions(sessions, tabs)
+    expect(r.pairs[0].match).toBeUndefined()
+    expect(r.unpaired.map((u) => u.id)).toEqual(['a'])
+  })
 })

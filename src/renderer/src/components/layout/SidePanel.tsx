@@ -6,9 +6,7 @@ import {
   Check,
   Plus,
   ChevronsDownUp,
-  ChevronsUpDown,
-  FolderKanban,
-  MessagesSquare
+  ChevronsUpDown
 } from 'lucide-react'
 import { MOD } from '../../utils/shortcuts'
 import { useSessionStore } from '../../stores/sessionStore'
@@ -18,9 +16,8 @@ import { useProjectStore } from '../../stores/projectStore'
 import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
 import { ProjectPanelFooter } from '../projects/ProjectPanelFooter'
-import { Segmented } from '../common/Segmented'
+import { SessionPanelFooter } from '../sessions/SessionPanelFooter'
 import { useProjectAvatarFlip } from '../../hooks/useProjectAvatarFlip'
-import { normalizePath } from '../../utils/normalizePath'
 
 export type SessionGroupMode = 'time' | 'workspace'
 
@@ -97,42 +94,14 @@ export function SidePanel(): React.JSX.Element | null {
     return options
   }, [sessions, getProviderLabel])
 
-  const projects = useProjectStore((s) => s.projects)
   const hasActiveFilters =
     !statusFilters.has('all') || providerFilter !== 'all' || groupMode !== 'time'
 
-  // Toolbar meta — small uppercase summary on the left of the toolbar row.
-  // Mirrors the preview's "5 projects · 3 active" / "12 sessions" labels.
-  // "active" counts distinct projects whose path matches a project's prefix
-  // for at least one active session — *not* the raw active session count,
-  // which would over-state when one project hosts multiple agents.
-  const projectsWithActiveCount = useMemo(() => {
-    if (projects.length === 0) return 0
-    // Normalize project paths once for cross-platform comparison (handles
-    // backslashes on Windows + case-insensitive matching on macOS/Windows).
-    // Sort longest-first so nested project paths win over shorter parents.
-    const normalizedProjects = projects
-      .map((p) => normalizePath(p.path))
-      .sort((a, b) => b.length - a.length)
-    const owners = new Set<string>()
-    for (const s of sessions) {
-      if (s.status !== 'active' || !s.cwd) continue
-      const cwd = normalizePath(s.cwd)
-      const owner = normalizedProjects.find((p) => cwd === p || cwd.startsWith(p + '/'))
-      if (owner) owners.add(owner)
-    }
-    return owners.size
-  }, [projects, sessions])
-  const toolbarMetaProjects = useMemo(() => {
-    const total = projects.length
-    const word = total === 1 ? 'project' : 'projects'
-    if (projectsWithActiveCount === 0) return `${total} ${word}`
-    return `${total} ${word} · ${projectsWithActiveCount} active`
-  }, [projects.length, projectsWithActiveCount])
-  const toolbarMetaSessions = useMemo(() => {
-    const word = sessions.length === 1 ? 'session' : 'sessions'
-    return `${sessions.length} ${word}`
-  }, [sessions.length])
+  // Tab counts shown beside each tab label in the underline strip. Cheap
+  // to compute and updates with the existing store subscriptions, so
+  // there's no need for a separate memo.
+  const projectsCount = useProjectStore((s) => s.projects.length)
+  const sessionsCount = sessions.length
 
   const toggleStatusFilter = (id: string): void => {
     setStatusFilters((prev) => {
@@ -186,6 +155,263 @@ export function SidePanel(): React.JSX.Element | null {
     return null
   }
 
+  // Per-tab action buttons, rendered inline with the search input so the
+  // primary affordances (filter, add project, refresh, collapse-all) sit
+  // beside the search rather than on a separate toolbar row below it.
+  const panelActions = (
+    <div className="flex items-center gap-0.5 flex-shrink-0">
+      {activeTab === 'projects' && (
+        <>
+          <div className="relative">
+            <button
+              onClick={() => setShowProjectFilterMenu(!showProjectFilterMenu)}
+              className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+              style={{
+                color: projectActiveOnly ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
+              }}
+              title="Filter projects"
+            >
+              <SlidersHorizontal size={13} />
+            </button>
+
+            {showProjectFilterMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowProjectFilterMenu(false)}
+                />
+                <div
+                  className="absolute right-0 top-7 z-50 rounded-lg shadow-xl py-1 min-w-[200px]"
+                  style={{
+                    backgroundColor: 'var(--dplex-bg-elev)',
+                    border: '1px solid var(--dplex-border-strong)'
+                  }}
+                >
+                  <div
+                    className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: 'var(--dplex-text-dim)' }}
+                  >
+                    Show
+                  </div>
+                  <button
+                    onClick={() => setProjectActiveOnly(false)}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                    style={{ color: 'var(--dplex-text)' }}
+                  >
+                    All Projects
+                    {!projectActiveOnly && (
+                      <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setProjectActiveOnly(true)}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                    style={{ color: 'var(--dplex-text)' }}
+                  >
+                    Active Only
+                    {projectActiveOnly && (
+                      <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                    )}
+                  </button>
+
+                  <div
+                    className="my-1"
+                    style={{ borderTop: '1px solid var(--dplex-border)' }}
+                  />
+                  <div
+                    className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: 'var(--dplex-text-dim)' }}
+                  >
+                    Appearance
+                  </div>
+                  <button
+                    onClick={() => updateSettings({ projectPanelShowFooter: !showFooter })}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                    style={{ color: 'var(--dplex-text)' }}
+                    title="Show live/terminal count at the bottom of the panel"
+                  >
+                    Show Footer
+                    {showFooter && <Check size={11} style={{ color: 'var(--dplex-accent)' }} />}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => addProject()}
+            className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+            style={{ color: 'var(--dplex-text-muted)' }}
+            title="Add project"
+          >
+            <Plus size={13} />
+          </button>
+        </>
+      )}
+      {activeTab === 'sessions' && (
+        <>
+          <button
+            onClick={() =>
+              setSessionCollapseAll((s) => ({ nonce: s.nonce + 1, collapsed: !s.collapsed }))
+            }
+            className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+            style={{ color: 'var(--dplex-text-muted)' }}
+            title={sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'}
+            aria-label={
+              sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'
+            }
+            data-testid="sessions-toggle-collapse-all"
+          >
+            {sessionCollapseAll.collapsed ? (
+              <ChevronsUpDown size={13} />
+            ) : (
+              <ChevronsDownUp size={13} />
+            )}
+          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowFilterMenu(!showFilterMenu)}
+              className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+              style={{
+                color: hasActiveFilters ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
+              }}
+              title="Filter & group options"
+            >
+              <SlidersHorizontal size={13} />
+            </button>
+
+            {showFilterMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
+                <div
+                  className="absolute right-0 top-7 z-50 rounded-lg shadow-xl py-1 min-w-[220px]"
+                  style={{
+                    backgroundColor: 'var(--dplex-bg-elev)',
+                    border: '1px solid var(--dplex-border-strong)'
+                  }}
+                >
+                  <div
+                    className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: 'var(--dplex-text-dim)' }}
+                  >
+                    Group by
+                  </div>
+                  <button
+                    onClick={() => setGroupMode('time')}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                    style={{ color: 'var(--dplex-text)' }}
+                  >
+                    Time
+                    {groupMode === 'time' && (
+                      <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setGroupMode('workspace')}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                    style={{ color: 'var(--dplex-text)' }}
+                  >
+                    Workspace
+                    {groupMode === 'workspace' && (
+                      <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                    )}
+                  </button>
+
+                  <div
+                    className="my-1"
+                    style={{ borderTop: '1px solid var(--dplex-border)' }}
+                  />
+
+                  <div
+                    className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: 'var(--dplex-text-dim)' }}
+                  >
+                    Status
+                  </div>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => toggleStatusFilter(opt.id)}
+                      className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                      style={{ color: 'var(--dplex-text)' }}
+                    >
+                      {opt.label}
+                      {statusFilters.has(opt.id) && (
+                        <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                      )}
+                    </button>
+                  ))}
+
+                  {providerOptions.length > 2 && (
+                    <>
+                      <div
+                        className="my-1"
+                        style={{
+                          borderTop: '1px solid var(--dplex-border)'
+                        }}
+                      />
+                      <div
+                        className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                        style={{ color: 'var(--dplex-text-dim)' }}
+                      >
+                        Provider
+                      </div>
+                      {providerOptions.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setProviderFilter(opt.id)}
+                          className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                          style={{ color: 'var(--dplex-text)' }}
+                        >
+                          {opt.label}{' '}
+                          <span style={{ color: 'var(--dplex-text-muted)' }}>
+                            ({opt.count})
+                          </span>
+                          {providerFilter === opt.id && (
+                            <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
+                          )}
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  <div
+                    className="my-1"
+                    style={{ borderTop: '1px solid var(--dplex-border)' }}
+                  />
+                  <div
+                    className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: 'var(--dplex-text-dim)' }}
+                  >
+                    Appearance
+                  </div>
+                  <button
+                    onClick={() => updateSettings({ projectPanelShowFooter: !showFooter })}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                    style={{ color: 'var(--dplex-text)' }}
+                    title="Show live/total count at the bottom of the panel"
+                  >
+                    Show Footer
+                    {showFooter && <Check size={11} style={{ color: 'var(--dplex-accent)' }} />}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={() => refreshSessions()}
+            disabled={loading}
+            className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
+            style={{ color: 'var(--dplex-text-muted)' }}
+            title="Refresh sessions"
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </>
+      )}
+    </div>
+  )
+
   // Collapsed rail: a slim 52px column showing project avatars. Clicking an
   // avatar re-expands the panel and emphasizes that project.
   if (panelCollapsed) {
@@ -214,31 +440,65 @@ export function SidePanel(): React.JSX.Element | null {
         borderRight: '1px solid var(--dplex-border)'
       }}
     >
-      {/* Header — segmented Projects/Sessions switcher + full-width search.
-          Adornment buttons (filter, refresh) sit inside the search trail to
-          keep the header tidy and match the preview rhythm. */}
+      {/* Header — underline tabs (Projects / Sessions) with action buttons
+          on the right, and a full-width search input below. The underline
+          + small count badge replaces the previous segmented pill. */}
       <div
-        className="flex flex-col gap-2.5 px-3 pt-3 pb-2.5"
+        className="flex flex-col gap-2 px-3 pt-2 pb-2.5"
         style={{ borderBottom: '1px solid var(--dplex-border)' }}
       >
-        <Segmented<'projects' | 'sessions'>
-          value={activeTab}
-          onChange={(next) => updateSettings({ sidebarActiveTab: next })}
-          options={[
-            {
-              value: 'projects',
-              label: 'Projects',
-              icon: <FolderKanban size={13} />,
-              ariaLabel: 'Projects'
-            },
-            {
-              value: 'sessions',
-              label: 'Sessions',
-              icon: <MessagesSquare size={13} />,
-              ariaLabel: 'Sessions'
-            }
-          ]}
-        />
+        <div
+          className="flex items-center gap-4"
+          style={{ borderBottom: '1px solid var(--dplex-border)', marginInline: -12, paddingInline: 12 }}
+        >
+          {(['projects', 'sessions'] as const).map((id) => {
+            const isActive = activeTab === id
+            const label = id === 'projects' ? 'Projects' : 'Sessions'
+            const count = id === 'projects' ? projectsCount : sessionsCount
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => updateSettings({ sidebarActiveTab: id })}
+                className="relative inline-flex items-center gap-1.5 py-2.5 text-[12.5px] font-semibold transition-colors"
+                style={{
+                  color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+                  letterSpacing: '0.01em'
+                }}
+                aria-pressed={isActive}
+                aria-label={label}
+              >
+                {label}
+                <span
+                  className="text-[9.5px] font-bold tabular-nums"
+                  style={{
+                    padding: '1px 6px',
+                    borderRadius: 999,
+                    backgroundColor: isActive
+                      ? 'var(--dplex-accent-soft)'
+                      : 'rgba(255,255,255,0.06)',
+                    color: isActive ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
+                  }}
+                >
+                  {count}
+                </span>
+                {isActive && (
+                  <span
+                    aria-hidden
+                    className="absolute left-0 right-0"
+                    style={{
+                      bottom: -1,
+                      height: 2,
+                      backgroundColor: 'var(--dplex-accent)',
+                      borderRadius: '2px 2px 0 0'
+                    }}
+                  />
+                )}
+              </button>
+            )
+          })}
+          <div className="ml-auto flex items-center gap-0.5 py-1">{panelActions}</div>
+        </div>
         <div className="relative">
           <Search
             size={13}
@@ -297,253 +557,8 @@ export function SidePanel(): React.JSX.Element | null {
         </div>
       </div>
 
-      {/* Toolbar — meta on the left, action buttons on the right. The exact
-          buttons differ per tab. */}
-      <div
-        className="flex items-center justify-between px-3 py-2 relative"
-        style={{ borderBottom: '1px solid var(--dplex-border)' }}
-      >
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--dplex-text-dim)' }}
-        >
-          {activeTab === 'projects' ? toolbarMetaProjects : toolbarMetaSessions}
-        </div>
-        <div className="flex items-center gap-0.5">
-          {activeTab === 'projects' && (
-            <>
-              <div className="relative">
-                <button
-                  onClick={() => setShowProjectFilterMenu(!showProjectFilterMenu)}
-                  className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-                  style={{
-                    color: projectActiveOnly ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
-                  }}
-                  title="Filter projects"
-                >
-                  <SlidersHorizontal size={13} />
-                </button>
-
-                {showProjectFilterMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowProjectFilterMenu(false)}
-                    />
-                    <div
-                      className="absolute right-0 top-7 z-50 rounded-lg shadow-xl py-1 min-w-[200px]"
-                      style={{
-                        backgroundColor: 'var(--dplex-bg-elev)',
-                        border: '1px solid var(--dplex-border-strong)'
-                      }}
-                    >
-                      <div
-                        className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--dplex-text-dim)' }}
-                      >
-                        Show
-                      </div>
-                      <button
-                        onClick={() => setProjectActiveOnly(false)}
-                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                        style={{ color: 'var(--dplex-text)' }}
-                      >
-                        All Projects
-                        {!projectActiveOnly && (
-                          <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setProjectActiveOnly(true)}
-                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                        style={{ color: 'var(--dplex-text)' }}
-                      >
-                        Active Only
-                        {projectActiveOnly && (
-                          <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                        )}
-                      </button>
-
-                      <div
-                        className="my-1"
-                        style={{ borderTop: '1px solid var(--dplex-border)' }}
-                      />
-                      <div
-                        className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--dplex-text-dim)' }}
-                      >
-                        Appearance
-                      </div>
-                      <button
-                        onClick={() => updateSettings({ projectPanelShowFooter: !showFooter })}
-                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                        style={{ color: 'var(--dplex-text)' }}
-                        title="Show live/terminal count at the bottom of the panel"
-                      >
-                        Show Footer
-                        {showFooter && <Check size={11} style={{ color: 'var(--dplex-accent)' }} />}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              <button
-                onClick={() => addProject()}
-                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-                style={{ color: 'var(--dplex-text-muted)' }}
-                title="Add project"
-              >
-                <Plus size={13} />
-              </button>
-            </>
-          )}
-          {activeTab === 'sessions' && (
-            <>
-              <button
-                onClick={() =>
-                  setSessionCollapseAll((s) => ({ nonce: s.nonce + 1, collapsed: !s.collapsed }))
-                }
-                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-                style={{ color: 'var(--dplex-text-muted)' }}
-                title={sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'}
-                aria-label={
-                  sessionCollapseAll.collapsed ? 'Expand all groups' : 'Collapse all groups'
-                }
-                data-testid="sessions-toggle-collapse-all"
-              >
-                {sessionCollapseAll.collapsed ? (
-                  <ChevronsUpDown size={13} />
-                ) : (
-                  <ChevronsDownUp size={13} />
-                )}
-              </button>
-              <div className="relative">
-                <button
-                  onClick={() => setShowFilterMenu(!showFilterMenu)}
-                  className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-                  style={{
-                    color: hasActiveFilters ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
-                  }}
-                  title="Filter & group options"
-                >
-                  <SlidersHorizontal size={13} />
-                </button>
-
-                {showFilterMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
-                    <div
-                      className="absolute right-0 top-7 z-50 rounded-lg shadow-xl py-1 min-w-[220px]"
-                      style={{
-                        backgroundColor: 'var(--dplex-bg-elev)',
-                        border: '1px solid var(--dplex-border-strong)'
-                      }}
-                    >
-                      <div
-                        className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--dplex-text-dim)' }}
-                      >
-                        Group by
-                      </div>
-                      <button
-                        onClick={() => setGroupMode('time')}
-                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                        style={{ color: 'var(--dplex-text)' }}
-                      >
-                        Time
-                        {groupMode === 'time' && (
-                          <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setGroupMode('workspace')}
-                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                        style={{ color: 'var(--dplex-text)' }}
-                      >
-                        Workspace
-                        {groupMode === 'workspace' && (
-                          <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                        )}
-                      </button>
-
-                      <div
-                        className="my-1"
-                        style={{ borderTop: '1px solid var(--dplex-border)' }}
-                      />
-
-                      <div
-                        className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--dplex-text-dim)' }}
-                      >
-                        Status
-                      </div>
-                      {STATUS_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.id}
-                          onClick={() => toggleStatusFilter(opt.id)}
-                          className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                          style={{ color: 'var(--dplex-text)' }}
-                        >
-                          {opt.label}
-                          {statusFilters.has(opt.id) && (
-                            <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                          )}
-                        </button>
-                      ))}
-
-                      {providerOptions.length > 2 && (
-                        <>
-                          <div
-                            className="my-1"
-                            style={{
-                              borderTop: '1px solid var(--dplex-border)'
-                            }}
-                          />
-                          <div
-                            className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-                            style={{ color: 'var(--dplex-text-dim)' }}
-                          >
-                            Provider
-                          </div>
-                          {providerOptions.map((opt) => (
-                            <button
-                              key={opt.id}
-                              onClick={() => setProviderFilter(opt.id)}
-                              className="flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
-                              style={{ color: 'var(--dplex-text)' }}
-                            >
-                              {opt.label}{' '}
-                              <span style={{ color: 'var(--dplex-text-muted)' }}>
-                                ({opt.count})
-                              </span>
-                              {providerFilter === opt.id && (
-                                <Check size={11} style={{ color: 'var(--dplex-accent)' }} />
-                              )}
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <button
-                onClick={() => refreshSessions()}
-                disabled={loading}
-                className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
-                style={{ color: 'var(--dplex-text-muted)' }}
-                title="Refresh sessions"
-              >
-                <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto dplex-scroll-autohide">
         {activeTab === 'projects' ? (
           <ProjectList searchQuery={projectSearchQuery} activeOnly={projectActiveOnly} />
         ) : (
@@ -558,6 +573,7 @@ export function SidePanel(): React.JSX.Element | null {
 
       {/* Project panel footer — live/terminal health summary. */}
       {activeTab === 'projects' && showFooter && <ProjectPanelFooter />}
+      {activeTab === 'sessions' && showFooter && <SessionPanelFooter />}
 
       {/* Resize handle */}
       <div
