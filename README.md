@@ -67,10 +67,15 @@ but cleaner from the terminal.
 
 ### Windows
 
-Download the latest `DPlex-Setup-*.exe` from the [Releases page](https://github.com/Ron537/DPlex/releases/latest)
+Download `DPlex-Setup.exe` from the [Releases page](https://github.com/Ron537/DPlex/releases/latest)
 and run it. SmartScreen will warn you about the unsigned installer —
 click **More info → Run anyway** after verifying the file's SHA-256
 matches the value published on the release page.
+
+```powershell
+Invoke-WebRequest -Uri https://github.com/Ron537/DPlex/releases/latest/download/DPlex-Setup.exe -OutFile DPlex-Setup.exe
+.\DPlex-Setup.exe
+```
 
 ### Linux
 
@@ -81,8 +86,8 @@ chmod +x DPlex.AppImage
 ./DPlex.AppImage
 
 # Debian / Ubuntu
-curl -LO https://github.com/Ron537/DPlex/releases/latest/download/dplex_amd64.deb
-sudo dpkg -i dplex_amd64.deb
+curl -LO https://github.com/Ron537/DPlex/releases/latest/download/DPlex-amd64.deb
+sudo dpkg -i DPlex-amd64.deb
 ```
 
 ### Run from source
