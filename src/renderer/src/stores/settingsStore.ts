@@ -31,6 +31,15 @@ export function applyCssVarsSync(themeId: string): void {
     '--dplex-bg-activity',
     theme.ui.bgActivity ?? theme.ui.bgPanel ?? theme.ui.bgAlt
   )
+  // Activity-bar surface — distinct from the side panel. On dark themes
+  // we shade the base toward black; on light themes toward white. The
+  // ActivityBar component reads this var directly so badges can match.
+  root.style.setProperty(
+    '--dplex-activity-bar-bg',
+    theme.variant === 'light'
+      ? `color-mix(in srgb, ${theme.ui.bgActivity ?? theme.ui.bgPanel ?? theme.ui.bgAlt} 82%, white)`
+      : `color-mix(in srgb, ${theme.ui.bgActivity ?? theme.ui.bgPanel ?? theme.ui.bgAlt} 82%, black)`
+  )
   root.style.setProperty('--dplex-bg-input', theme.ui.bgInput ?? theme.ui.bgAlt)
   root.style.setProperty('--dplex-border', theme.ui.border)
   root.style.setProperty('--dplex-border-strong', theme.ui.borderStrong ?? theme.ui.border)

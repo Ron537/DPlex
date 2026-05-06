@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-05-06
+
+### Features
+
+- **Activity bar** on the far left, VSCode-style. Switch between
+  Projects, Sessions, and Source Control with a single click — clicking
+  the active icon collapses the side panel for maximum editor space.
+- **Source Control moved to the side panel.** Git changes for the
+  selected project now live in the left panel alongside Projects and
+  Sessions, replacing the old right-side Git panel and freeing the
+  full editor width. A header dropdown lets you switch between any
+  project or worktree without leaving the Git view.
+- **Settings gear** at the bottom of the activity bar, in addition to
+  the status-bar gear, for quick access to preferences.
+
 ### Improvements
 
 - The Projects / Sessions switcher is now a clean underline tab strip
@@ -268,7 +283,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/Ron537/DPlex/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Ron537/DPlex/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Ron537/DPlex/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Ron537/DPlex/compare/v0.5.0...v0.6.0

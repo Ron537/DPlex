@@ -219,6 +219,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 <span
                   className="truncate max-w-[140px]"
                   style={{ fontStyle: isPreview ? 'italic' : undefined }}
+                  data-testid="editor-tab-label"
                 >
                   {tab.title}
                 </span>

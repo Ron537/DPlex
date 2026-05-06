@@ -4,6 +4,7 @@ import { persistWorkspaceNow } from '../../stores/terminalStore'
 import { useSettingsStore, applyCssVarsSync } from '../../stores/settingsStore'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { SidePanel } from './SidePanel'
+import { ActivityBar } from './ActivityBar'
 import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
@@ -12,8 +13,7 @@ import { useSessions } from '../../hooks/useSessions'
 import { getTheme } from '../../services/themes'
 import { MOD } from '../../utils/shortcuts'
 import { focusSessionTab } from '../../utils/sessionTabs'
-import { GitPanel } from '../git/GitPanel'
-import { wireGitPanelGlobals, useGitPanelStore } from '../../stores/gitPanelStore'
+import { wireGitPanelGlobals } from '../../stores/gitPanelStore'
 import type { TerminalTab, FileDiffTab, EditorTab, EditorGroup, LayoutNode } from '../../types'
 
 // Prune layout tree to only include groups that exist in the restored set
@@ -195,9 +195,10 @@ export function AppLayout(): React.JSX.Element {
     return () => off()
   }, [])
 
-  // Cmd/Ctrl+Shift+G toggles the Git panel. Suppressed while typing in an
-  // input/textarea/contenteditable and while Monaco's find widget is open
-  // (Monaco owns Cmd+Shift+G for "find previous").
+  // Cmd/Ctrl+Shift+G activates the Source Control activity-bar item.
+  // If it's already active, collapses the side panel. Suppressed while
+  // typing in an input/textarea/contenteditable and while Monaco's find
+  // widget is open (Monaco owns Cmd+Shift+G for "find previous").
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       const mod = e.metaKey || e.ctrlKey
@@ -211,7 +212,13 @@ export function AppLayout(): React.JSX.Element {
         if (document.querySelector('.find-widget.visible')) return
       }
       e.preventDefault()
-      useGitPanelStore.getState().toggle()
+      const settings = useSettingsStore.getState()
+      const cur = settings.settings
+      if (cur.sidebarActiveTab === 'git' && !cur.sidebarPanelCollapsed) {
+        settings.updateSettings({ sidebarPanelCollapsed: true })
+      } else {
+        settings.updateSettings({ sidebarActiveTab: 'git', sidebarPanelCollapsed: false })
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -282,235 +289,233 @@ export function AppLayout(): React.JSX.Element {
       </div>
 
       <div className="flex flex-1 min-h-0">
+        <ActivityBar onOpenSettings={() => setSettingsOpen(true)} />
         <SidePanel />
 
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex flex-row flex-1 min-h-0 min-w-0">
-            <div className="flex-1 min-w-0 min-h-0">
-              {groups.length > 0 ? (
-                <GroupLayout node={layout} />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center flex flex-col items-center gap-4">
-                    {/* DPlex logo */}
-                    <svg viewBox="0 0 512 512" width="72" height="72" style={{ opacity: 0.6 }}>
-                      {/* Sidebar */}
-                      <rect
-                        x="66"
-                        y="86"
-                        width="105"
-                        height="340"
-                        rx="14"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.4"
-                      />
-                      <rect
-                        x="66"
-                        y="86"
-                        width="105"
-                        height="340"
-                        rx="14"
-                        fill="none"
-                        stroke="var(--dplex-text-muted)"
-                        strokeWidth="2"
-                        opacity="0.3"
-                      />
-                      {/* Sidebar entries */}
-                      <rect
-                        x="80"
-                        y="112"
-                        width="76"
-                        height="9"
-                        rx="4"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.4"
-                      />
-                      <rect
-                        x="80"
-                        y="128"
-                        width="50"
-                        height="5"
-                        rx="2.5"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.25"
-                      />
-                      <rect
-                        x="66"
-                        y="150"
-                        width="3"
-                        height="35"
-                        rx="1.5"
-                        fill="var(--dplex-accent)"
-                      />
-                      <rect
-                        x="80"
-                        y="156"
-                        width="76"
-                        height="9"
-                        rx="4"
-                        fill="var(--dplex-text)"
-                        opacity="0.5"
-                      />
-                      <rect
-                        x="80"
-                        y="172"
-                        width="40"
-                        height="5"
-                        rx="2.5"
-                        fill="var(--dplex-accent)"
-                        opacity="0.4"
-                      />
-                      <rect
-                        x="80"
-                        y="200"
-                        width="76"
-                        height="9"
-                        rx="4"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.2"
-                      />
-                      {/* Divider */}
-                      <rect
-                        x="181"
-                        y="96"
-                        width="2"
-                        height="320"
-                        rx="1"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.3"
-                      />
-                      {/* Terminal area */}
-                      <rect
-                        x="193"
-                        y="86"
-                        width="253"
-                        height="340"
-                        rx="14"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.2"
-                      />
-                      <rect
-                        x="193"
-                        y="86"
-                        width="253"
-                        height="340"
-                        rx="14"
-                        fill="none"
-                        stroke="var(--dplex-text-muted)"
-                        strokeWidth="2"
-                        opacity="0.2"
-                      />
-                      {/* Tab bar */}
-                      <rect
-                        x="207"
-                        y="97"
-                        width="55"
-                        height="4"
-                        rx="2"
-                        fill="var(--dplex-accent)"
-                        opacity="0.8"
-                      />
-                      <rect
-                        x="270"
-                        y="97"
-                        width="40"
-                        height="4"
-                        rx="2"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.2"
-                      />
-                      {/* Prompt 1 */}
-                      <path
-                        d="M220,175 L248,196 L220,217"
-                        stroke="var(--dplex-accent)"
-                        strokeWidth="10"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                      <rect
-                        x="262"
-                        y="188"
-                        width="90"
-                        height="8"
-                        rx="4"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.4"
-                      />
-                      {/* Response lines */}
-                      <rect
-                        x="220"
-                        y="240"
-                        width="185"
-                        height="7"
-                        rx="3.5"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.2"
-                      />
-                      <rect
-                        x="220"
-                        y="258"
-                        width="140"
-                        height="7"
-                        rx="3.5"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.15"
-                      />
-                      <rect
-                        x="220"
-                        y="276"
-                        width="165"
-                        height="7"
-                        rx="3.5"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.18"
-                      />
-                      {/* Prompt 2 — green like the icon */}
-                      <path
-                        d="M220,325 L248,346 L220,367"
-                        stroke="var(--dplex-status-waiting)"
-                        strokeWidth="10"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                      <rect
-                        x="262"
-                        y="338"
-                        width="60"
-                        height="8"
-                        rx="4"
-                        fill="var(--dplex-text-muted)"
-                        opacity="0.3"
-                      />
-                      <rect
-                        x="332"
-                        y="332"
-                        width="5"
-                        height="24"
-                        rx="2.5"
-                        fill="var(--dplex-status-waiting)"
-                      />
-                    </svg>
-                    <div>
-                      <div
-                        className="text-sm font-semibold"
-                        style={{ color: 'var(--dplex-text-muted)' }}
-                      >
-                        DPlex
-                      </div>
-                      <div
-                        className="text-xs mt-1"
-                        style={{ color: 'var(--dplex-text-muted)', opacity: 0.8 }}
-                      >
-                        Press {MOD}T to open a new terminal
-                      </div>
+          <div className="flex-1 min-w-0 min-h-0">
+            {groups.length > 0 ? (
+              <GroupLayout node={layout} />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center flex flex-col items-center gap-4">
+                  {/* DPlex logo */}
+                  <svg viewBox="0 0 512 512" width="72" height="72" style={{ opacity: 0.6 }}>
+                    {/* Sidebar */}
+                    <rect
+                      x="66"
+                      y="86"
+                      width="105"
+                      height="340"
+                      rx="14"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.4"
+                    />
+                    <rect
+                      x="66"
+                      y="86"
+                      width="105"
+                      height="340"
+                      rx="14"
+                      fill="none"
+                      stroke="var(--dplex-text-muted)"
+                      strokeWidth="2"
+                      opacity="0.3"
+                    />
+                    {/* Sidebar entries */}
+                    <rect
+                      x="80"
+                      y="112"
+                      width="76"
+                      height="9"
+                      rx="4"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.4"
+                    />
+                    <rect
+                      x="80"
+                      y="128"
+                      width="50"
+                      height="5"
+                      rx="2.5"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.25"
+                    />
+                    <rect
+                      x="66"
+                      y="150"
+                      width="3"
+                      height="35"
+                      rx="1.5"
+                      fill="var(--dplex-accent)"
+                    />
+                    <rect
+                      x="80"
+                      y="156"
+                      width="76"
+                      height="9"
+                      rx="4"
+                      fill="var(--dplex-text)"
+                      opacity="0.5"
+                    />
+                    <rect
+                      x="80"
+                      y="172"
+                      width="40"
+                      height="5"
+                      rx="2.5"
+                      fill="var(--dplex-accent)"
+                      opacity="0.4"
+                    />
+                    <rect
+                      x="80"
+                      y="200"
+                      width="76"
+                      height="9"
+                      rx="4"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.2"
+                    />
+                    {/* Divider */}
+                    <rect
+                      x="181"
+                      y="96"
+                      width="2"
+                      height="320"
+                      rx="1"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.3"
+                    />
+                    {/* Terminal area */}
+                    <rect
+                      x="193"
+                      y="86"
+                      width="253"
+                      height="340"
+                      rx="14"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.2"
+                    />
+                    <rect
+                      x="193"
+                      y="86"
+                      width="253"
+                      height="340"
+                      rx="14"
+                      fill="none"
+                      stroke="var(--dplex-text-muted)"
+                      strokeWidth="2"
+                      opacity="0.2"
+                    />
+                    {/* Tab bar */}
+                    <rect
+                      x="207"
+                      y="97"
+                      width="55"
+                      height="4"
+                      rx="2"
+                      fill="var(--dplex-accent)"
+                      opacity="0.8"
+                    />
+                    <rect
+                      x="270"
+                      y="97"
+                      width="40"
+                      height="4"
+                      rx="2"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.2"
+                    />
+                    {/* Prompt 1 */}
+                    <path
+                      d="M220,175 L248,196 L220,217"
+                      stroke="var(--dplex-accent)"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                    <rect
+                      x="262"
+                      y="188"
+                      width="90"
+                      height="8"
+                      rx="4"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.4"
+                    />
+                    {/* Response lines */}
+                    <rect
+                      x="220"
+                      y="240"
+                      width="185"
+                      height="7"
+                      rx="3.5"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.2"
+                    />
+                    <rect
+                      x="220"
+                      y="258"
+                      width="140"
+                      height="7"
+                      rx="3.5"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.15"
+                    />
+                    <rect
+                      x="220"
+                      y="276"
+                      width="165"
+                      height="7"
+                      rx="3.5"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.18"
+                    />
+                    {/* Prompt 2 — green like the icon */}
+                    <path
+                      d="M220,325 L248,346 L220,367"
+                      stroke="var(--dplex-status-waiting)"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                    <rect
+                      x="262"
+                      y="338"
+                      width="60"
+                      height="8"
+                      rx="4"
+                      fill="var(--dplex-text-muted)"
+                      opacity="0.3"
+                    />
+                    <rect
+                      x="332"
+                      y="332"
+                      width="5"
+                      height="24"
+                      rx="2.5"
+                      fill="var(--dplex-status-waiting)"
+                    />
+                  </svg>
+                  <div>
+                    <div
+                      className="text-sm font-semibold"
+                      style={{ color: 'var(--dplex-text-muted)' }}
+                    >
+                      DPlex
+                    </div>
+                    <div
+                      className="text-xs mt-1"
+                      style={{ color: 'var(--dplex-text-muted)', opacity: 0.8 }}
+                    >
+                      Press {MOD}T to open a new terminal
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-            <GitPanel />
+              </div>
+            )}
           </div>
 
           <StatusBar onOpenSettings={() => setSettingsOpen(true)} />

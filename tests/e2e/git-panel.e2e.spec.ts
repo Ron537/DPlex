@@ -71,9 +71,9 @@ test.describe('DPlex Git panel', () => {
     // Click the project to bind it as active.
     await window.getByText('gitpanel-repo').click()
 
-    // Expand the Git panel via the collapsed strip.
-    await window.getByTestId('git-panel-collapsed-strip').click()
-    await expect(window.getByTestId('git-panel')).toBeVisible({ timeout: 5_000 })
+    // Open the Source Control activity-bar item.
+    await window.getByTestId('activity-bar-git').click()
+    await expect(window.getByTestId('git-side-panel-view')).toBeVisible({ timeout: 5_000 })
 
     // The changes section is rendered with at least one entry.
     await expect(window.getByTestId('git-panel-changes-section')).toBeVisible()
@@ -82,7 +82,10 @@ test.describe('DPlex Git panel', () => {
 
     // Single-click opens a preview tab (italic title).
     await readme.click()
-    const previewTab = window.locator('span', { hasText: 'README.md' }).first()
+    const previewTab = window
+      .getByTestId('editor-tab-label')
+      .filter({ hasText: 'README.md' })
+      .first()
     await expect(previewTab).toBeVisible({ timeout: 10_000 })
     await expect(previewTab).toHaveCSS('font-style', 'italic')
 
@@ -91,22 +94,23 @@ test.describe('DPlex Git panel', () => {
     await expect(previewTab).toHaveCSS('font-style', 'normal', { timeout: 5_000 })
   })
 
-  test('Cmd/Ctrl+Shift+G toggles the panel', async () => {
+  test('Cmd/Ctrl+Shift+G toggles the Source Control view', async () => {
     if (!window || !repoPath) throw new Error('Window/repo not available')
 
     await seedProjects(window, [{ id: 'p-shortcut', name: 'shortcut-repo', path: repoPath }])
     await window.getByText('shortcut-repo').click()
 
-    // Default: collapsed strip is visible.
-    await expect(window.getByTestId('git-panel-collapsed-strip')).toBeVisible()
+    // Default sidebar view is Projects — Source Control view is not mounted.
+    await expect(window.getByTestId('git-side-panel-view')).toHaveCount(0)
 
     const isMac = process.platform === 'darwin'
     const mod = isMac ? 'Meta' : 'Control'
     await window.keyboard.press(`${mod}+Shift+G`)
-    await expect(window.getByTestId('git-panel')).toBeVisible({ timeout: 5_000 })
+    await expect(window.getByTestId('git-side-panel-view')).toBeVisible({ timeout: 5_000 })
 
+    // Pressing again collapses the panel (VSCode default).
     await window.keyboard.press(`${mod}+Shift+G`)
-    await expect(window.getByTestId('git-panel-collapsed-strip')).toBeVisible({ timeout: 5_000 })
+    await expect(window.getByTestId('git-side-panel-view')).toHaveCount(0, { timeout: 5_000 })
   })
 
   test('shows the not-a-repo empty state for non-git folders', async () => {
@@ -116,7 +120,7 @@ test.describe('DPlex Git panel', () => {
     try {
       await seedProjects(window, [{ id: 'p-not-repo', name: 'not-a-repo', path: tmp }])
       await window.getByText('not-a-repo').click()
-      await window.getByTestId('git-panel-collapsed-strip').click()
+      await window.getByTestId('activity-bar-git').click()
       const empty = window.getByTestId('git-panel-empty-state')
       await expect(empty).toBeVisible({ timeout: 10_000 })
       await expect(empty).toHaveAttribute('data-kind', 'not-a-repo')

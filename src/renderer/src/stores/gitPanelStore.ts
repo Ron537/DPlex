@@ -84,28 +84,37 @@ export const useGitPanelStore = create<GitPanelState>((set, get) => ({
   liveWatchers: {},
   loading: {},
 
-  isOpen: () => useSettingsStore.getState().settings.gitPanel.open,
+  isOpen: () =>
+    useSettingsStore.getState().settings.sidebarActiveTab === 'git' &&
+    !useSettingsStore.getState().settings.sidebarPanelCollapsed,
   expand: () => {
     useSettingsStore.getState().updateSettings({
-      gitPanel: { ...useSettingsStore.getState().settings.gitPanel, open: true }
+      sidebarActiveTab: 'git',
+      sidebarPanelCollapsed: false
     })
   },
   collapse: () => {
-    useSettingsStore.getState().updateSettings({
-      gitPanel: { ...useSettingsStore.getState().settings.gitPanel, open: false }
-    })
+    // Collapsing the side panel — only act if we're currently on the git
+    // view, so we don't ride over a user who's looking at Projects/Sessions.
+    const cur = useSettingsStore.getState().settings
+    if (cur.sidebarActiveTab === 'git') {
+      useSettingsStore.getState().updateSettings({ sidebarPanelCollapsed: true })
+    }
   },
   toggle: () => {
-    const cur = useSettingsStore.getState().settings.gitPanel
-    useSettingsStore.getState().updateSettings({
-      gitPanel: { ...cur, open: !cur.open }
-    })
+    const cur = useSettingsStore.getState().settings
+    if (cur.sidebarActiveTab === 'git' && !cur.sidebarPanelCollapsed) {
+      useSettingsStore.getState().updateSettings({ sidebarPanelCollapsed: true })
+    } else {
+      useSettingsStore.getState().updateSettings({
+        sidebarActiveTab: 'git',
+        sidebarPanelCollapsed: false
+      })
+    }
   },
   setWidth: (width) => {
-    const cur = useSettingsStore.getState().settings.gitPanel
-    useSettingsStore.getState().updateSettings({
-      gitPanel: { ...cur, width: Math.max(220, Math.min(640, Math.round(width))) }
-    })
+    // Side panel uses a unified sidebarWidth across all views now.
+    useSettingsStore.getState().setSidebarWidth(Math.max(220, Math.min(640, Math.round(width))))
   },
 
   resolveActiveRoot: (project) => project.path,

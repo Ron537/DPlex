@@ -107,8 +107,8 @@ export interface AppSettings {
   theme: string
   sidebarWidth: number
   sidebarVisible: boolean
-  /** Which sidebar tab is active in the activity bar. */
-  sidebarActiveTab: 'projects' | 'sessions'
+  /** Which sidebar view is active in the activity bar. */
+  sidebarActiveTab: 'projects' | 'sessions' | 'git'
   /** When true, the panel portion of the sidebar is collapsed (activity bar still visible). */
   sidebarPanelCollapsed: boolean
   sessionPollIntervalMs: number
