@@ -353,7 +353,7 @@
   <div class="container">
     <div class="badge">
       <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
-      Open source · MIT · v0.9.0
+      Open source · MIT · <span id="version-badge">latest</span>
     </div>
     <h1>One window for every <span class="accent">AI coding session</span> you run.</h1>
     <p class="lede">
@@ -589,6 +589,23 @@ npm run dev</code></pre>
       })
     })
   })
+
+  // Latest release version — fetched from the public GitHub API. Cached
+  // by the browser via the API's CDN; falls back to the placeholder
+  // text if the request fails (rate limit, offline, etc.). 60 unauth
+  // requests/hr per IP is plenty for a landing page.
+  fetch('https://api.github.com/repos/Ron537/DPlex/releases/latest', {
+    headers: { Accept: 'application/vnd.github+json' }
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      if (!data || !data.tag_name) return
+      const el = document.getElementById('version-badge')
+      if (el) el.textContent = data.tag_name
+    })
+    .catch(() => {
+      /* ignore — the placeholder "latest" stays */
+    })
 </script>
 
 </body>
