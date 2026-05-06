@@ -14,6 +14,10 @@ on:
 
 permissions:
   contents: write
+  # Required for actions/attest-build-provenance to mint Sigstore-signed
+  # provenance attestations for each release artifact.
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -38,8 +42,10 @@ jobs:
         run: npm ci
 
       # macOS signing + notarization: populated from repository secrets
-      # when available. Missing secrets produce an unsigned .app / .dmg
-      # (fine for personal use, but users will see the Gatekeeper prompt).
+      # when available. Missing secrets produce an unsigned .app / .dmg —
+      # we then ad-hoc sign it below so Gatekeeper at least skips the
+      # "is damaged" error path. Users still see the unidentified-developer
+      # warning on first launch (right-click Open clears it).
       - name: Build macOS
         if: matrix.os == 'macos-latest'
         env:
@@ -50,6 +56,26 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run build:mac:ci -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
+
+      # Ad-hoc codesign as a free fallback when no Developer ID secret is
+      # configured. `codesign -s -` adds a self-anchored signature that
+      # avoids the "DPlex is damaged and can't be opened" Gatekeeper
+      # error on macOS Catalina+. Users still need to right-click → Open
+      # (or run `xattr -dr com.apple.quarantine`) on first launch, but
+      # the binary is no longer treated as outright malicious.
+      - name: Ad-hoc sign macOS app (no Developer ID)
+        if: matrix.os == 'macos-latest' && env.CSC_LINK == ''
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+        run: |
+          set -e
+          for app in dist/mac*/*.app; do
+            if [ -d "$app" ]; then
+              echo "Ad-hoc signing $app"
+              codesign --force --deep --sign - "$app"
+              codesign --verify --verbose=2 "$app" || true
+            fi
+          done
 
       - name: Build Windows
         if: matrix.os == 'windows-latest'
@@ -64,6 +90,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:linux -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
+
+      # Sigstore-signed build provenance — proves "this artifact was built
+      # from this commit by this workflow on GitHub-hosted runners". Free
+      # via OIDC; verifiable with `gh attestation verify`. Lets paranoid
+      # users trust the binary even though we don't yet ship a paid
+      # Developer ID or Authenticode signature.
+      - name: Generate build provenance
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry-run != 'true'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.msi
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.snap
 
       # Always upload build artifacts so a dry run still produces
       # downloadable installers for local testing before cutting a tag.

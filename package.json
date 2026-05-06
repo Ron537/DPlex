@@ -49,7 +49,9 @@
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "electron-vite build && node scripts/detach-stale-dmg.js && CUSTOM_DMGBUILD_PATH=scripts/dmgbuild-wrapper.sh electron-builder --mac",
     "build:mac:ci": "electron-vite build && electron-builder --mac",
-    "build:linux": "electron-vite build && electron-builder --linux"
+    "build:linux": "electron-vite build && electron-builder --linux",
+    "demo:screenshots": "npm run build && tsx scripts/screenshots.ts",
+    "demo:gif": "npm run build && tsx scripts/demo-gif.ts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
@@ -86,6 +88,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "ffmpeg-static": "^5.3.0",
     "prettier": "^3.7.4",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
