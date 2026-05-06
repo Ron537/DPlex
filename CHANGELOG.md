@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] — 2026-05-07
+
+### Bug Fixes
+
+- Drop `snap` from Linux release targets — Ubuntu CI runners don't
+  ship `snapcraft` and the resulting `app-builder` failure was
+  blocking the entire Linux release. AppImage and `.deb` still ship.
+- Make the `actions/attest-build-provenance` step non-blocking so
+  builds still publish on user-owned private repos (GitHub's
+  attestation API isn't available there). The step starts working
+  automatically once the repo is public.
+
 ## [0.9.1] — 2026-05-07
 
 ### Improvements
@@ -304,7 +316,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/Ron537/DPlex/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/Ron537/DPlex/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Ron537/DPlex/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Ron537/DPlex/compare/v0.7.0...v0.8.0

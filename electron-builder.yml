@@ -56,15 +56,12 @@ dmg:
 linux:
   target:
     - AppImage
-    - snap
     - deb
   maintainer: Ron Borysowski <roni537@gmail.com>
   category: Utility
 appImage:
   artifactName: ${productName}.${ext}
 deb:
-  artifactName: ${productName}-${arch}.${ext}
-snap:
   artifactName: ${productName}-${arch}.${ext}
 npmRebuild: false
 publish:

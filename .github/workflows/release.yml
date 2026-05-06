@@ -96,8 +96,16 @@ jobs:
       # via OIDC; verifiable with `gh attestation verify`. Lets paranoid
       # users trust the binary even though we don't yet ship a paid
       # Developer ID or Authenticode signature.
+      #
+      # NOTE: this step requires either a public repo OR an org with
+      # Advanced Security. On personal private repos GitHub returns
+      # "Feature not available for user-owned private repositories" —
+      # we mark the step continue-on-error so the build itself still
+      # publishes its artifacts. Once the repo is public, attestations
+      # generate cleanly with no other change required.
       - name: Generate build provenance
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry-run != 'true'
+        continue-on-error: true
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
