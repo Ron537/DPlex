@@ -7,15 +7,12 @@
 DPlex is a desktop terminal app that manages multiple AI CLI tool sessions alongside regular terminals — all in one window. Think of it as a purpose-built workspace for developers who run **Copilot CLI**, **Claude Code**, or other AI coding agents daily across many projects.
 
 [![Tests](https://github.com/Ron537/DPlex/actions/workflows/tests.yml/badge.svg)](https://github.com/Ron537/DPlex/actions/workflows/tests.yml)
+[![CodeQL](https://github.com/Ron537/DPlex/actions/workflows/codeql.yml/badge.svg)](https://github.com/Ron537/DPlex/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/Ron537/DPlex?include_prereleases&sort=semver)](https://github.com/Ron537/DPlex/releases)
 [![Downloads](https://img.shields.io/github/downloads/Ron537/DPlex/total)](https://github.com/Ron537/DPlex/releases)
 [![Issues](https://img.shields.io/github/issues/Ron537/DPlex)](https://github.com/Ron537/DPlex/issues)
-
-<!-- After flipping the repo to public, restore these badges:
-[![CodeQL](https://github.com/Ron537/DPlex/actions/workflows/codeql.yml/badge.svg)](https://github.com/Ron537/DPlex/actions/workflows/codeql.yml)
 [![Discussions](https://img.shields.io/github/discussions/Ron537/DPlex)](https://github.com/Ron537/DPlex/discussions)
--->
 
 
 [Quick install](#quick-install) · [Features](#features) · [Screenshots](#screenshots) · [How DPlex compares](#how-dplex-compares) · [Architecture](./docs/architecture.md) · [Add a provider](./docs/providers.md) · [Privacy](./PRIVACY.md) · [Contributing](./CONTRIBUTING.md)
