@@ -134,3 +134,60 @@ jobs:
             dist/latest*.yml
           if-no-files-found: ignore
           retention-days: 14
+
+  # After all platform builds finish, replace the auto-generated release
+  # body (which electron-builder fills with the commit message) with the
+  # categorized release notes from .github/release.yml plus a curated
+  # downloads table. Tag pushes only — dry runs leave the draft alone.
+  polish-release-notes:
+    name: Polish release notes
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate categorized notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+          # Ask GitHub to generate categorized notes per .github/release.yml.
+          GENERATED=$(gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$TAG" --jq '.body')
+
+          # Pull the section for this version out of CHANGELOG.md so the
+          # release body leads with the human-curated summary.
+          VERSION="${TAG#v}"
+          CHANGELOG_SECTION=$(awk -v ver="## [$VERSION]" '
+            $0 ~ ver { found=1; next }
+            found && /^## \[/ { exit }
+            found
+          ' CHANGELOG.md)
+
+          {
+            if [ -n "$CHANGELOG_SECTION" ]; then
+              printf '%s\n\n---\n\n' "$CHANGELOG_SECTION"
+            fi
+            printf '%s\n\n---\n\n' "$GENERATED"
+            printf '## 📦 Downloads\n\n'
+            printf '| Platform | Download |\n'
+            printf '| -------- | -------- |\n'
+            printf '| macOS (Apple Silicon) | [DPlex-arm64.dmg](https://github.com/%s/releases/latest/download/DPlex-arm64.dmg) |\n' "$GITHUB_REPOSITORY"
+            printf '| macOS (Intel) | [DPlex-x64.dmg](https://github.com/%s/releases/latest/download/DPlex-x64.dmg) |\n' "$GITHUB_REPOSITORY"
+            printf '| Windows | [DPlex-Setup.exe](https://github.com/%s/releases/latest/download/DPlex-Setup.exe) |\n' "$GITHUB_REPOSITORY"
+            printf '| Linux (AppImage) | [DPlex.AppImage](https://github.com/%s/releases/latest/download/DPlex.AppImage) |\n' "$GITHUB_REPOSITORY"
+            printf '| Linux (Debian) | [DPlex-amd64.deb](https://github.com/%s/releases/latest/download/DPlex-amd64.deb) |\n\n' "$GITHUB_REPOSITORY"
+            printf '> Builds are currently unsigned — verify the SHA-256 from this page if you want extra confidence. macOS builds are ad-hoc codesigned; you may still need `xattr -dr com.apple.quarantine /Applications/DPlex.app` on first launch.\n'
+          } > /tmp/release-body.md
+
+      - name: Replace release body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file /tmp/release-body.md
