@@ -161,10 +161,14 @@ jobs:
             -f tag_name="$TAG" --jq '.body')
 
           # Pull the section for this version out of CHANGELOG.md so the
-          # release body leads with the human-curated summary.
+          # release body leads with the human-curated summary. Use literal
+          # prefix matching (not regex) because the heading contains `[` and
+          # `]`, which awk's `~` operator would otherwise treat as a
+          # character class and silently fail to match.
           VERSION="${TAG#v}"
-          CHANGELOG_SECTION=$(awk -v ver="## [$VERSION]" '
-            $0 ~ ver { found=1; next }
+          HEADING="## [$VERSION]"
+          CHANGELOG_SECTION=$(awk -v heading="$HEADING" '
+            index($0, heading) == 1 { found=1; next }
             found && /^## \[/ { exit }
             found
           ' CHANGELOG.md)
