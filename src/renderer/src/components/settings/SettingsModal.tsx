@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Palette, Terminal, Bot, Keyboard, BellRing, GitBranch } from 'lucide-react'
+import { X, Palette, Terminal, Bot, Keyboard, BellRing, GitBranch, Info } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
+import { useUpdateStore } from '../../stores/updateStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
 import type { ShellInfo, AppSettings } from '../../types'
 import { MOD, SHIFT } from '../../utils/shortcuts'
+import { timeAgo } from '../../utils/timeAgo'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -19,6 +21,7 @@ type SettingsTab =
   | 'notifications'
   | 'worktrees'
   | 'shortcuts'
+  | 'about'
 
 const SHORTCUTS: { category: string; items: { keys: string; description: string }[] }[] = [
   {
@@ -51,7 +54,7 @@ const SHORTCUTS: { category: string; items: { keys: string; description: string 
 type SettingsTabGroup = { title: string; tabs: SettingsTab[] }
 
 const TAB_GROUPS: SettingsTabGroup[] = [
-  { title: 'General', tabs: ['appearance', 'shortcuts'] },
+  { title: 'General', tabs: ['appearance', 'shortcuts', 'about'] },
   { title: 'AI Tools', tabs: ['ai-tools', 'worktrees', 'notifications'] },
   { title: 'Terminal', tabs: ['terminal'] }
 ]
@@ -80,6 +83,10 @@ const TAB_HEADINGS: Record<SettingsTab, { title: string; description: string }> 
   shortcuts: {
     title: 'Shortcuts',
     description: 'Keyboard shortcuts. These are not configurable yet.'
+  },
+  about: {
+    title: 'About',
+    description: 'Version info and update controls.'
   }
 }
 
@@ -89,7 +96,8 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
   { id: 'ai-tools', label: 'AI Tools', icon: Bot },
   { id: 'notifications', label: 'Notifications', icon: BellRing },
   { id: 'worktrees', label: 'Worktrees', icon: GitBranch },
-  { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard }
+  { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
+  { id: 'about', label: 'About', icon: Info }
 ]
 
 function SettingItem({
@@ -958,6 +966,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                   ))}
                 </div>
               )}
+
+              {activeTab === 'about' && <AboutPanel />}
             </div>
 
             {/* Footer — flush with the bottom of the right pane. */}
@@ -995,6 +1005,148 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * About tab — version info, platform, and update controls. Reads
+ * everything from the renderer-side `useUpdateStore` so the panel
+ * stays in sync with the global banner.
+ */
+function AboutPanel(): React.JSX.Element {
+  const state = useUpdateStore((s) => s.state)
+  const check = useUpdateStore((s) => s.check)
+  const install = useUpdateStore((s) => s.install)
+  const openDownload = useUpdateStore((s) => s.openDownload)
+  const [version, setVersion] = useState<string>('')
+  const [platform, setPlatform] = useState<string>('')
+
+  useEffect(() => {
+    void window.dplex.app.getVersion().then(setVersion)
+    void window.dplex.app.getPlatform().then(setPlatform)
+  }, [])
+
+  const status = state?.status ?? 'idle'
+  const statusLabel = (() => {
+    if (state?.installMode === 'unsupported') {
+      return 'Auto-update is unavailable in development builds.'
+    }
+    switch (status) {
+      case 'idle':
+        return 'Click below to check for updates.'
+      case 'checking':
+        return 'Checking for updates…'
+      case 'up-to-date':
+        return "You're on the latest version."
+      case 'available':
+        return state?.installMode === 'manualDownload'
+          ? `v${state.version} is available — download to install.`
+          : `v${state?.version} is available — downloading…`
+      case 'downloading':
+        return `Downloading v${state?.version}… ${state?.downloadProgress ?? 0}%`
+      case 'downloaded':
+        return `v${state?.version} is downloaded — restart to install.`
+      case 'installing':
+        return 'Restarting to install the update…'
+      case 'error':
+        return state?.error ? `Update check failed: ${state.error}` : 'Update check failed.'
+      case 'unsupported':
+        return 'Auto-update is unavailable for this build.'
+    }
+  })()
+
+  return (
+    <div className="space-y-4">
+      <div
+        className="rounded-lg p-4"
+        style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
+      >
+        <div className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
+          Version
+        </div>
+        <div
+          className="text-sm font-mono mt-0.5"
+          style={{ color: 'var(--dplex-text)' }}
+        >
+          {version || '—'}
+          <span
+            className="ml-2 text-[10px]"
+            style={{ color: 'var(--dplex-text-dim)' }}
+          >
+            ({platform || '—'})
+          </span>
+        </div>
+      </div>
+
+      <div
+        className="rounded-lg p-4 space-y-3"
+        style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
+      >
+        <div>
+          <div className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
+            Updates
+          </div>
+          <div
+            className="text-[12px] mt-1"
+            style={{ color: 'var(--dplex-text)' }}
+          >
+            {statusLabel}
+          </div>
+          {state?.lastChecked && (
+            <div
+              className="text-[10px] mt-1"
+              style={{ color: 'var(--dplex-text-dim)' }}
+            >
+              Last checked {timeAgo(state.lastChecked)} ago
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            disabled={!state?.canCheck}
+            onClick={() => void check()}
+            className="text-[11px] px-3 py-1 rounded"
+            style={{
+              background: state?.canCheck
+                ? 'var(--dplex-accent)'
+                : 'var(--dplex-bg)',
+              color: state?.canCheck ? 'var(--dplex-bg)' : 'var(--dplex-text-muted)',
+              border: '1px solid var(--dplex-border)',
+              cursor: state?.canCheck ? 'pointer' : 'not-allowed',
+              opacity: state?.canCheck ? 1 : 0.6
+            }}
+          >
+            Check for updates
+          </button>
+          {state?.canInstall && (
+            <button
+              onClick={() => void install()}
+              className="text-[11px] px-3 py-1 rounded"
+              style={{
+                background: 'var(--dplex-accent)',
+                color: 'var(--dplex-bg)'
+              }}
+            >
+              Restart and install
+            </button>
+          )}
+          {state?.canOpenDownload && (
+            <button
+              onClick={() => void openDownload()}
+              className="text-[11px] px-3 py-1 rounded"
+              style={{
+                background: 'var(--dplex-bg)',
+                color: 'var(--dplex-text)',
+                border: '1px solid var(--dplex-border)'
+              }}
+            >
+              Open download page
+            </button>
+          )}
         </div>
       </div>
     </div>

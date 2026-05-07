@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.10.1] — 2026-05-07
+## [0.11.1] — 2026-05-07
 
 ### Improvements
 
@@ -20,6 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Demo animation now showcases the headline workflow: opening the
   Sessions panel, resuming a past session in one click, and chatting
   with the resumed Copilot session.
+
+## [0.11.0] — 2026-05-07
+
+### Features
+
+- Auto-update: DPlex now checks for new releases on launch and every
+  6 hours. On Windows and Linux AppImage, updates download silently
+  in the background and a banner offers a one-click "Restart and
+  install". On macOS and Linux `.deb` builds (where in-place
+  replacement isn't safe yet) the banner instead links to the
+  release page; you can also "Skip this version" to stop being
+  prompted for that release.
+- New "About" tab in Settings shows the current version, last update
+  check time, and a manual "Check for updates" button.
 
 ## [0.10.0] — 2026-05-07
 
@@ -342,8 +356,9 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.10.1...HEAD
-[0.10.1]: https://github.com/Ron537/DPlex/compare/v0.10.0...v0.10.1
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/Ron537/DPlex/compare/v0.11.0...v0.11.1
+[0.11.0]: https://github.com/Ron537/DPlex/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Ron537/DPlex/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/Ron537/DPlex/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/Ron537/DPlex/compare/v0.9.0...v0.9.1
