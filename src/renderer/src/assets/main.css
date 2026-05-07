@@ -598,3 +598,16 @@ body {
   color: var(--dplex-text-muted);
   border: 1px solid var(--dplex-border);
 }
+
+/* Slim "recent session" row inside an expanded project body. Muted by
+   default to read as history; lifts to full opacity on hover so the user
+   knows it's clickable. Kept here so the opacity transition can use
+   `:hover` (Tailwind v4 arbitrary opacity-hover combos are clunky). */
+.recent-session-row {
+  opacity: 0.55;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+.recent-session-row:hover {
+  opacity: 1;
+  background: var(--dplex-hover);
+}

@@ -2,7 +2,11 @@ import * as fs from 'fs'
 import { app } from 'electron'
 import * as path from 'path'
 
-const SESSIONS_PATH = path.join(app.getPath('userData'), 'sessions.json')
+const SESSIONS_FILENAME = 'sessions.json'
+
+function sessionsPath(): string {
+  return path.join(app.getPath('userData'), SESSIONS_FILENAME)
+}
 
 export interface PersistedTab {
   id: string
@@ -31,8 +35,9 @@ export interface PersistedWorkspace {
 
 export function loadWorkspace(): PersistedWorkspace | null {
   try {
-    if (fs.existsSync(SESSIONS_PATH)) {
-      const raw = fs.readFileSync(SESSIONS_PATH, 'utf-8')
+    const p = sessionsPath()
+    if (fs.existsSync(p)) {
+      const raw = fs.readFileSync(p, 'utf-8')
       const parsed = JSON.parse(raw) as PersistedWorkspace
       if (parsed && Array.isArray(parsed.groups) && parsed.layout) {
         return parsed
@@ -46,10 +51,10 @@ export function loadWorkspace(): PersistedWorkspace | null {
 
 export function saveWorkspace(data: PersistedWorkspace): void {
   try {
-    // Atomic write: temp file → rename to avoid corruption on crash
-    const tmpPath = SESSIONS_PATH + '.tmp'
+    const p = sessionsPath()
+    const tmpPath = p + '.tmp'
     fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2))
-    fs.renameSync(tmpPath, SESSIONS_PATH)
+    fs.renameSync(tmpPath, p)
   } catch {
     // Ignore write errors
   }

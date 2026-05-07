@@ -1,9 +1,41 @@
-import type { JSX } from 'react'
+import { useMemo, type JSX } from 'react'
 import type { AISession, ProviderInfo } from '../../types'
 import { SessionItem } from '../sessions/SessionItem'
 import { PendingSessionItem } from '../sessions/PendingSessionItem'
 import { TerminalRow } from '../sessions/TerminalRow'
+import { RecentSessionRow } from '../sessions/RecentSessionRow'
 import { pairTabsToSessions, type OpenTabWithGroup } from '../../utils/sessionPairing'
+import { useSettingsStore } from '../../stores/settingsStore'
+
+/**
+ * Mirrors the pairing rule in `pairTabsToSessions` so any session that a
+ * tab could render above (including legacy tabs persisted without a
+ * providerId) is filtered out of the "recent" surface. Exported because
+ * `ProjectItem` needs it to decide whether the parent's main-checkout
+ * `WorktreeSection` should render at all (otherwise a checkout with only
+ * recents but no active sessions would be hidden).
+ */
+export function selectRecentSessions(
+  sessions: readonly AISession[],
+  openTabs: readonly OpenTabWithGroup[],
+  opts: { limit: number; hideEmpty: boolean }
+): AISession[] {
+  if (opts.limit <= 0) return []
+  const isCoveredByTab = (s: AISession): boolean =>
+    openTabs.some((t) => t.sessionId === s.id && (!t.providerId || t.providerId === s.aiTool))
+  const idle = sessions.filter(
+    (s) =>
+      s.status === 'idle' &&
+      !isCoveredByTab(s) &&
+      (!opts.hideEmpty || (s.messageCount ?? 0) > 0)
+  )
+  idle.sort((a, b) => {
+    const at = a.lastActivityTime ? new Date(a.lastActivityTime).getTime() : a.updatedAt.getTime()
+    const bt = b.lastActivityTime ? new Date(b.lastActivityTime).getTime() : b.updatedAt.getTime()
+    return bt - at
+  })
+  return idle.slice(0, opts.limit)
+}
 
 interface ProjectSessionListProps {
   /** Active AI sessions in this scope (a project or one of its worktrees). */
@@ -26,12 +58,24 @@ interface ProjectSessionListProps {
    * `isMixedProviderList(sessions)` over the surrounding context.
    */
   showProviderBadge?: boolean
+  /**
+   * Override the user's "Show recent sessions" / "Recent sessions count"
+   * settings. When omitted, the store values are used. Pass `recentLimit: 0`
+   * (or `showRecent: false`) to disable for a specific call site.
+   */
+  recentLimit?: number
+  showRecent?: boolean
 }
 
 /**
  * Renders the paired list of (open tab ↔ AI session) rows for a project
  * scope. Pairing logic lives in `utils/sessionPairing` so this component
  * and `WorktreeSection` (which surfaces a count badge) stay consistent.
+ *
+ * Below the active rows we surface up to `recentLimit` idle sessions
+ * (most recent first) so the user can resume a session in this scope
+ * without leaving the projects panel. Sessions that already render as
+ * an open tab above are excluded to avoid duplicate rows.
  */
 export function ProjectSessionList({
   sessions,
@@ -41,10 +85,28 @@ export function ProjectSessionList({
   onDeleteSession,
   onShowPrompts,
   providers,
-  showProviderBadge
+  showProviderBadge,
+  recentLimit,
+  showRecent
 }: ProjectSessionListProps): JSX.Element {
   const hasActive = sessions.some((s) => s.status === 'active')
-  if (!hasActive && openTabs.length === 0) {
+  const hideEmptySessions = useSettingsStore((s) => s.settings.hideEmptySessions)
+  const settingShowRecent = useSettingsStore((s) => s.settings.showRecentSessionsInProject)
+  const settingRecentCount = useSettingsStore((s) => s.settings.recentSessionsCount)
+  const effectiveShowRecent = showRecent ?? settingShowRecent
+  const effectiveLimit = recentLimit ?? settingRecentCount
+
+  const recentSessions = useMemo(
+    () =>
+      selectRecentSessions(sessions, openTabs, {
+        limit: effectiveShowRecent ? effectiveLimit : 0,
+        hideEmpty: hideEmptySessions
+      }),
+    [sessions, openTabs, effectiveShowRecent, effectiveLimit, hideEmptySessions]
+  )
+
+  const hasContent = hasActive || openTabs.length > 0 || recentSessions.length > 0
+  if (!hasContent) {
     if (!emptyMessage) return <></>
     return (
       <div
@@ -57,6 +119,7 @@ export function ProjectSessionList({
   }
 
   const { pairs, unpaired } = pairTabsToSessions(sessions, openTabs)
+  const hasActiveRows = pairs.length > 0 || unpaired.length > 0
 
   return (
     <>
@@ -98,6 +161,23 @@ export function ProjectSessionList({
           showProviderBadge={showProviderBadge}
         />
       ))}
+      {recentSessions.length > 0 && (
+        <>
+          {hasActiveRows && (
+            <div
+              aria-hidden="true"
+              style={{
+                margin: '4px 16px 2px',
+                borderTop: '1px dashed var(--dplex-border)',
+                opacity: 0.7
+              }}
+            />
+          )}
+          {recentSessions.map((session) => (
+            <RecentSessionRow key={`recent:${session.aiTool}:${session.id}`} session={session} />
+          ))}
+        </>
+      )}
     </>
   )
 }

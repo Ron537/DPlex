@@ -69,6 +69,27 @@ import {
 import type { DiffScope, FileDiffRequest, HunkMutationRequest } from './services/diff/types'
 import type { CreateWorktreeOptions, DeleteWorktreeOptions } from './services/worktrees/types'
 
+// In dev mode, use a separate app identity so a running installed build
+// doesn't block `npm run dev` via the single-instance lock, and so dev
+// has its own userData (sessions, settings, etc.) isolated from prod.
+// MUST run before any module-level code that resolves `app.getPath('userData')`
+// (e.g., the eager `applySettingsToServices(loadSettings())` below) — otherwise
+// dev would boot reading the production settings.
+//
+// Skipped under e2e (`DPLEX_E2E=1`) or when the launcher passed an explicit
+// `--user-data-dir=…` (Playwright tests do this per-test in a tempdir).
+// Without these guards we'd clobber the test's tempdir with a single shared
+// `DPlex Dev` path, causing parallel test runs to collide on the
+// single-instance lock and self-quit.
+if (
+  is.dev &&
+  process.env.DPLEX_E2E !== '1' &&
+  !process.argv.some((a) => a.startsWith('--user-data-dir='))
+) {
+  app.setName('DPlex Dev')
+  app.setPath('userData', join(app.getPath('appData'), 'DPlex Dev'))
+}
+
 const providerRegistry = createDefaultRegistry()
 
 // Bridge attention service → notifications + renderer.
@@ -85,14 +106,17 @@ attentionService.onSnapshotChanged((snapshot) => {
   }
 })
 
-const SETTINGS_PATH = join(app.getPath('userData'), 'settings.json')
+function settingsPath(): string {
+  return join(app.getPath('userData'), 'settings.json')
+}
 
 let mainWindow: BrowserWindow | null = null
 
 function loadSettings(): Record<string, unknown> {
   try {
-    if (fs.existsSync(SETTINGS_PATH)) {
-      return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'))
+    const p = settingsPath()
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf-8'))
     }
   } catch {
     // Ignore parse errors
@@ -101,9 +125,10 @@ function loadSettings(): Record<string, unknown> {
 }
 
 function saveSettings(data: Record<string, unknown>): void {
-  const tmpPath = SETTINGS_PATH + '.tmp'
+  const p = settingsPath()
+  const tmpPath = p + '.tmp'
   fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2))
-  fs.renameSync(tmpPath, SETTINGS_PATH)
+  fs.renameSync(tmpPath, p)
 }
 
 function mergeSettings(patch: Record<string, unknown>): void {

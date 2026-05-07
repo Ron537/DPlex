@@ -115,6 +115,13 @@ export interface AppSettings {
   sessionMaxAgeDays: number
   /** Hide idle sessions that have no messages yet. Active sessions are always shown. */
   hideEmptySessions: boolean
+  /**
+   * Show a slim list of recent (idle) sessions inside each expanded project /
+   * worktree section so the user can resume them without leaving the panel.
+   */
+  showRecentSessionsInProject: boolean
+  /** Max number of recent sessions surfaced per project / worktree section. */
+  recentSessionsCount: number
   // Attention inbox / notifications
   notificationsEnabled: boolean
   notifyOnApproval: boolean

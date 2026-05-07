@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-05-07
+
+### Features
+
+- Recent sessions per project: each expanded project (and worktree
+  section) now lists your last few idle sessions inline, so you can
+  resume them without leaving the projects panel. Click a row to
+  resume; rows are styled as muted "history" entries and respect the
+  "Hide sessions with no messages" setting.
+- New settings under Sessions to toggle the recent-sessions list and
+  pick how many to show (1–5, default 3).
+
 ## [0.9.2] — 2026-05-07
 
 ### Bug Fixes
@@ -316,7 +328,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/Ron537/DPlex/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/Ron537/DPlex/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/Ron537/DPlex/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Ron537/DPlex/compare/v0.8.0...v0.9.0

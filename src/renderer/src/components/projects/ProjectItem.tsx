@@ -28,7 +28,7 @@ import { getAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
 import { isMixedProviderList } from '../../utils/providerHelpers'
 import { aggregateVisual } from '../../utils/aggregateVisual'
 import { PromptsDialog } from '../sessions/PromptsDialog'
-import { ProjectSessionList } from './ProjectSessionList'
+import { ProjectSessionList, selectRecentSessions } from './ProjectSessionList'
 import { WorktreeSection } from './WorktreeSection'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
 import { focusFirstTabForPaths } from '../../utils/sessionTabs'
@@ -94,6 +94,9 @@ export function ProjectItem({
   const deleteSession = useSessionStore((s) => s.deleteSession)
   const globalDefaults = useSettingsStore((s) => s.settings.worktreeDefaults)
   const defaultAITool = useSettingsStore((s) => s.settings.defaultAITool)
+  const showRecentInProject = useSettingsStore((s) => s.settings.showRecentSessionsInProject)
+  const recentSessionsCount = useSettingsStore((s) => s.settings.recentSessionsCount)
+  const hideEmptySessions = useSettingsStore((s) => s.settings.hideEmptySessions)
   // Resolve the provider for the inline action button. Falls back to the
   // first registered provider so the button still works if the configured
   // default has been removed.
@@ -173,6 +176,21 @@ export function ProjectItem({
   // project's session list spans more than one provider, child rows show
   // their provider corner badge to disambiguate; otherwise they stay quiet.
   const inlineMixedProviders = useMemo(() => isMixedProviderList(sessions), [sessions])
+
+  // Whether the parent project's "main checkout" has any recent (idle)
+  // sessions worth surfacing. Used to decide if the main-checkout
+  // `WorktreeSection` should mount when only recents (and no active rows
+  // or tabs) match — without this the section would silently swallow
+  // recent sessions on projects that have worktrees.
+  const hasMainCheckoutRecents = useMemo(
+    () =>
+      showRecentInProject &&
+      selectRecentSessions(sessions, openTabs, {
+        limit: recentSessionsCount,
+        hideEmpty: hideEmptySessions
+      }).length > 0,
+    [sessions, openTabs, showRecentInProject, recentSessionsCount, hideEmptySessions]
+  )
 
   // Neighbor sibling ids for "Move up / Move down" are supplied by the parent
   // ProjectList, which already knows the rendered top-level order (and thus
@@ -632,7 +650,7 @@ export function ProjectItem({
               {/* Parent's "main checkout" section — shown when worktrees exist
                   so the user can distinguish sessions running on main from
                   worktree-scoped sessions. Always visible, label = parent name. */}
-              {(hasActive || openTabs.length > 0) && (
+              {(hasActive || openTabs.length > 0 || hasMainCheckoutRecents) && (
                 <WorktreeSection
                   project={project}
                   parentProject={project}

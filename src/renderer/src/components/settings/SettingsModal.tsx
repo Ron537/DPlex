@@ -125,6 +125,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
   const { dark: darkThemes, light: lightThemes } = getThemesByVariant()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Accumulator for `applyDebounced`: pending patches are merged so a
+  // user toggling multiple debounced controls within the debounce window
+  // doesn't lose intermediate keys when the timer flushes.
+  const pendingPatchRef = useRef<Partial<AppSettings>>({})
 
   useEffect(() => {
     if (isOpen) {
@@ -153,12 +157,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
     return () => window.removeEventListener('dplex:open-settings', handler)
   }, [])
 
-  // Clear debounce timer on unmount to prevent stale writes
+  // Flush any pending debounced patch on unmount so closing the modal
+  // mid-debounce doesn't silently lose the user's changes. We persist
+  // outside of React's render cycle (the component is gone), but
+  // `updateSettings` only touches the store + IPC — both safe here.
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
+      const pending = pendingPatchRef.current
+      if (Object.keys(pending).length > 0) {
+        pendingPatchRef.current = {}
+        void updateSettings(pending)
+      }
     }
-  }, [])
+  }, [updateSettings])
 
   if (!isOpen) return null
 
@@ -171,10 +183,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
     if (debounceRef.current) clearTimeout(debounceRef.current)
     // Apply to UI immediately via store
     useSettingsStore.setState((s) => ({ settings: { ...s.settings, ...partial } }))
+    // Merge into the pending patch so a flush picks up every key the
+    // user touched during the debounce window — not just the last one.
+    pendingPatchRef.current = { ...pendingPatchRef.current, ...partial }
     // Debounce the persist
     debounceRef.current = setTimeout(() => {
-      updateSettings(partial).then(() => {
-        if (partial.sessionMaxAgeDays !== undefined) {
+      const merged = pendingPatchRef.current
+      pendingPatchRef.current = {}
+      debounceRef.current = null
+      updateSettings(merged).then(() => {
+        if (merged.sessionMaxAgeDays !== undefined) {
           refreshSessions()
         }
       })
@@ -510,6 +528,72 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         Hide sessions with no messages
                       </span>
                     </label>
+                  </SettingItem>
+
+                  <SettingItem
+                    label="Recent sessions in projects"
+                    description="Show a slim list of recent (idle) sessions inside each expanded project so you can resume them without leaving the panel."
+                  >
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.showRecentSessionsInProject}
+                        onChange={(e) =>
+                          applyNow({ showRecentSessionsInProject: e.target.checked })
+                        }
+                        className="accent-[var(--dplex-accent)]"
+                      />
+                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                        Show recent sessions per project
+                      </span>
+                    </label>
+                  </SettingItem>
+
+                  <SettingItem
+                    label="Recent sessions count"
+                    description={`How many recent sessions to surface per project / worktree. Currently ${settings.recentSessionsCount}.`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={1}
+                        max={5}
+                        value={settings.recentSessionsCount}
+                        disabled={!settings.showRecentSessionsInProject}
+                        onChange={(e) =>
+                          applyDebounced({ recentSessionsCount: Number(e.target.value) })
+                        }
+                        className="flex-1 accent-[var(--dplex-accent)]"
+                        style={{
+                          opacity: settings.showRecentSessionsInProject ? 1 : 0.5
+                        }}
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        max={5}
+                        value={settings.recentSessionsCount}
+                        disabled={!settings.showRecentSessionsInProject}
+                        onChange={(e) => {
+                          const n = Number(e.target.value)
+                          if (Number.isFinite(n) && n >= 1) {
+                            applyDebounced({
+                              recentSessionsCount: Math.min(5, Math.max(1, Math.floor(n)))
+                            })
+                          }
+                        }}
+                        className="w-16 rounded px-2 py-1 text-xs outline-none"
+                        style={{
+                          backgroundColor: 'var(--dplex-bg-alt)',
+                          border: '1px solid var(--dplex-border)',
+                          color: 'var(--dplex-text)',
+                          opacity: settings.showRecentSessionsInProject ? 1 : 0.5
+                        }}
+                      />
+                      <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                        sessions
+                      </span>
+                    </div>
                   </SettingItem>
                 </>
               )}

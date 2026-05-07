@@ -23,6 +23,7 @@ import { StatusDot } from '../common/StatusDot'
 import { ProviderGlyph } from '../common/ProviderGlyph'
 import { visualForStatus } from '../../utils/sessionStatusVisual'
 import { closeOpenTabsForSession, focusSessionTab, hasOpenTab } from '../../utils/sessionTabs'
+import { timeAgo } from '../../utils/timeAgo'
 
 interface SessionItemProps {
   session: AISession
@@ -53,17 +54,6 @@ const STATUS_CONFIG: Record<SessionStatus, { color: string; label: string; pulse
  * identity (providerId + sessionId) to avoid cross-provider ID collisions,
  * with a resume-command fallback for legacy tabs missing providerId.
  */
-
-function timeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
-  if (seconds < 60) return 'just now'
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h`
-  const days = Math.floor(hours / 24)
-  return `${days}d`
-}
 
 function folderName(p?: string): string {
   if (!p) return ''

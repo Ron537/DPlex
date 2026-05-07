@@ -135,6 +135,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   sessionPollIntervalMs: 5000,
   sessionMaxAgeDays: 7,
   hideEmptySessions: true,
+  showRecentSessionsInProject: true,
+  recentSessionsCount: 3,
   notificationsEnabled: true,
   notifyOnApproval: true,
   notifyOnInput: true,
