@@ -92,15 +92,25 @@ A few notable consequences:
 
 ## Workspace persistence
 
-AI session tabs are serialized to `sessions.json` in the Electron
-`userData` directory:
+Auto-restoring AI session tabs across app restarts is one of DPlex's
+flagship user-facing guarantees. The implementation:
 
-- On quit, `saveWorkspaceSync` ensures a synchronous save so a SIGTERM
+- AI session tabs are serialized to `sessions.json` in the Electron
+  `userData` directory. The recursive split layout, tab order within
+  each pane, the active group, and the active tab id are all part of
+  this snapshot.
+- Saves happen on every natural lifecycle event (tab open/close,
+  resume, split, group activation, app blur). On quit,
+  `saveWorkspaceSync` performs a synchronous write so a SIGTERM
   doesn't lose state.
-- On restore, session tabs are recreated with their original command
-  and CWD; session IDs are re-resolved from PID after PTY creation
+- On restore, each tab is recreated with its original resume command
+  and CWD; session IDs are then re-resolved from the new PTY's PID
   with retry logic (some AI tools take a beat to write their lock
   file).
+- Session *history* is independent of workspace state — past sessions
+  are discoverable from the providers' data directories regardless of
+  what the workspace snapshot says, so even a hard kill never loses
+  history.
 
 ## Provider system
 
