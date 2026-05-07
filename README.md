@@ -2,9 +2,9 @@
 
 # DPlex
 
-**A terminal multiplexer built for AI-assisted development.**
+**A desktop workspace for the AI CLI sessions you run every day.**
 
-DPlex is a desktop terminal app that manages multiple AI CLI tool sessions alongside regular terminals — all in one window. Think of it as a purpose-built workspace for developers who run **Copilot CLI**, **Claude Code**, or other AI coding agents daily across many projects.
+DPlex **discovers** every **Copilot CLI** / **Claude Code** session you've ever started, lets you **resume** any of them in one click, and **auto-restores every open session tab** the next time you open the app — splits, order, working directory, and resume command preserved. On top of that: the multiplexer essentials — split panes, tabs, projects, worktrees, and a built-in VSCode-style Source Control view.
 
 [![Tests](https://github.com/Ron537/DPlex/actions/workflows/tests.yml/badge.svg)](https://github.com/Ron537/DPlex/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/Ron537/DPlex/actions/workflows/codeql.yml/badge.svg)](https://github.com/Ron537/DPlex/actions/workflows/codeql.yml)
@@ -20,7 +20,7 @@ DPlex is a desktop terminal app that manages multiple AI CLI tool sessions along
 </div>
 
 <p align="center">
-  <img src="./docs/assets/demo.gif" alt="DPlex demo: switching between Projects, Sessions, and Source Control views with a live AI session running in the editor pane" width="900" />
+  <img src="./docs/assets/demo.gif" alt="DPlex demo: switching between Projects and Source Control, then opening the Sessions panel, resuming a past AI session in one click, and chatting with the resumed Copilot session" width="900" />
 </p>
 
 > **🚧 Pre-1.0.** DPlex is functional and used daily by its author, but
@@ -32,11 +32,14 @@ DPlex is a desktop terminal app that manages multiple AI CLI tool sessions along
 
 ## Why DPlex?
 
-When working with AI CLI tools across multiple projects, you end up with a mess of terminal windows — a Copilot session here, a Claude session there, plus regular shells scattered everywhere. DPlex gives you one home for all of it:
+When working with AI CLI tools across multiple projects, you end up with a mess of terminal windows — a Copilot session here, a Claude session there, plus regular shells scattered everywhere, and not a single one of them survives a reboot. DPlex gives you one home for all of it, with **AI session management as the headline feature**:
 
-- **One window** with split panes, tabs, and an activity bar (Projects · Sessions · Source Control).
-- **Automatic session discovery** — sees active and past AI sessions across providers without manual tracking.
-- **Session persistence** — close the app, reopen it, your AI sessions resume where you left off.
+- **🗂️ Discover every past session.** DPlex reads each provider's data directory and surfaces every Copilot CLI / Claude Code session you've ever started — searchable by name, ID, summary, or workspace.
+- **▶️ Resume in one click.** Click any past session and it opens in a new tab with the correct resume command and original CWD. No copy-pasting session IDs from `~/.copilot/...`.
+- **⏹️ Close active sessions from the sidebar.** Stop running AI sessions without hunting for their terminal — closing a tab fully terminates the underlying process.
+- **🗑️ Delete from disk.** Remove a session's stored data when you're done, with confirmation.
+- **♻️ Auto-restore session tabs across restarts.** Quit the app, reopen it tomorrow — every AI session tab snaps back exactly where it was, with the right resume command, CWD, splits, and tab order preserved.
+- **One window** for everything: split panes, tabs, and an activity bar (Projects · Sessions · Source Control).
 - **Project-aware workflow** — group sessions by project, start a new AI session in any folder with one click.
 - **Worktree-friendly** — first-class Git worktree support so concurrent feature work doesn't pollute your main checkout.
 - **Built-in Source Control** — VSCode-style changes view scoped to whichever project (or worktree) you pick.
@@ -134,7 +137,7 @@ CI logs and SBOMs are attached to every release.
     </td>
     <td align="center" width="50%">
       <a href="./docs/assets/02-sessions-panel.png"><img src="./docs/assets/02-sessions-panel.png" alt="Sessions panel with active and historical AI sessions" /></a>
-      <br><sub><b>Sessions panel.</b> Every Copilot CLI / Claude Code session you've ever started, searchable.</sub>
+      <br><sub><b>Sessions panel.</b> Every Copilot CLI / Claude Code session you've ever started, searchable. Click to resume, right-click to delete from disk.</sub>
     </td>
   </tr>
   <tr>
@@ -171,6 +174,60 @@ CI logs and SBOMs are attached to every release.
 
 ## Features
 
+### AI session management
+
+> The headline feature. DPlex gives you full lifecycle control over the
+> Copilot CLI / Claude Code sessions you actually work with daily.
+
+- **🗂️ Past-session list.** Every session you've ever started, surfaced
+  in the **Sessions** activity-bar panel — searchable by name, ID,
+  summary, or workspace, grouped by recency or by project.
+- **▶️ One-click resume.** Click any past session to reopen it in a new
+  tab with the correct resume command and original CWD pre-filled. The
+  re-spawned PTY is matched back to its provider session ID so the
+  active-session indicator lights up automatically once the AI tool
+  writes its lock file.
+- **🟢 Live active-session indicators.** Active sessions are detected
+  via provider lock files (`inuse.<PID>.lock` for Copilot, pidfiles for
+  Claude) with PID liveness checks, so the sidebar always reflects what
+  is actually running.
+- **⏹️ Close active sessions from the sidebar.** Stop a running AI
+  session without finding its terminal — closing the tab fully
+  terminates the underlying process.
+- **🗑️ Delete sessions from disk.** Remove a session's stored history
+  when you're done with it (with confirmation).
+- **🧠 Prompt-history viewer.** Browse and search the prompts you've
+  sent in any past session — useful for re-running, copy-pasting, or
+  remembering what you asked yesterday.
+- **📌 Recent sessions per project.** Each expanded project (and
+  worktree) lists its last few idle sessions inline, so you can resume
+  them without leaving the projects panel.
+- **🧩 Provider-agnostic.** Same start / resume / close / delete flow
+  whether the underlying tool is Copilot CLI, Claude Code, or one you
+  add yourself — see [docs/providers.md](./docs/providers.md).
+
+### Workspace persistence (auto-restore on restart)
+
+> **Close the app today, open it tomorrow — every AI session tab is
+> back exactly where you left it.** This is the feature DPlex was built
+> around.
+
+- **Every AI session tab is restored.** Tabs are serialized to
+  `sessions.json` in the Electron `userData` directory on every natural
+  lifecycle event and synchronously on quit, so a SIGTERM doesn't lose
+  state.
+- **Splits and tab order survive too.** Horizontal/vertical splits, tab
+  order within each pane, the active group, and the active tab are all
+  rebuilt on launch.
+- **Resume command + CWD preserved.** Each restored tab is recreated
+  with its original resume command and working directory. A short retry
+  loop re-resolves the underlying provider session ID once the AI tool
+  writes its lock file, so active-session indicators light up
+  automatically.
+- **History is independent of workspace state.** Even after a hard kill
+  (SIGKILL/OOM) the session *history* is untouched — every previous
+  session is still discoverable and resumable from the Sessions panel.
+
 ### Activity bar — Projects · Sessions · Source Control
 
 - **VSCode-style activity bar** on the far left. One click jumps between projects, sessions, and git changes.
@@ -189,8 +246,8 @@ CI logs and SBOMs are attached to every release.
 - **Split panes** — horizontal and vertical splits with resizable dividers.
 - **Tabbed interface** — multiple terminals per pane, drag tabs between panes.
 - **Tab reordering** — drag and drop within and across groups.
+- **Drag a tab onto another pane's edge** to create a new split right there — handy for putting a freshly-resumed AI session next to the one you already had open.
 - **Shell selector** — pick from auto-detected system shells (bash, zsh, fish, PowerShell, etc.) when opening a new terminal.
-- **Workspace persistence** — AI session tabs are saved and restored across app restarts.
 
 ### Project management
 
@@ -207,16 +264,6 @@ CI logs and SBOMs are attached to every release.
 - **Header dropdown** to switch projects without leaving Git.
 - **Single-click preview** + **double-click promotes to a permanent diff tab** (VSCode behavior).
 - **Live updates** via filesystem watchers — changes appear as you save.
-
-### Sessions
-
-- **Session discovery** — automatically discovers past sessions from each provider's data directory.
-- **Search & filter** — by name, ID, or summary.
-- **Resume** — click to resume any past session in a new terminal tab.
-- **Close active sessions** — stop running AI sessions from the sidebar; closing a tab fully terminates the underlying process.
-- **Delete sessions** — remove session data from disk.
-- **Time and workspace grouping** — group by recency or by workspace.
-- **Prompt history viewer** — browse and search the prompts you've sent in any past session.
 
 ### Attention inbox
 
@@ -262,7 +309,7 @@ There are great tools in adjacent niches. DPlex isn't trying to replace any of t
 | **Wave Terminal**          | AI-focused terminal                    | Adjacent vision; broader scope, more opinionated UI. DPlex is narrower and Electron-portable today.    |
 | **Zed / Cursor**           | AI-native editors                      | They embed the AI in the editor; DPlex orchestrates the AI you already use from the terminal.          |
 
-If your goal is "I want to run a Claude session in repo A, a Copilot session in repo B, and a regular shell in repo C, all visible at once, and yesterday's sessions findable tomorrow" — that's DPlex.
+If your goal is "I want to start a Claude session in repo A today, a Copilot session in repo B tomorrow, find yesterday's sessions whenever I need them, resume any of them in one click, and reopen the app next week with every tab right where I left it" — that's DPlex.
 
 ## FAQ / Troubleshooting
 

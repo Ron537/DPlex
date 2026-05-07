@@ -5,7 +5,9 @@
  *   1. Watching a live AI session
  *   2. Switching to Source Control via the activity bar
  *   3. Picking a different project from the dropdown
- *   4. Splitting the editor and typing into two terminals concurrently
+ *   4. Opening the Sessions panel, resuming a past session in one click
+ *   5. Typing a follow-up prompt into the resumed session and watching
+ *      Copilot respond — proof the resumed session is live
  *
  * Includes an injected SVG "cursor" that smoothly travels between
  * targets so the GIF reads as a guided tour rather than random clicks.
@@ -472,37 +474,94 @@ async function main(): Promise<void> {
   await sleep(1200)
   await captureFrames(window, 18, 'g-api-changes')
 
-  // ── 5. Back to Projects ───────────────────────────────────────────────
-  const projBox = await window.getByTestId('activity-bar-projects').boundingBox()
-  if (projBox) {
-    const tx = projBox.x + projBox.width / 2
-    const ty = projBox.y + projBox.height / 2
+  // ── 5. Open the Sessions panel ────────────────────────────────────────
+  // Tells the user "this is where every past AI session lives, even
+  // ones from yesterday." We move the cursor to the activity-bar
+  // Sessions icon and click; the SessionList already has fakeSessions
+  // seeded into it, so the panel populates immediately.
+  const sessionsBox = await window.getByTestId('activity-bar-sessions').boundingBox()
+  if (sessionsBox) {
+    const tx = sessionsBox.x + sessionsBox.width / 2
+    const ty = sessionsBox.y + sessionsBox.height / 2
     await moveCursorTo(window, tx, ty, 0)
-    await captureFrames(window, 5, 'h-cursor-to-projects')
+    await captureFrames(window, 5, 'h-cursor-to-sessions')
     await clickRipple(window, tx, ty)
-    await window.getByTestId('activity-bar-projects').click()
+    await window.getByTestId('activity-bar-sessions').click()
   }
-  await captureFrames(window, 8, 'i-projects-back')
+  await captureFrames(window, 14, 'i-sessions-panel')
 
-  // ── 6. Vertical split — show two terminals side-by-side ───────────────
-  await window.evaluate(() => {
+  // ── 6. Hover a past session and "click" to resume ─────────────────────
+  // The fake providers don't ship real resume commands, so a bare click
+  // wouldn't open a tab. We move the cursor to the row (with ripple) for
+  // narrative, then programmatically create the resumed tab via
+  // terminalStore + paint AI-session content into it. This faithfully
+  // mirrors what handleResume does in production.
+  const RESUMED_SUMMARY = 'Wire OAuth flow with PKCE and refresh-token rotation'
+  const sessionRow = window.locator(`text=${RESUMED_SUMMARY}`).first()
+  const rowBox = await sessionRow.boundingBox().catch(() => null)
+  if (rowBox) {
+    const tx = rowBox.x + rowBox.width / 2
+    const ty = rowBox.y + rowBox.height / 2
+    await moveCursorTo(window, tx, ty, 0)
+    await captureFrames(window, 5, 'j-cursor-to-session-row')
+    await clickRipple(window, tx, ty)
+  }
+
+  const resumedTabId = (await window.evaluate((title) => {
     // @ts-expect-error injected
     const ts = window.__dplex.terminalStore
     const id = ts.getState().activeGroupId
-    if (id) ts.getState().splitGroup(id, 'vertical')
-  })
+    if (!id) return null
+    return ts.getState().createTerminal(id, title, undefined, undefined, undefined, 'copilot-cli')
+  }, `↻ ${RESUMED_SUMMARY}`)) as string | null
   await sleep(450)
-  await captureFrames(window, 12, 'j-after-split')
 
-  // ── 7. Type a command into the new (right) terminal ───────────────────
+  // Paint a "session resumed" banner into the new tab so viewers
+  // immediately see this is a different session than the one on the left.
+  if (resumedTabId) {
+    await window.evaluate((tabId) => {
+      // @ts-expect-error injected
+      const entry = window.__dplex.terminalRegistry.getTerminalEntry(tabId)
+      if (!entry?.term) return
+      const ESC = '\x1b'
+      const RESET = `${ESC}[0m`
+      const DIM = `${ESC}[2m`
+      const BOLD = `${ESC}[1m`
+      const CYAN = `${ESC}[36m`
+      const GREEN = `${ESC}[32m`
+      const MAGENTA = `${ESC}[35m`
+      entry.term.write(
+        [
+          `${ESC}[3J${ESC}[2J${ESC}[H`,
+          `${DIM}~/code/api-server  ${CYAN}main${RESET}`,
+          `${DIM}$${RESET} copilot --resume=4f1e9c`,
+          ``,
+          `${BOLD}${MAGENTA}● ${BOLD}Wire OAuth flow with PKCE${RESET}`,
+          `${DIM}  Resumed · 17 messages · 4 tool calls${RESET}`,
+          ``,
+          `${GREEN}${BOLD}● Copilot${RESET}`,
+          `  Session restored. Where were we?`,
+          ``,
+          `${DIM}  Last edit: src/handlers/auth.ts (+34 −12)${RESET}`,
+          `${DIM}  Pending: rotate refresh tokens on /token endpoint${RESET}`,
+          ``
+        ].join('\r\n')
+      )
+    }, resumedTabId)
+  }
+  await captureFrames(window, 12, 'k-resumed-tab')
+
+  // ── 7. Talk with the resumed session — type a prompt + stream reply ───
+  // Demonstrates the resumed session is alive and interactive, not a
+  // static screenshot. We type into the now-active resumed tab and
+  // stream a short Copilot response.
   await typeIntoActiveTerminal(
     window,
-    'copilot -p "audit the auth handler for token leaks"\r\n',
-    'k-typing',
-    50
+    'rotate the refresh token on /token and add a unit test\r\n',
+    'm-typing',
+    45
   )
-  await sleep(120)
-  // Stream a fake response.
+  await sleep(140)
   await window.evaluate(() => {
     // @ts-expect-error injected
     const groups = window.__dplex.terminalStore.getState().groups
@@ -518,23 +577,26 @@ async function main(): Promise<void> {
     const DIM = `${ESC}[2m`
     const BOLD = `${ESC}[1m`
     const GREEN = `${ESC}[32m`
-    const MAGENTA = `${ESC}[35m`
     const YELLOW = `${ESC}[33m`
     entry.term.write(
       [
         ``,
-        `${BOLD}${MAGENTA}● ${BOLD}Audit auth handler for token leaks${RESET}`,
-        ``,
         `${GREEN}${BOLD}● Copilot${RESET}`,
-        `  Reading the auth handler...`,
+        `  On it — adding rotation + a unit test.`,
         ``,
-        `  ${YELLOW}▸${RESET} ${DIM}readFile${RESET} src/handlers/auth.ts`,
-        `  ${GREEN}✓${RESET} ${DIM}204 lines${RESET}`,
+        `  ${YELLOW}▸${RESET} ${DIM}edit${RESET} src/handlers/refresh.ts`,
+        `  ${GREEN}✓${RESET} ${DIM}+22 −4${RESET}`,
+        ``,
+        `  ${YELLOW}▸${RESET} ${DIM}create${RESET} src/handlers/refresh.test.ts`,
+        `  ${GREEN}✓${RESET} ${DIM}38 lines${RESET}`,
+        ``,
+        `  ${YELLOW}▸${RESET} ${DIM}run${RESET} npm test -- refresh`,
+        `  ${GREEN}✓${RESET} ${DIM}5 passed${RESET}`,
         ``
       ].join('\r\n')
     )
   })
-  await captureFrames(window, 14, 'l-response')
+  await captureFrames(window, 18, 'n-chat-response')
 
   // ── 8. End frame — let it breathe ─────────────────────────────────────
   await captureFrames(window, 10, 'z-end')
