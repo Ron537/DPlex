@@ -139,6 +139,13 @@ export interface AppSettings {
   projectPanelShowFooter: boolean
   /** Right-side Git panel UI state. */
   gitPanel: GitPanelSettings
+  /**
+   * Version the user explicitly chose to skip from the update banner.
+   * Honored only for `manualDownload` flows (macOS, .deb) — auto-install
+   * platforms surface the banner only after the bytes are already on
+   * disk and a "Skip" choice there would just waste the download.
+   */
+  skippedUpdateVersion: string | null
 }
 
 export interface GitPanelSettings {
