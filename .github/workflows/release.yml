@@ -24,6 +24,15 @@ jobs:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
+    env:
+      # `electron-vite build` peaks well above Node's default 2 GB heap
+      # because of the Monaco editor chunk (~6 MB) plus Vite 7's larger
+      # in-memory graph. Raising the limit globally for the build job
+      # keeps macOS / Linux / Windows on the same configuration and
+      # avoids "Allocation failed - JavaScript heap out of memory" OOMs
+      # on macos-latest (which exits 134 mid-build, see release run
+      # 25514990847).
+      NODE_OPTIONS: --max-old-space-size=8192
     strategy:
       fail-fast: false
       matrix:
