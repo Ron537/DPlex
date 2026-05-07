@@ -1,13 +1,16 @@
 import { useEffect, useCallback } from 'react'
 import { AppLayout } from './components/layout/AppLayout'
 import { ProviderIconSprite } from './components/common/ProviderIconSprite'
+import { UpdateBanner } from './components/common/UpdateBanner'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTerminalStore } from './stores/terminalStore'
 import { useProvidersStore } from './stores/providersStore'
+import { useUpdateStore } from './stores/updateStore'
 
 function App(): React.JSX.Element {
   const loadSettings = useSettingsStore((s) => s.loadSettings)
   const loadProviders = useProvidersStore((s) => s.load)
+  const initUpdateStore = useUpdateStore((s) => s.init)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeTerminal = useTerminalStore((s) => s.closeTerminal)
@@ -18,7 +21,8 @@ function App(): React.JSX.Element {
   useEffect(() => {
     loadSettings()
     loadProviders()
-  }, [loadSettings, loadProviders])
+    return initUpdateStore()
+  }, [loadSettings, loadProviders, initUpdateStore])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -107,6 +111,7 @@ function App(): React.JSX.Element {
     <>
       <ProviderIconSprite />
       <AppLayout />
+      <UpdateBanner />
     </>
   )
 }

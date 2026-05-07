@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { AttentionSnapshot } from './attentionTypes'
+import type { UpdateState } from './updateTypes'
 import type {
   CreateWorktreeOptions,
   CreateWorktreeResult,
@@ -138,6 +139,12 @@ export interface DplexAPI {
     getAvailableShells: () => Promise<{ name: string; path: string }[]>
     selectFolder: () => Promise<string | null>
     getGitBranch: (dirPath: string) => Promise<string | null>
+    getVersion: () => Promise<string>
+    getUpdateState: () => Promise<UpdateState>
+    checkForUpdates: () => Promise<UpdateState>
+    installUpdate: () => Promise<UpdateState>
+    openUpdateDownload: () => Promise<UpdateState>
+    onUpdateStateChanged: (cb: (state: UpdateState) => void) => () => void
   }
   git: {
     getBranch: (dirPath: string) => Promise<string | null>
@@ -285,7 +292,21 @@ const dplexAPI: DplexAPI = {
     getHomedir: () => ipcRenderer.invoke('app:getHomedir'),
     getAvailableShells: () => ipcRenderer.invoke('app:getAvailableShells'),
     selectFolder: () => ipcRenderer.invoke('app:selectFolder'),
-    getGitBranch: (dirPath: string) => ipcRenderer.invoke('app:getGitBranch', dirPath)
+    getGitBranch: (dirPath: string) => ipcRenderer.invoke('app:getGitBranch', dirPath),
+    getVersion: () => ipcRenderer.invoke('app:getVersion'),
+    getUpdateState: () => ipcRenderer.invoke('app:getUpdateState'),
+    checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
+    installUpdate: () => ipcRenderer.invoke('app:installUpdate'),
+    openUpdateDownload: () => ipcRenderer.invoke('app:openUpdateDownload'),
+    onUpdateStateChanged: (callback: (state: UpdateState) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: UpdateState): void => {
+        callback(state)
+      }
+      ipcRenderer.on('app:updateStateChanged', handler)
+      return () => {
+        ipcRenderer.removeListener('app:updateStateChanged', handler)
+      }
+    }
   },
   git: {
     getBranch: (dirPath: string) => ipcRenderer.invoke('git:getBranch', dirPath),
