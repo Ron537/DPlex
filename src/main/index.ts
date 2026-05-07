@@ -32,7 +32,13 @@ import {
   setActiveCompositeId
 } from './services/notifications'
 import * as attentionService from './services/attentionService'
-import { initAutoUpdater } from './services/autoUpdater'
+import {
+  initAutoUpdater,
+  getUpdateState,
+  checkForUpdates,
+  installUpdate,
+  openUpdateDownload
+} from './services/autoUpdater'
 import { makeCompositeId } from '../preload/attentionTypes'
 import {
   getBranch,
@@ -492,6 +498,16 @@ function registerIpcHandlers(): void {
   // Git branch for a directory (legacy — kept for backward compatibility)
   ipcMain.handle('app:getGitBranch', async (_event, dirPath: string) => {
     return getBranch(dirPath)
+  })
+
+  // App version + auto-update
+  ipcMain.handle('app:getVersion', () => app.getVersion())
+  ipcMain.handle('app:getUpdateState', () => getUpdateState())
+  ipcMain.handle('app:checkForUpdates', () => checkForUpdates())
+  ipcMain.handle('app:installUpdate', () => installUpdate())
+  ipcMain.handle('app:openUpdateDownload', () => {
+    openUpdateDownload()
+    return getUpdateState()
   })
 
   // Git service — reactive branch watching

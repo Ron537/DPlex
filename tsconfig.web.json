@@ -5,7 +5,8 @@
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.tsx",
     "src/preload/*.d.ts",
-    "src/preload/attentionTypes.ts"
+    "src/preload/attentionTypes.ts",
+    "src/preload/updateTypes.ts"
   ],
   "compilerOptions": {
     "composite": true,

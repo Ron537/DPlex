@@ -153,7 +153,8 @@ const DEFAULT_SETTINGS: AppSettings = {
     open: false,
     width: 300,
     sectionCollapse: { changes: false }
-  }
+  },
+  skippedUpdateVersion: null
 }
 
 interface SettingsState {
