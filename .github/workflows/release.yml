@@ -173,9 +173,24 @@ jobs:
             found
           ' CHANGELOG.md)
 
+          # Match the emoji-prefixed category headings used by the
+          # auto-generated "What's Changed" block (configured in
+          # .github/release.yml) so both sections feel like one document.
+          # CHANGELOG.md keeps plain headings — readers there get clean
+          # text; the GitHub release body gets the polished version.
+          if [ -n "$CHANGELOG_SECTION" ]; then
+            CHANGELOG_SECTION=$(printf '%s' "$CHANGELOG_SECTION" \
+              | sed -E \
+                  -e 's/^### Features$/### ⭐ Features/' \
+                  -e 's/^### Bug Fixes$/### 🐛 Bug Fixes/' \
+                  -e 's/^### Performance$/### ⚡ Performance/' \
+                  -e 's/^### Documentation$/### 📚 Documentation/' \
+                  -e 's/^### Improvements$/### 🔧 Improvements/')
+          fi
+
           {
             if [ -n "$CHANGELOG_SECTION" ]; then
-              printf '%s\n\n---\n\n' "$CHANGELOG_SECTION"
+              printf '## ✨ What'\''s New\n\n%s\n\n---\n\n' "$CHANGELOG_SECTION"
             fi
             printf '%s\n\n---\n\n' "$GENERATED"
             printf '## 📦 Downloads\n\n'
