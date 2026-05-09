@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.3] — 2026-05-09
+
+### Bug Fixes
+
+- Copilot CLI sessions now show their real title in the sidebar
+  again. Recent Copilot CLI versions write the session name to
+  `workspace.yaml` instead of `plan.md`, so older builds of DPlex
+  fell back to displaying truncated session ids for both active and
+  idle sessions.
+- Sessions sidebar now reflects the live tab title — the project list
+  and active-session rows update as soon as the AI tool renames the
+  tab on its first response, and stay updated instead of snapping
+  back to the session id while the on-disk name catches up.
+- Desktop notifications no longer silently drop when a session changes
+  attention type quickly (e.g. finishing right before asking for
+  approval). The cooldown now applies per attention type and never
+  blocks idle-too-long reminders.
+
 ## [0.11.2] — 2026-05-07
 
 ### Performance
@@ -363,7 +381,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.11.2...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.11.3...HEAD
+[0.11.3]: https://github.com/Ron537/DPlex/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/Ron537/DPlex/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/Ron537/DPlex/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/Ron537/DPlex/compare/v0.10.0...v0.11.0

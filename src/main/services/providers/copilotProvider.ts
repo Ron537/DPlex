@@ -86,11 +86,17 @@ export class CopilotProvider extends BaseSessionProvider {
   // ── Private Helpers ──────────────────────────────────────────────
 
   private async getDisplayName(sessionDir: string, sessionId: string): Promise<string> {
+    // Newer Copilot CLI versions write the human-readable session title to
+    // `workspace.yaml` as `name:`. Older versions used `summary:` and/or a
+    // `plan.md` heading. Check the modern field first, fall back through the
+    // legacy sources, and finally to the first user prompt and a truncated id.
+    const workspace = await this.parseWorkspaceYaml(sessionDir)
+    if (workspace.name) return workspace.name
+
     const planPath = path.join(sessionDir, 'plan.md')
     const planName = await this.parsePlanSummary(planPath)
     if (planName) return planName
 
-    const workspace = await this.parseWorkspaceYaml(sessionDir)
     if (workspace.summary) return workspace.summary
 
     const firstMsg = await this.parseFirstUserMessage(sessionDir)
@@ -111,14 +117,16 @@ export class CopilotProvider extends BaseSessionProvider {
 
   private async parseWorkspaceYaml(
     sessionDir: string
-  ): Promise<{ summary?: string; cwd?: string; branch?: string }> {
+  ): Promise<{ name?: string; summary?: string; cwd?: string; branch?: string }> {
     try {
       const yamlPath = path.join(sessionDir, 'workspace.yaml')
       const content = await fsp.readFile(yamlPath, 'utf-8')
+      const nameMatch = content.match(/^name:\s*(.+)$/m)
       const summaryMatch = content.match(/^summary:\s*(.+)$/m)
       const cwdMatch = content.match(/^cwd:\s*(.+)$/m)
       const branchMatch = content.match(/^branch:\s*(.+)$/m)
       return {
+        name: nameMatch?.[1]?.trim().replace(/^["']|["']$/g, '') || undefined,
         summary: summaryMatch?.[1]?.trim() || undefined,
         cwd: cwdMatch?.[1]?.trim() || undefined,
         branch: branchMatch?.[1]?.trim() || undefined

@@ -14,6 +14,10 @@ import iconAsset from '../../../resources/icon.png?asset'
 
 const lastNotificationTime = new Map<string, number>()
 
+function cooldownKey(compositeId: string, kind: AttentionKind): string {
+  return `${compositeId}:${kind}`
+}
+
 let cachedIcon: NativeImage | null = null
 function getNotificationIcon(): NativeImage | undefined {
   if (!cachedIcon) {
@@ -81,7 +85,12 @@ export function applyNotificationSettings(patch: Partial<NotificationSettings>):
 }
 
 export function clearNotificationState(compositeIdOrSessionId: string): void {
-  lastNotificationTime.delete(compositeIdOrSessionId)
+  // Wipe any per-kind cooldown entries for this composite id.
+  for (const key of [...lastNotificationTime.keys()]) {
+    if (key === compositeIdOrSessionId || key.startsWith(`${compositeIdOrSessionId}:`)) {
+      lastNotificationTime.delete(key)
+    }
+  }
   dismissNotificationFor(compositeIdOrSessionId)
 }
 
@@ -193,11 +202,21 @@ export function handleAttentionEvent(ev: AttentionEvent): void {
     return
   }
 
-  const now = Date.now()
-  const lastTime = lastNotificationTime.get(ev.compositeId) ?? 0
-  const cooldownMs = Math.max(0, settings.cooldownSeconds) * 1000
-  if (cooldownMs > 0 && now - lastTime < cooldownMs) return
-  lastNotificationTime.set(ev.compositeId, now)
+  // Cooldown is per (session, kind). A 30s cooldown across all kinds caused
+  // legitimate notifications to silently drop — e.g. a session that finished,
+  // immediately got a follow-up prompt, then asked for approval would only
+  // notify once. The attention inbox showed all events but the OS popup
+  // didn't, which is exactly the "sometimes works, sometimes doesn't"
+  // symptom users reported. Escalations always notify (the whole point of an
+  // escalation is to remind a user who already missed the first ping).
+  if (!ev.escalated) {
+    const key = cooldownKey(ev.compositeId, ev.kind)
+    const lastTime = lastNotificationTime.get(key) ?? 0
+    const cooldownMs = Math.max(0, settings.cooldownSeconds) * 1000
+    const now = Date.now()
+    if (cooldownMs > 0 && now - lastTime < cooldownMs) return
+    lastNotificationTime.set(key, now)
+  }
 
   const notification = new Notification({
     title: kindTitle(ev.kind, ev.escalated),

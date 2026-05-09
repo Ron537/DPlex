@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useSessionStore } from '../stores/sessionStore'
 import { useTerminalStore } from '../stores/terminalStore'
 import {
   getOrCreateTerminal,
@@ -12,6 +13,16 @@ import {
 const SESSION_RESOLVE_RETRY_MS = 5000
 const SESSION_RESOLVE_MAX_RETRIES = 6
 
+/**
+ * OSC titles received before the tab's sessionId has been resolved.
+ * Indexed by terminalId so we can replay the latest title into the live-title
+ * override (and back into the tab) once {@link resolveSessionIdForTab}
+ * associates the session. Without this, the title that the AI tool sets in
+ * the first second or two — typically the most useful summary — was clobbered
+ * by the provider's truncated-id displayName when association completed.
+ */
+const pendingOscTitles = new Map<string, string>()
+
 function tabExists(terminalId: string): boolean {
   return useTerminalStore.getState().groups.some((g) => g.tabs.some((t) => t.id === terminalId))
 }
@@ -23,7 +34,10 @@ async function resolveSessionIdForTab(
   providerId: string | undefined,
   attempt = 0
 ): Promise<void> {
-  if (!tabExists(terminalId)) return
+  if (!tabExists(terminalId)) {
+    pendingOscTitles.delete(terminalId)
+    return
+  }
   // Already resolved — never overwrite. The persisted sessionId is
   // authoritative on restore, and overwriting it during slow PID lookups
   // would let CWD fallback misassign a session from a different running
@@ -32,14 +46,26 @@ async function resolveSessionIdForTab(
     .getState()
     .groups.flatMap((g) => g.tabs)
     .find((t) => t.id === terminalId)
-  if (currentTab && currentTab.kind !== 'fileDiff' && currentTab.sessionId) return
+  if (currentTab && currentTab.kind !== 'fileDiff' && currentTab.sessionId) {
+    pendingOscTitles.delete(terminalId)
+    return
+  }
   try {
     const result = await window.dplex.sessions.resolveSessionId(pid, cwd, providerId)
     if (result) {
       if (tabExists(terminalId)) {
         const store = useTerminalStore.getState()
         store.associateSessionId(terminalId, result.sessionId)
-        store.renameTerminal(terminalId, result.displayName)
+        // If an OSC title arrived before resolution, prefer it — that's
+        // typically the AI tool's own summary of what the session is about
+        // and is more useful than the provider's truncated-id fallback.
+        const pending = pendingOscTitles.get(terminalId)
+        const titleToUse = pending ?? result.displayName
+        store.renameTerminal(terminalId, titleToUse)
+        if (pending && providerId) {
+          useSessionStore.getState().setLiveTabTitle(providerId, result.sessionId, pending)
+        }
+        pendingOscTitles.delete(terminalId)
       }
       return
     }
@@ -185,10 +211,29 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
             window.dplex.pty.resize(ptyId, cols, rows)
           })
 
-          // Sync terminal title changes (OSC escape sequences) to the tab title
+          // Sync terminal title changes (OSC escape sequences) to the tab
+          // title, and mirror to the matching AI session row in the sidebar
+          // via a live override. The override survives subsequent provider
+          // re-parses, which is necessary because Copilot CLI emits its OSC
+          // title before plan.md / events.jsonl land on disk — without the
+          // override the sidebar briefly shows the right name and then snaps
+          // back to the truncated session id when the provider's update
+          // arrives. The override is cleared when the tab is closed via
+          // useTerminalStore.removeTerminal. If the title arrives before
+          // session id resolution completes we stash it in pendingOscTitles
+          // so resolveSessionIdForTab can apply it once the sessionId is
+          // known.
           const onTitleDisposable = entry.term.onTitleChange((title) => {
-            if (title && tabExists(terminalId)) {
-              useTerminalStore.getState().renameTerminal(terminalId, title)
+            if (!title || !tabExists(terminalId)) return
+            const store = useTerminalStore.getState()
+            store.renameTerminal(terminalId, title)
+            const t = store.groups.flatMap((g) => g.tabs).find((tab) => tab.id === terminalId)
+            if (!t || t.kind === 'fileDiff' || !t.providerId) return
+            if (t.sessionId) {
+              useSessionStore.getState().setLiveTabTitle(t.providerId, t.sessionId, title)
+              pendingOscTitles.delete(terminalId)
+            } else {
+              pendingOscTitles.set(terminalId, title)
             }
           })
 

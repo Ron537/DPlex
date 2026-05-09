@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { TerminalTab, FileDiffTab, EditorTab, EditorGroup, LayoutNode } from '../types'
 import { isFileDiffTab, isTerminalTab } from '../types'
 import { destroyTerminal } from '../services/terminalRegistry'
+import { useSessionStore } from './sessionStore'
 
 let tabCounter = 0
 let groupCounter = 0
@@ -210,6 +211,11 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       void window.dplex.sessions.close(tab.sessionId, tab.providerId).catch(() => {
         // ignore — provider may fail if the session is already gone
       })
+      // Drop the live OSC-title override so future provider updates can win
+      // again. The current sessions[].displayName keeps the last OSC title
+      // until the provider's onUpdated callback re-derives it (which happens
+      // shortly after closeSession kills the lock file).
+      useSessionStore.getState().clearLiveTabTitle(tab.providerId, tab.sessionId)
     }
 
     destroyTerminal(terminalId)
