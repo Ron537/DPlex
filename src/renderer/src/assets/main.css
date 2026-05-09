@@ -611,3 +611,26 @@ body {
   opacity: 1;
   background: var(--dplex-hover);
 }
+
+/* Pulse highlight for settings rows surfaced via the global search.
+   Triggered by SettingsModal when the user opens the modal via a
+   settings search result. The highlight lingers long enough for the
+   eye to track the scroll-into-view motion before fading out. */
+@keyframes dplex-setting-pulse {
+  0% {
+    background-color: var(--dplex-accent-soft);
+    box-shadow: 0 0 0 4px var(--dplex-accent-soft);
+  }
+  60% {
+    background-color: var(--dplex-accent-soft);
+    box-shadow: 0 0 0 4px var(--dplex-accent-soft);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.dplex-setting-pulse {
+  animation: dplex-setting-pulse 3s ease-out 1;
+  border-radius: 6px;
+}

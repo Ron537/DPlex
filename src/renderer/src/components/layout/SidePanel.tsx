@@ -18,6 +18,7 @@ import { ProjectList } from '../projects/ProjectList'
 import { ProjectPanelFooter } from '../projects/ProjectPanelFooter'
 import { SessionPanelFooter } from '../sessions/SessionPanelFooter'
 import { GitSidePanelView } from '../git/GitSidePanelView'
+import { SearchSidePanelView } from '../search/SearchSidePanelView'
 
 export type SessionGroupMode = 'time' | 'workspace'
 
@@ -382,6 +383,8 @@ export function SidePanel(): React.JSX.Element | null {
     >
       {activeTab === 'git' ? (
         <GitSidePanelView />
+      ) : activeTab === 'search' ? (
+        <SearchSidePanelView />
       ) : (
         <>
           <div

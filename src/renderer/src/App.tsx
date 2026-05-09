@@ -2,10 +2,13 @@ import { useEffect, useCallback } from 'react'
 import { AppLayout } from './components/layout/AppLayout'
 import { ProviderIconSprite } from './components/common/ProviderIconSprite'
 import { UpdateBanner } from './components/common/UpdateBanner'
+import { CommandPalette } from './components/search/CommandPalette'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTerminalStore } from './stores/terminalStore'
 import { useProvidersStore } from './stores/providersStore'
 import { useUpdateStore } from './stores/updateStore'
+import { useCommandPaletteStore } from './stores/commandPaletteStore'
+import { dispatchOpenSettings } from './utils/openSettings'
 
 function App(): React.JSX.Element {
   const loadSettings = useSettingsStore((s) => s.loadSettings)
@@ -45,14 +48,30 @@ function App(): React.JSX.Element {
         toggleSidebar()
       }
 
-      if (meta && e.key === 'f') {
+      // Cmd/Ctrl+F focuses the active panel's search input. Cmd/Ctrl+Shift+F
+      // opens the activity-bar Search view (and focuses its input).
+      if (meta && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault()
-        // Expand the panel if it's collapsed so the search input is mounted.
-        const settings = useSettingsStore.getState().settings
-        if (settings.sidebarPanelCollapsed) {
-          useSettingsStore.getState().updateSettings({ sidebarPanelCollapsed: false })
+        const settingsStore = useSettingsStore.getState()
+        if (e.shiftKey) {
+          settingsStore.updateSettings({
+            sidebarActiveTab: 'search',
+            sidebarPanelCollapsed: false,
+            sidebarVisible: true
+          })
+          // The Search view focuses its input on mount via the same custom
+          // event the panel-search inputs listen for. Defer to the next
+          // frame so the input exists in the DOM before we dispatch.
+          requestAnimationFrame(() => {
+            window.dispatchEvent(new CustomEvent('dplex:focus-search'))
+          })
+          return
         }
-        // Defer to next frame so the input exists in the DOM before we focus.
+        // Plain Cmd/Ctrl+F — expand the panel if collapsed, then focus the
+        // current view's search input.
+        if (settingsStore.settings.sidebarPanelCollapsed) {
+          settingsStore.updateSettings({ sidebarPanelCollapsed: false })
+        }
         requestAnimationFrame(() => {
           window.dispatchEvent(new CustomEvent('dplex:focus-search'))
         })
@@ -60,7 +79,14 @@ function App(): React.JSX.Element {
 
       if (meta && e.key === ',') {
         e.preventDefault()
-        window.dispatchEvent(new CustomEvent('dplex:open-settings'))
+        dispatchOpenSettings()
+      }
+
+      // Cmd/Ctrl+P → global search palette (all categories).
+      // Cmd/Ctrl+Shift+P → command runner (commands category only).
+      if (meta && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault()
+        useCommandPaletteStore.getState().toggle(e.shiftKey ? 'commands' : 'all')
       }
 
       if (meta && !e.shiftKey && e.key === '\\') {
@@ -112,6 +138,7 @@ function App(): React.JSX.Element {
       <ProviderIconSprite />
       <AppLayout />
       <UpdateBanner />
+      <CommandPalette />
     </>
   )
 }

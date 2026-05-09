@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-05-09
+
+### Features
+
+- New global search palette (Cmd/Ctrl+P) for finding projects,
+  sessions, open tabs, settings, and actions in one place. Results
+  are grouped by type with keyboard navigation.
+- Cmd/Ctrl+Shift+P opens a command runner filtered to actions —
+  add a project, toggle the sidebar, switch views, and more.
+- New Search view in the activity bar mirrors the palette as a
+  persistent side panel.
+- Searching for a setting jumps straight to the right Settings tab
+  and pulse-highlights the row.
+
 ## [0.11.3] — 2026-05-09
 
 ### Bug Fixes
@@ -381,7 +395,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.11.3...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/Ron537/DPlex/compare/v0.11.3...v0.12.0
 [0.11.3]: https://github.com/Ron537/DPlex/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/Ron537/DPlex/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/Ron537/DPlex/compare/v0.11.0...v0.11.1
