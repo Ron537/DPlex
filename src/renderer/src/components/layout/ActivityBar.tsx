@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
-import { FolderOpen, History, GitBranch, Settings } from 'lucide-react'
+import { FolderOpen, History, GitBranch, Settings, Search } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useGitPanelStore } from '../../stores/gitPanelStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { MOD, SHIFT } from '../../utils/shortcuts'
 
-type ActivityId = 'projects' | 'sessions' | 'git'
+type ActivityId = 'search' | 'projects' | 'sessions' | 'git'
 
 interface ActivityItem {
   id: ActivityId
@@ -18,7 +18,8 @@ interface ActivityItem {
 const ITEMS: ActivityItem[] = [
   { id: 'projects', label: 'Projects', Icon: FolderOpen },
   { id: 'sessions', label: 'Sessions', Icon: History },
-  { id: 'git', label: 'Source Control', shortcut: `${MOD}${SHIFT}G`, Icon: GitBranch }
+  { id: 'git', label: 'Source Control', shortcut: `${MOD}${SHIFT}G`, Icon: GitBranch },
+  { id: 'search', label: 'Search', shortcut: `${MOD}${SHIFT}F`, Icon: Search }
 ]
 
 const BAR_WIDTH = 48

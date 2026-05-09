@@ -167,6 +167,13 @@ export interface DplexAPI {
     onUpdated: (callback: (snapshot: AttentionSnapshot) => void) => () => void
     onFocusSession: (callback: (compositeId: string) => void) => () => void
   }
+  shortcuts: {
+    /** Subscribe to keyboard shortcuts forwarded from the main process.
+     *  Used for accelerators that collide with Chromium defaults
+     *  (e.g. Ctrl+P / print) — the main process suppresses Chromium's
+     *  built-in handler and re-delivers the intent here. */
+    onShortcut: (callback: (id: string) => void) => () => void
+  }
   worktrees: {
     list: (repoRoot: string) => Promise<WorktreeInfo[]>
     listBranches: (
@@ -340,6 +347,13 @@ const dplexAPI: DplexAPI = {
         callback(compositeId)
       ipcRenderer.on('attention:focusSession', handler)
       return () => ipcRenderer.removeListener('attention:focusSession', handler)
+    }
+  },
+  shortcuts: {
+    onShortcut: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, id: string): void => callback(id)
+      ipcRenderer.on('dplex:shortcut', handler)
+      return () => ipcRenderer.removeListener('dplex:shortcut', handler)
     }
   },
   worktrees: {

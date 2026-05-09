@@ -2,10 +2,13 @@ import { useEffect, useCallback } from 'react'
 import { AppLayout } from './components/layout/AppLayout'
 import { ProviderIconSprite } from './components/common/ProviderIconSprite'
 import { UpdateBanner } from './components/common/UpdateBanner'
+import { CommandPalette } from './components/search/CommandPalette'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTerminalStore } from './stores/terminalStore'
 import { useProvidersStore } from './stores/providersStore'
 import { useUpdateStore } from './stores/updateStore'
+import { useCommandPaletteStore } from './stores/commandPaletteStore'
+import { dispatchOpenSettings } from './utils/openSettings'
 
 function App(): React.JSX.Element {
   const loadSettings = useSettingsStore((s) => s.loadSettings)
@@ -23,6 +26,17 @@ function App(): React.JSX.Element {
     loadProviders()
     return initUpdateStore()
   }, [loadSettings, loadProviders, initUpdateStore])
+
+  const openSidebarSearch = useCallback(() => {
+    useSettingsStore.getState().updateSettings({
+      sidebarActiveTab: 'search',
+      sidebarPanelCollapsed: false,
+      sidebarVisible: true
+    })
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent('dplex:focus-search'))
+    })
+  }, [])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -45,14 +59,18 @@ function App(): React.JSX.Element {
         toggleSidebar()
       }
 
-      if (meta && e.key === 'f') {
+      // Cmd/Ctrl+F focuses the active panel's search input.
+      // Cmd/Ctrl+Shift+F opens the activity-bar Search view.
+      if (meta && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault()
-        // Expand the panel if it's collapsed so the search input is mounted.
-        const settings = useSettingsStore.getState().settings
-        if (settings.sidebarPanelCollapsed) {
-          useSettingsStore.getState().updateSettings({ sidebarPanelCollapsed: false })
+        if (e.shiftKey) {
+          openSidebarSearch()
+          return
         }
-        // Defer to next frame so the input exists in the DOM before we focus.
+        const settingsStore = useSettingsStore.getState()
+        if (settingsStore.settings.sidebarPanelCollapsed) {
+          settingsStore.updateSettings({ sidebarPanelCollapsed: false })
+        }
         requestAnimationFrame(() => {
           window.dispatchEvent(new CustomEvent('dplex:focus-search'))
         })
@@ -60,7 +78,23 @@ function App(): React.JSX.Element {
 
       if (meta && e.key === ',') {
         e.preventDefault()
-        window.dispatchEvent(new CustomEvent('dplex:open-settings'))
+        dispatchOpenSettings()
+      }
+
+      // Cmd/Ctrl+P → global search palette (all categories).
+      // Cmd/Ctrl+Shift+P → command runner (commands category only).
+      //
+      // These are *also* registered as `globalShortcut`s in main, which is
+      // what catches the keystroke for real users on Linux/Windows where
+      // Chromium would otherwise intercept Ctrl+P for print preview.
+      // `globalShortcut` consumes native input before Chromium dispatches
+      // the DOM event, so on real keystrokes only that path fires. This
+      // DOM listener handles Playwright synthesized events (CDP injects
+      // straight into the renderer, bypassing the OS pipeline that
+      // `globalShortcut` listens on) and serves as a defensive fallback.
+      if (meta && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault()
+        useCommandPaletteStore.getState().toggle(e.shiftKey ? 'commands' : 'all')
       }
 
       if (meta && !e.shiftKey && e.key === '\\') {
@@ -99,7 +133,15 @@ function App(): React.JSX.Element {
         }
       }
     },
-    [createTerminal, closeTerminal, toggleSidebar, splitGroup, setActiveGroup, setActiveTerminalInGroup]
+    [
+      createTerminal,
+      closeTerminal,
+      toggleSidebar,
+      splitGroup,
+      setActiveGroup,
+      setActiveTerminalInGroup,
+      openSidebarSearch
+    ]
   )
 
   useEffect(() => {
@@ -107,11 +149,31 @@ function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
+  // Subscribe to shortcuts forwarded from the main-process `globalShortcut`
+  // accelerators. These are accelerators Chromium would otherwise consume
+  // before any renderer keydown listener sees them (e.g. Ctrl+P → print
+  // preview on Linux/Windows). The DOM keydown listener above stays in
+  // place as a fallback for environments where `globalShortcut` doesn't
+  // fire (e.g. Playwright synthesized events go straight to the renderer
+  // via CDP, bypassing the OS pipeline).
+  useEffect(() => {
+    return window.dplex.shortcuts.onShortcut((id) => {
+      if (id === 'palette.all') {
+        useCommandPaletteStore.getState().toggle('all')
+      } else if (id === 'palette.commands') {
+        useCommandPaletteStore.getState().toggle('commands')
+      } else if (id === 'sidebar.search') {
+        openSidebarSearch()
+      }
+    })
+  }, [openSidebarSearch])
+
   return (
     <>
       <ProviderIconSprite />
       <AppLayout />
       <UpdateBanner />
+      <CommandPalette />
     </>
   )
 }

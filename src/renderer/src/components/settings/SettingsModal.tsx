@@ -31,7 +31,10 @@ const SHORTCUTS: { category: string; items: { keys: string; description: string 
       { keys: `${MOD}W`, description: 'Close terminal' },
       { keys: `${MOD},`, description: 'Open settings' },
       { keys: `${MOD}B`, description: 'Toggle sidebar' },
-      { keys: `${MOD}F`, description: 'Focus panel search' }
+      { keys: `${MOD}F`, description: 'Focus panel search' },
+      { keys: `${MOD}${SHIFT}F`, description: 'Open Search side panel' },
+      { keys: `${MOD}P`, description: 'Global search' },
+      { keys: `${MOD}${SHIFT}P`, description: 'Run a command' }
     ]
   },
   {
@@ -103,14 +106,16 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
 function SettingItem({
   label,
   description,
-  children
+  children,
+  settingId
 }: {
   label: string
   description?: string
   children: React.ReactNode
+  settingId?: string
 }): React.JSX.Element {
   return (
-    <div className="mb-5 last:mb-0">
+    <div className="mb-5 last:mb-0" data-setting-id={settingId}>
       <span className="block text-[11px] font-medium mb-0.5" style={{ color: 'var(--dplex-text)' }}>
         {label}
       </span>
@@ -156,9 +161,35 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
   useEffect(() => {
     const handler = (e: Event): void => {
-      const detail = (e as CustomEvent<{ section?: string }>).detail
-      if (detail?.section === 'worktrees') {
-        setActiveTab('worktrees')
+      const detail = (e as CustomEvent<{ section?: string; highlightId?: string }>).detail
+      const section = detail?.section
+      if (section && TABS.some((t) => t.id === section)) {
+        setActiveTab(section as SettingsTab)
+      }
+      const highlightId = detail?.highlightId
+      if (highlightId) {
+        // Defer until after the tab switch + render commit so the target row
+        // is mounted before we try to find it.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const root = document.querySelector('[data-testid="settings-modal"]')
+            const node = (root ?? document).querySelector(
+              `[data-setting-id="${CSS.escape(highlightId)}"]`
+            ) as HTMLElement | null
+            if (!node) return
+            node.scrollIntoView({ block: 'center', behavior: 'smooth' })
+            node.classList.remove('dplex-setting-pulse')
+            // Force reflow so re-adding the class restarts the animation.
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+            void node.offsetWidth
+            node.classList.add('dplex-setting-pulse')
+            const onEnd = (): void => {
+              node.classList.remove('dplex-setting-pulse')
+              node.removeEventListener('animationend', onEnd)
+            }
+            node.addEventListener('animationend', onEnd)
+          })
+        })
       }
     }
     window.addEventListener('dplex:open-settings', handler)
@@ -208,7 +239,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" data-testid="settings-modal">
       <div
         className="rounded-2xl shadow-2xl flex flex-col"
         style={{
@@ -302,7 +333,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
             <div className="flex-1 px-6 py-5 overflow-y-auto">
               {activeTab === 'appearance' && (
-                <SettingItem label="Theme">
+                <SettingItem label="Theme" settingId="theme">
                   <h4
                     className="text-[10px] font-semibold uppercase tracking-wider mb-2"
                     style={{ color: 'var(--dplex-text-muted)' }}
@@ -404,6 +435,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                 <>
                   <SettingItem
                     label="Default Shell"
+                    settingId="default-shell"
                     description="The shell used when opening new terminals. Override per-tab with the dropdown next to the + button."
                   >
                     <select
@@ -427,6 +459,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Font Size"
+                    settingId="font-size"
                     description={`Controls the terminal font size in pixels. Currently ${settings.fontSize}px.`}
                   >
                     <input
@@ -441,6 +474,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Font Family"
+                    settingId="font-family"
                     description="Controls the terminal font family. Use a monospace font for best results."
                   >
                     <input
@@ -462,6 +496,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                 <>
                   <SettingItem
                     label="Default AI Tool"
+                    settingId="default-ai-tool"
                     description="The AI CLI tool used for session discovery and integration."
                   >
                     <select
@@ -484,6 +519,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Session Max Age"
+                    settingId="session-max-age"
                     description={`Sessions older than this are hidden from the sessions panel. Currently ${settings.sessionMaxAgeDays} day${settings.sessionMaxAgeDays === 1 ? '' : 's'}.`}
                   >
                     <div className="flex items-center gap-3">
@@ -523,6 +559,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Hide empty sessions"
+                    settingId="hide-empty-sessions"
                     description="Hide idle sessions that have no messages yet. Active sessions are always shown."
                   >
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -540,6 +577,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Recent sessions in projects"
+                    settingId="recent-sessions-in-projects"
                     description="Show a slim list of recent (idle) sessions inside each expanded project so you can resume them without leaving the panel."
                   >
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -559,6 +597,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Recent sessions count"
+                    settingId="recent-sessions-count"
                     description={`How many recent sessions to surface per project / worktree. Currently ${settings.recentSessionsCount}.`}
                   >
                     <div className="flex items-center gap-3">
@@ -610,6 +649,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                 <>
                   <SettingItem
                     label="Enable notifications"
+                    settingId="notifications-enabled"
                     description="Master toggle for desktop notifications and the attention inbox badge."
                   >
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -627,6 +667,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Notify me about"
+                    settingId="notify-events"
                     description="Pick which kinds of events raise a desktop notification."
                   >
                     <div className="space-y-1.5">
@@ -668,6 +709,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Only when unfocused"
+                    settingId="notify-only-unfocused"
                     description="Suppress notifications when the DPlex window is already focused."
                   >
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -685,6 +727,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Play sound"
+                    settingId="notify-sound"
                     description="Use the OS default sound when a notification fires."
                   >
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -702,6 +745,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Do not disturb"
+                    settingId="do-not-disturb"
                     description="Quiet-hours window (24-hour HH:MM). Leave both empty to disable. Supports overnight spans (e.g. 22:00 → 08:00)."
                   >
                     <div className="flex items-center gap-2">
@@ -739,6 +783,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Notification cooldown"
+                    settingId="notify-cooldown"
                     description={`Minimum time between notifications for the same session. Currently ${settings.notificationCooldownSeconds} second${settings.notificationCooldownSeconds === 1 ? '' : 's'}. Set to 0 to disable.`}
                   >
                     <div className="flex items-center gap-3">
@@ -781,6 +826,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Idle escalation"
+                    settingId="idle-escalation"
                     description={`Re-notify when a waiting session goes unanswered for this long. Currently ${settings.idleTooLongMinutes} minute${settings.idleTooLongMinutes === 1 ? '' : 's'}.`}
                   >
                     <div className="flex items-center gap-3">
@@ -824,6 +870,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                 <>
                   <SettingItem
                     label="Location pattern"
+                    settingId="worktree-location-pattern"
                     description="Where new worktrees are created. Supports {project} and {branch} placeholders."
                   >
                     <input
@@ -849,6 +896,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Env files to copy"
+                    settingId="worktree-env-files"
                     description="Comma-separated relative paths (supports trailing wildcards like .env.*.local)."
                   >
                     <input
@@ -877,6 +925,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="Setup script"
+                    settingId="worktree-setup-script"
                     description="Shell script to run after creating a worktree (e.g. npm install)."
                   >
                     <textarea
@@ -902,6 +951,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   <SettingItem
                     label="After creation"
+                    settingId="worktree-after-create"
                     description="What to do once a worktree is ready."
                   >
                     <select
@@ -1059,7 +1109,7 @@ function AboutPanel(): React.JSX.Element {
   })()
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-setting-id="about-version">
       <div
         className="rounded-lg p-4"
         style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
