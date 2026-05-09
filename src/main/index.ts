@@ -1,4 +1,12 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  nativeImage,
+  globalShortcut
+} from 'electron'
 import { join } from 'path'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
@@ -265,32 +273,55 @@ function createWindow(): void {
     }
   })
 
-  // Suppress Chromium's built-in keyboard accelerators that collide with
-  // app-level shortcuts owned by the renderer, and forward the press as an
-  // IPC instead. Calling `event.preventDefault()` on `before-input-event`
-  // stops Chromium AND blocks DOM dispatch, so we can't simply swallow it
-  // here — we have to re-deliver the intent to the renderer.
-  //   - Ctrl/Cmd+P → 'palette.all' (Chromium default: print preview)
+  // App-level keyboard shortcuts owned by the renderer that collide with
+  // Chromium built-ins (notably Ctrl+P → print preview on Linux/Windows).
+  // We use `globalShortcut` so the accelerators fire regardless of which
+  // sub-element has DOM focus and so Chromium can't intercept them at all.
+  // The shortcuts are scoped to the app's focus state via the
+  // `browser-window-focus` / `browser-window-blur` events below — they are
+  // *not* stolen system-wide.
+  //   - Ctrl/Cmd+P → 'palette.all'
   //   - Ctrl/Cmd+Shift+P → 'palette.commands'
   //   - Ctrl/Cmd+Shift+F → 'sidebar.search'
   // The renderer subscribes via `window.dplex.shortcuts.onShortcut`.
-  mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.type !== 'keyDown') return
-    const key = input.key.toLowerCase()
-    const mod = input.control || input.meta
-    if (!mod) return
-    let shortcutId: string | null = null
-    if (key === 'p') {
-      shortcutId = input.shift ? 'palette.commands' : 'palette.all'
-    } else if (key === 'f' && input.shift) {
-      shortcutId = 'sidebar.search'
-    }
-    if (shortcutId === null) return
-    event.preventDefault()
+  const APP_SHORTCUTS: ReadonlyArray<{ accelerator: string; id: string }> = [
+    { accelerator: 'CommandOrControl+P', id: 'palette.all' },
+    { accelerator: 'CommandOrControl+Shift+P', id: 'palette.commands' },
+    { accelerator: 'CommandOrControl+Shift+F', id: 'sidebar.search' }
+  ]
+  const sendShortcut = (id: string): void => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('dplex:shortcut', shortcutId)
+      mainWindow.webContents.send('dplex:shortcut', id)
     }
-  })
+  }
+  const registerAppShortcuts = (): void => {
+    // Re-registration is a no-op in Electron (returns false), but `focus`
+    // can fire repeatedly without a paired `blur` (e.g. show, restore,
+    // Alt+Tab). Unregister first so the registration call is always fresh
+    // and never silently fails on repeat focuses.
+    unregisterAppShortcuts()
+    for (const { accelerator, id } of APP_SHORTCUTS) {
+      try {
+        globalShortcut.register(accelerator, () => sendShortcut(id))
+      } catch {
+        // Best-effort — a conflicting registration in another app shouldn't
+        // tear down DPlex.
+      }
+    }
+  }
+  const unregisterAppShortcuts = (): void => {
+    for (const { accelerator } of APP_SHORTCUTS) {
+      try {
+        globalShortcut.unregister(accelerator)
+      } catch {
+        // ignore
+      }
+    }
+  }
+  registerAppShortcuts()
+  mainWindow.on('focus', registerAppShortcuts)
+  mainWindow.on('blur', unregisterAppShortcuts)
+  mainWindow.on('closed', unregisterAppShortcuts)
 
   // Harden external link handling: shell.openExternal will happily dispatch
   // any URL scheme to the OS handler — including dangerous ones like `file:`,
@@ -1062,9 +1093,16 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  // Unregister any app-level globalShortcuts so a relaunch doesn't see
+  // stale registrations from a prior process.
+  globalShortcut.unregisterAll()
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
 
 app.on('before-quit', () => {
