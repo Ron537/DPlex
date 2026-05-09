@@ -8,12 +8,22 @@ interface SessionState {
   searchQuery: string
   watching: boolean
   sessionNameOverrides: Record<string, string>
+  /**
+   * In-memory titles set by the AI tool's OSC title sequences for currently
+   * open tabs. Survives provider re-parses (which can briefly flip displayName
+   * back to the truncated session id before plan.md / first user message
+   * lands on disk). Not persisted — cleared on app reload and when the tab
+   * is closed via {@link clearLiveTabTitle}.
+   */
+  liveTabTitles: Record<string, string>
 
   refreshSessions: () => Promise<void>
   setSearchQuery: (query: string) => void
   closeSession: (sessionId: string) => Promise<void>
   deleteSession: (sessionId: string) => Promise<void>
   setSessionNameOverride: (sessionId: string, name: string) => void
+  setLiveTabTitle: (aiTool: string, sessionId: string, title: string) => void
+  clearLiveTabTitle: (aiTool: string, sessionId: string) => void
   startWatching: () => void
   stopWatching: () => void
 
@@ -29,12 +39,20 @@ function sessionKey(aiTool: string, id: string): string {
 
 function mapDiscoveredToAISession(
   s: Awaited<ReturnType<typeof window.dplex.sessions.discover>>[number],
-  nameOverrides: Record<string, string>
+  nameOverrides: Record<string, string>,
+  liveTabTitles: Record<string, string>
 ): AISession {
   const key = sessionKey(s.aiTool, s.id)
+  // Precedence: user-set persistent override → live OSC title from open tab
+  // → provider-derived displayName. The live title bridges the gap between
+  // the AI tool sending an OSC title (which arrives in the tab immediately)
+  // and the provider's on-disk parse picking up a name (which can lag for
+  // several seconds while plan.md / events.jsonl get written).
+  const displayName =
+    nameOverrides[key] ?? nameOverrides[s.id] ?? liveTabTitles[key] ?? s.displayName
   return {
     id: s.id,
-    displayName: nameOverrides[key] ?? nameOverrides[s.id] ?? s.displayName,
+    displayName,
     status: s.status === 'active' ? ('active' as const) : ('idle' as const),
     aiTool: s.aiTool,
     createdAt: new Date(s.createdAt),
@@ -60,6 +78,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
     searchQuery: '',
     watching: false,
     sessionNameOverrides: {},
+    liveTabTitles: {},
 
     refreshSessions: async () => {
       set({ loading: true, error: null })
@@ -73,8 +92,10 @@ export const useSessionStore = create<SessionState>((set, get) => {
           }
         }
         const raw = await window.dplex.sessions.discover()
-        const { sessionNameOverrides } = get()
-        const sessions = raw.map((s) => mapDiscoveredToAISession(s, sessionNameOverrides))
+        const { sessionNameOverrides, liveTabTitles } = get()
+        const sessions = raw.map((s) =>
+          mapDiscoveredToAISession(s, sessionNameOverrides, liveTabTitles)
+        )
         set({ sessions, loading: false })
       } catch (err) {
         set({ error: String(err), loading: false })
@@ -133,11 +154,43 @@ export const useSessionStore = create<SessionState>((set, get) => {
       })
     },
 
+    setLiveTabTitle: (aiTool, sessionId, title) => {
+      const key = sessionKey(aiTool, sessionId)
+      set((state) => {
+        if (state.liveTabTitles[key] === title) return state
+        const liveTabTitles = { ...state.liveTabTitles, [key]: title }
+        // Apply immediately to any matching session row, but never override
+        // a user-set persistent name.
+        const persistent =
+          state.sessionNameOverrides[key] ?? state.sessionNameOverrides[sessionId]
+        if (persistent) return { liveTabTitles }
+        return {
+          liveTabTitles,
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId && s.aiTool === aiTool && s.displayName !== title
+              ? { ...s, displayName: title }
+              : s
+          )
+        }
+      })
+    },
+
+    clearLiveTabTitle: (aiTool, sessionId) => {
+      const key = sessionKey(aiTool, sessionId)
+      set((state) => {
+        if (!(key in state.liveTabTitles)) return state
+        const { [key]: _removed, ...rest } = state.liveTabTitles
+        void _removed
+        return { liveTabTitles: rest }
+      })
+    },
+
     startWatching: () => {
       if (get().watching) return
 
       const unsubUpdated = window.dplex.sessions.onSessionUpdated((raw) => {
-        const updated = mapDiscoveredToAISession(raw, get().sessionNameOverrides)
+        const { sessionNameOverrides, liveTabTitles } = get()
+        const updated = mapDiscoveredToAISession(raw, sessionNameOverrides, liveTabTitles)
         set((state) => ({
           sessions: state.sessions.map((s) =>
             s.id === updated.id && s.aiTool === updated.aiTool ? updated : s
@@ -146,7 +199,8 @@ export const useSessionStore = create<SessionState>((set, get) => {
       })
 
       const unsubAdded = window.dplex.sessions.onSessionAdded((raw) => {
-        const added = mapDiscoveredToAISession(raw, get().sessionNameOverrides)
+        const { sessionNameOverrides, liveTabTitles } = get()
+        const added = mapDiscoveredToAISession(raw, sessionNameOverrides, liveTabTitles)
         set((state) => {
           if (state.sessions.some((s) => s.id === added.id && s.aiTool === added.aiTool)) {
             return state
