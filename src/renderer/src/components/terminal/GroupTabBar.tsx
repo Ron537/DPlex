@@ -7,16 +7,12 @@ import {
   SplitSquareVertical
 } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
-import { useAttentionStore } from '../../stores/attentionStore'
+import { useSessionStore } from '../../stores/sessionStore'
+import { StatusDot } from '../common/StatusDot'
+import { labelForVisual } from '../../utils/sessionStatusVisual'
+import { effectiveSessionVisual } from '../../utils/sessionPairing'
 import { ShellSelector } from './ShellSelector'
 import type { EditorGroup } from '../../types'
-import type { AttentionKind } from '../../../../preload/attentionTypes'
-
-const DOT_COLOR: Record<AttentionKind, string> = {
-  waitingForApproval: 'var(--dplex-status-approval)',
-  waitingForInput: 'var(--dplex-status-waiting)',
-  finished: 'var(--dplex-status-thinking)'
-}
 
 interface GroupTabBarProps {
   group: EditorGroup
@@ -47,7 +43,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const activeEvents = useAttentionStore((s) => s.active)
+  const sessions = useSessionStore((s) => s.sessions)
 
   const handleDoubleClick = (tabId: string, currentTitle: string): void => {
     setEditingTabId(tabId)
@@ -188,18 +184,22 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               />
               {(() => {
                 if (!tabSessionId || !tabProviderId) return null
-                const compositeId = `${tabProviderId}:${tabSessionId}`
-                const event = activeEvents.find(
-                  (e) => e.compositeId === compositeId && !e.suppressed
+                const session = sessions.find(
+                  (s) => s.id === tabSessionId && s.aiTool === tabProviderId
                 )
-                if (!event) return null
-                return (
-                  <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: DOT_COLOR[event.kind] }}
-                    title={event.kind}
-                  />
-                )
+                // Guard against stale `detailedStatus` lingering on sessions
+                // whose lock has died (status === 'idle'). Mirrors the same
+                // safety check applied in ProjectAvatarButton.
+                if (!session || session.status !== 'active') return null
+                // `effectiveSessionVisual` treats active-but-untyped sessions
+                // as `thinking` so a freshly-spawned session (still in PTY
+                // bring-up before any JSONL events land) shows a live dot
+                // instead of disappearing.
+                const visual = effectiveSessionVisual(session)
+                // Hide on idle to keep tabs visually quiet — only show when
+                // the AI is actively working or waiting on the user.
+                if (visual === 'idle') return null
+                return <StatusDot visual={visual} title={labelForVisual(visual)} />
               })()}
               {editingTabId === tab.id ? (
                 <input

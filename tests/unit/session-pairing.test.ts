@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { pairTabsToSessions } from '../../src/renderer/src/utils/sessionPairing'
-import type { AISession, TerminalTab } from '../../src/renderer/src/types'
+import { effectiveSessionVisual, pairTabsToSessions } from '../../src/renderer/src/utils/sessionPairing'
+import type { AISession, SessionStatus, TerminalTab } from '../../src/renderer/src/types'
 
 const cwd = '/Users/me/repo'
 
@@ -107,5 +107,37 @@ describe('pairTabsToSessions', () => {
     const r = pairTabsToSessions(sessions, tabs)
     expect(r.pairs[0].match).toBeUndefined()
     expect(r.unpaired.map((u) => u.id)).toEqual(['a'])
+  })
+})
+
+describe('effectiveSessionVisual', () => {
+  function mkSession(
+    status: 'active' | 'idle',
+    detailedStatus?: SessionStatus
+  ): AISession {
+    return {
+      id: 'x',
+      aiTool: 'copilot-cli',
+      status,
+      detailedStatus,
+      title: 'x',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    } as unknown as AISession
+  }
+
+  it('uses detailedStatus when present', () => {
+    expect(effectiveSessionVisual(mkSession('active', 'thinking'))).toBe('thinking')
+    expect(effectiveSessionVisual(mkSession('active', 'executingTool'))).toBe('running')
+    expect(effectiveSessionVisual(mkSession('active', 'awaitingApproval'))).toBe('attn')
+    expect(effectiveSessionVisual(mkSession('active', 'waitingForUser'))).toBe('waiting')
+  })
+
+  it('falls back to "thinking" for active sessions without detailedStatus', () => {
+    expect(effectiveSessionVisual(mkSession('active', undefined))).toBe('thinking')
+  })
+
+  it('falls back to "idle" for non-active sessions without detailedStatus', () => {
+    expect(effectiveSessionVisual(mkSession('idle', undefined))).toBe('idle')
   })
 })
