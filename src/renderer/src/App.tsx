@@ -48,27 +48,12 @@ function App(): React.JSX.Element {
         toggleSidebar()
       }
 
-      // Cmd/Ctrl+F focuses the active panel's search input. Cmd/Ctrl+Shift+F
-      // opens the activity-bar Search view (and focuses its input).
-      if (meta && (e.key === 'f' || e.key === 'F')) {
+      // Cmd/Ctrl+F focuses the active panel's search input. Plain F only —
+      // Cmd/Ctrl+Shift+F is delivered via the main-process accelerator
+      // forwarder so Chromium's defaults can't swallow it on Linux.
+      if (meta && !e.shiftKey && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault()
         const settingsStore = useSettingsStore.getState()
-        if (e.shiftKey) {
-          settingsStore.updateSettings({
-            sidebarActiveTab: 'search',
-            sidebarPanelCollapsed: false,
-            sidebarVisible: true
-          })
-          // The Search view focuses its input on mount via the same custom
-          // event the panel-search inputs listen for. Defer to the next
-          // frame so the input exists in the DOM before we dispatch.
-          requestAnimationFrame(() => {
-            window.dispatchEvent(new CustomEvent('dplex:focus-search'))
-          })
-          return
-        }
-        // Plain Cmd/Ctrl+F — expand the panel if collapsed, then focus the
-        // current view's search input.
         if (settingsStore.settings.sidebarPanelCollapsed) {
           settingsStore.updateSettings({ sidebarPanelCollapsed: false })
         }
@@ -82,11 +67,27 @@ function App(): React.JSX.Element {
         dispatchOpenSettings()
       }
 
-      // Cmd/Ctrl+P → global search palette (all categories).
-      // Cmd/Ctrl+Shift+P → command runner (commands category only).
+      // Cmd/Ctrl+P / Cmd/Ctrl+Shift+P / Cmd/Ctrl+Shift+F also fire from the
+      // main-process accelerator forwarder. We keep the DOM keydown path
+      // here for environments where `before-input-event` doesn't fire (e.g.
+      // Playwright synthesized events on macOS) — when both paths are
+      // active, main's preventDefault suppresses DOM dispatch, so only one
+      // ever runs per keystroke.
       if (meta && (e.key === 'p' || e.key === 'P')) {
         e.preventDefault()
         useCommandPaletteStore.getState().toggle(e.shiftKey ? 'commands' : 'all')
+      }
+
+      if (meta && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault()
+        useSettingsStore.getState().updateSettings({
+          sidebarActiveTab: 'search',
+          sidebarPanelCollapsed: false,
+          sidebarVisible: true
+        })
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new CustomEvent('dplex:focus-search'))
+        })
       }
 
       if (meta && !e.shiftKey && e.key === '\\') {
@@ -132,6 +133,28 @@ function App(): React.JSX.Element {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
+
+  // Subscribe to shortcuts forwarded from the main-process accelerator
+  // hook. These are accelerators Chromium would otherwise consume before
+  // any renderer keydown listener sees them (e.g. Ctrl+P → print preview).
+  useEffect(() => {
+    return window.dplex.shortcuts.onShortcut((id) => {
+      if (id === 'palette.all') {
+        useCommandPaletteStore.getState().toggle('all')
+      } else if (id === 'palette.commands') {
+        useCommandPaletteStore.getState().toggle('commands')
+      } else if (id === 'sidebar.search') {
+        useSettingsStore.getState().updateSettings({
+          sidebarActiveTab: 'search',
+          sidebarPanelCollapsed: false,
+          sidebarVisible: true
+        })
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new CustomEvent('dplex:focus-search'))
+        })
+      }
+    })
+  }, [])
 
   return (
     <>

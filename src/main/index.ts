@@ -265,6 +265,33 @@ function createWindow(): void {
     }
   })
 
+  // Suppress Chromium's built-in keyboard accelerators that collide with
+  // app-level shortcuts owned by the renderer, and forward the press as an
+  // IPC instead. Calling `event.preventDefault()` on `before-input-event`
+  // stops Chromium AND blocks DOM dispatch, so we can't simply swallow it
+  // here — we have to re-deliver the intent to the renderer.
+  //   - Ctrl/Cmd+P → 'palette.all' (Chromium default: print preview)
+  //   - Ctrl/Cmd+Shift+P → 'palette.commands'
+  //   - Ctrl/Cmd+Shift+F → 'sidebar.search'
+  // The renderer subscribes via `window.dplex.shortcuts.onShortcut`.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const key = input.key.toLowerCase()
+    const mod = input.control || input.meta
+    if (!mod) return
+    let shortcutId: string | null = null
+    if (key === 'p') {
+      shortcutId = input.shift ? 'palette.commands' : 'palette.all'
+    } else if (key === 'f' && input.shift) {
+      shortcutId = 'sidebar.search'
+    }
+    if (shortcutId === null) return
+    event.preventDefault()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('dplex:shortcut', shortcutId)
+    }
+  })
+
   // Harden external link handling: shell.openExternal will happily dispatch
   // any URL scheme to the OS handler — including dangerous ones like `file:`,
   // `javascript:`, or OS-registered protocol handlers (e.g. `ms-excel:`) that
