@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-05-10
+
+### Features
+
+- AI session tabs now show a live status dot — the same colors used in
+  the sidebar — so you can tell at a glance whether a background tab is
+  thinking, running a tool, or waiting on you, without switching to it.
+  Idle tabs stay quiet.
+
 ## [0.12.0] — 2026-05-09
 
 ### Features
@@ -395,7 +404,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/Ron537/DPlex/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Ron537/DPlex/compare/v0.11.3...v0.12.0
 [0.11.3]: https://github.com/Ron537/DPlex/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/Ron537/DPlex/compare/v0.11.1...v0.11.2
