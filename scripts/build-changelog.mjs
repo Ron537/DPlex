@@ -359,8 +359,19 @@ function main() {
   // Patch the home page in-place: only the {{LATEST_RELEASES}} and
   // {{LATEST_VERSION}} tokens. The home page lives at outIndexPath because
   // build-site.mjs already copied site/ → _site/ before this script runs.
-  if (existsSync(outIndexPath)) {
-    const indexHtml = readFileSync(outIndexPath, 'utf8')
+  // We attempt the read directly (no separate exists check) so there's no
+  // TOCTOU window between check and read.
+  let indexHtml
+  try {
+    indexHtml = readFileSync(outIndexPath, 'utf8')
+  } catch (err) {
+    if (err && err.code === 'ENOENT') {
+      indexHtml = null
+    } else {
+      throw err
+    }
+  }
+  if (indexHtml !== null) {
     const patched = indexHtml
       .replace(/{{LATEST_RELEASES}}/g, () => latestPreviewHtml)
       .replace(/{{LATEST_VERSION}}/g, () => escapeHtml(latestVersion))
