@@ -32,6 +32,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        # The site builder uses the `ignore` npm package to respect
+        # .gitignore. Skip lifecycle scripts (no Electron download needed
+        # for a static-site build) to keep this fast.
+        run: npm ci --ignore-scripts --omit=optional
 
       - name: Build site
         run: node scripts/build-site.mjs
