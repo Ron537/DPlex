@@ -6,6 +6,9 @@ on:
     paths:
       - 'site/**'
       - 'docs/assets/**'
+      - 'scripts/build-changelog.mjs'
+      - 'scripts/build-site.mjs'
+      - 'CHANGELOG.md'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -25,15 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Assemble site bundle
-        run: |
-          set -e
-          mkdir -p _site
-          cp -R site/. _site/
-          # Co-locate the screenshots so the index.html's `./assets/...`
-          # references resolve under the Pages URL.
-          mkdir -p _site/assets
-          cp -R docs/assets/. _site/assets/
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build site
+        run: node scripts/build-site.mjs
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

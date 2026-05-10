@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-05-10
+
+### Improvements
+
+- Polished, fully responsive GitHub Pages site with a dedicated
+  Changelog page that auto-generates from `CHANGELOG.md` on every
+  push — search engines now index every release directly. Mobile nav,
+  reflowed compare table, FAQ section, structured data, sitemap, and
+  `robots.txt` round out the SEO refresh.
+
 ## [0.13.0] — 2026-05-10
 
 ### Features
@@ -404,7 +414,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/Ron537/DPlex/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/Ron537/DPlex/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Ron537/DPlex/compare/v0.11.3...v0.12.0
 [0.11.3]: https://github.com/Ron537/DPlex/compare/v0.11.2...v0.11.3
