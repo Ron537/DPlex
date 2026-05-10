@@ -1,42 +1,84 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="prompt" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#a78bfa"/>
-      <stop offset="100%" stop-color="#6366f1"/>
+    <linearGradient id="bg" x1="96" y1="48" x2="416" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#44568c" />
+      <stop offset="0.55" stop-color="#324176" />
+      <stop offset="1" stop-color="#243260" />
     </linearGradient>
+    <linearGradient id="panel" x1="109" y1="114" x2="412" y2="409" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1a2138" />
+      <stop offset="1" stop-color="#0d1224" />
+    </linearGradient>
+    <linearGradient id="tab" x1="105" y1="146" x2="204" y2="195" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a8c1ff" />
+      <stop offset="1" stop-color="#5b87e8" />
+    </linearGradient>
+    <linearGradient id="prompt" x1="129" y1="227" x2="192" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#86efac" />
+      <stop offset="1" stop-color="#4ade80" />
+    </linearGradient>
+    <filter
+      id="shadow"
+      x="20"
+      y="41"
+      width="472"
+      height="418"
+      color-interpolation-filters="sRGB"
+      filterUnits="userSpaceOnUse"
+    >
+      <feDropShadow dx="0" dy="20" stdDeviation="20" flood-color="#000000" flood-opacity="0.45" />
+      <feDropShadow dx="0" dy="0" stdDeviation="16" flood-color="#5b87e8" flood-opacity="0.22" />
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="108" fill="#050505"/>
-  <!-- Sidebar -->
-  <rect x="66" y="86" width="105" height="340" rx="14" fill="#1a1a1a"/>
-  <rect x="66" y="86" width="105" height="340" rx="14" fill="none" stroke="#2a2a2a" stroke-width="2"/>
-  <!-- Project entries -->
-  <rect x="80" y="112" width="76" height="9" rx="4" fill="#888" opacity="0.4"/>
-  <rect x="80" y="128" width="50" height="5" rx="2.5" fill="#555" opacity="0.3"/>
-  <!-- Active project -->
-  <rect x="66" y="150" width="3" height="35" rx="1.5" fill="#8b5cf6"/>
-  <rect x="80" y="156" width="76" height="9" rx="4" fill="#ccc" opacity="0.7"/>
-  <rect x="80" y="172" width="40" height="5" rx="2.5" fill="#8b5cf6" opacity="0.4"/>
-  <rect x="80" y="200" width="76" height="9" rx="4" fill="#888" opacity="0.25"/>
-  <rect x="80" y="216" width="55" height="5" rx="2.5" fill="#555" opacity="0.2"/>
-  <rect x="80" y="244" width="76" height="9" rx="4" fill="#888" opacity="0.2"/>
-  <!-- Divider -->
-  <rect x="181" y="96" width="2" height="320" rx="1" fill="#2a2a2a"/>
-  <!-- Terminal area -->
-  <rect x="193" y="86" width="253" height="340" rx="14" fill="#131313"/>
-  <rect x="193" y="86" width="253" height="340" rx="14" fill="none" stroke="#222222" stroke-width="2"/>
-  <!-- Mini tab bar -->
-  <rect x="207" y="97" width="55" height="4" rx="2" fill="#8b5cf6"/>
-  <rect x="270" y="97" width="40" height="4" rx="2" fill="#333" opacity="0.5"/>
-  <rect x="318" y="97" width="40" height="4" rx="2" fill="#333" opacity="0.3"/>
-  <!-- Prompt -->
-  <path d="M220,175 L248,196 L220,217" stroke="url(#prompt)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <rect x="262" y="188" width="90" height="8" rx="4" fill="#555" opacity="0.3"/>
-  <!-- Response -->
-  <rect x="220" y="240" width="185" height="7" rx="3.5" fill="#333" opacity="0.4"/>
-  <rect x="220" y="258" width="140" height="7" rx="3.5" fill="#333" opacity="0.3"/>
-  <rect x="220" y="276" width="165" height="7" rx="3.5" fill="#333" opacity="0.35"/>
-  <!-- Prompt 2 -->
-  <path d="M220,325 L248,346 L220,367" stroke="#22c55e" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <rect x="262" y="338" width="60" height="8" rx="4" fill="#555" opacity="0.25"/>
-  <rect x="332" y="332" width="5" height="24" rx="2.5" fill="#22c55e"/>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+
+  <g filter="url(#shadow)">
+    <rect
+      x="105"
+      y="77"
+      width="302"
+      height="61"
+      rx="31"
+      fill="#252e48"
+      stroke="#3d4a6e"
+      stroke-width="7"
+      opacity="0.85"
+    />
+    <rect
+      x="81"
+      y="105"
+      width="349"
+      height="61"
+      rx="31"
+      fill="#1d243a"
+      stroke="#3d4a6e"
+      stroke-width="7"
+      opacity="0.95"
+    />
+    <rect
+      x="56"
+      y="133"
+      width="401"
+      height="274"
+      rx="68"
+      fill="url(#panel)"
+      stroke="#3d4a6e"
+      stroke-width="9"
+    />
+
+    <rect x="105" y="178" width="99" height="31" rx="15" fill="url(#tab)" />
+    <rect x="225" y="178" width="78" height="31" rx="15" fill="#4a5680" />
+    <rect x="324" y="178" width="54" height="31" rx="15" fill="#4a5680" opacity="0.7" />
+
+    <path
+      d="M136 249L189 291L136 334"
+      fill="none"
+      stroke="url(#prompt)"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="35"
+    />
+    <rect x="219" y="275" width="132" height="33" rx="17" fill="#e8e8ee" />
+  </g>
 </svg>
