@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0c0f" />
+<meta name="color-scheme" content="dark" />
+
+<title>Changelog — DPlex AI session manager</title>
+<meta name="description" content="Full release history for DPlex, the open-source AI session manager for Copilot CLI and Claude Code. Every version, every feature, every fix — auto-generated from CHANGELOG.md." />
+<meta name="keywords" content="DPlex changelog, DPlex release notes, DPlex versions, AI session manager updates, Copilot CLI session manager changelog" />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+<link rel="canonical" href="https://ron537.github.io/DPlex/changelog/" />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="DPlex" />
+<meta property="og:title" content="DPlex Changelog — every release, every fix" />
+<meta property="og:description" content="Full release history for DPlex, the open-source AI session manager for Copilot CLI and Claude Code." />
+<meta property="og:url" content="https://ron537.github.io/DPlex/changelog/" />
+<meta property="og:image" content="https://ron537.github.io/DPlex/assets/01-hero-projects.png" />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="DPlex Changelog — every release, every fix" />
+<meta name="twitter:description" content="Full release history for DPlex, the open-source AI session manager." />
+<meta name="twitter:image" content="https://ron537.github.io/DPlex/assets/01-hero-projects.png" />
+
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg" />
+<link rel="alternate icon" type="image/x-icon" href="../assets/favicon.ico" />
+<link rel="apple-touch-icon" href="../assets/icon.png" />
+<link rel="mask-icon" href="../assets/icon.svg" color="#3b82f6" />
+<link rel="stylesheet" href="../assets/styles.css" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "DPlex",
+      "item": "https://ron537.github.io/DPlex/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Changelog",
+      "item": "https://ron537.github.io/DPlex/changelog/"
+    }
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "DPlex",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS, Windows, Linux",
+  "url": "https://ron537.github.io/DPlex/",
+  "downloadUrl": "https://github.com/Ron537/DPlex/releases/latest",
+  "softwareVersion": "{{LATEST_VERSION}}",
+  "releaseNotes": "https://ron537.github.io/DPlex/changelog/",
+  "license": "https://github.com/Ron537/DPlex/blob/main/LICENSE",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+</head>
+<body>
+
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<nav aria-label="Primary">
+  <div class="container nav-row">
+    <a href="../" class="brand" aria-label="DPlex home"><span class="dot" aria-hidden="true"></span>DPlex</a>
+    <button class="nav-toggle" type="button" aria-label="Toggle menu" aria-expanded="false" aria-controls="primary-nav">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+      </svg>
+    </button>
+    <div class="nav-links" id="primary-nav">
+      <a href="../#features">Features</a>
+      <a href="../#screenshots">Screenshots</a>
+      <a href="../#whats-new">What's new</a>
+      <a href="../#install">Install</a>
+      <a href="../#compare">Compare</a>
+      <a href="../#faq">FAQ</a>
+      <a href="./" class="current" aria-current="page">Changelog</a>
+      <a href="https://github.com/Ron537/DPlex/blob/main/docs/architecture.md" rel="noopener">Docs</a>
+      <a href="https://github.com/Ron537/DPlex" class="nav-cta" rel="noopener">★ Star on GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main" class="changelog-shell">
+  <div class="container">
+    <header class="changelog-head">
+      <h1>DPlex changelog</h1>
+      <p class="lede">Every release of DPlex, the open-source AI session manager for Copilot CLI and Claude Code. Generated automatically from <a href="https://github.com/Ron537/DPlex/blob/main/CHANGELOG.md" rel="noopener">CHANGELOG.md</a> on every push.</p>
+      <p class="meta">Last updated {{BUILD_DATE}} · Latest version <a href="#{{LATEST_ANCHOR}}">v{{LATEST_VERSION}}</a> · <a href="https://github.com/Ron537/DPlex/releases" rel="noopener">All GitHub releases →</a></p>
+    </header>
+
+    <div class="changelog-layout">
+      <aside class="changelog-toc" aria-label="Versions">
+        <h2>Versions</h2>
+        {{TOC}}
+      </aside>
+
+      <div class="changelog-list">
+        {{RELEASES}}
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container footer-row">
+    <div class="footer-credit">
+      Built with ❤️ by <a href="https://github.com/Ron537" rel="noopener author">Ron Borysowski</a>.
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="https://github.com/Ron537/DPlex" rel="noopener">GitHub</a>
+      <a href="https://github.com/Ron537/DPlex/releases" rel="noopener">Releases</a>
+      <a href="https://github.com/Ron537/DPlex/issues" rel="noopener">Issues</a>
+      <a href="./">Changelog</a>
+      <a href="https://github.com/Ron537/DPlex/blob/main/PRIVACY.md" rel="noopener">Privacy</a>
+      <a href="https://github.com/Ron537/DPlex/blob/main/LICENSE" rel="noopener">License</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var btn = document.querySelector('.nav-toggle')
+    var menu = document.getElementById('primary-nav')
+    if (!btn || !menu) return
+    btn.addEventListener('click', function () {
+      var open = menu.classList.toggle('open')
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false')
+    })
+    menu.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        menu.classList.remove('open')
+        btn.setAttribute('aria-expanded', 'false')
+      })
+    })
+  })()
+</script>
+
+</body>
+</html>

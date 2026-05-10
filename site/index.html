@@ -2,509 +2,370 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DPlex — One window for every AI coding session you run</title>
-<meta name="description" content="A desktop workspace that discovers your Copilot CLI / Claude Code sessions, resumes any of them in one click, and auto-restores every session tab the next time you open the app. Pluggable, open source, MIT-licensed." />
-<meta property="og:title" content="DPlex — AI session management for terminal-based coding agents" />
-<meta property="og:description" content="Discover, resume, delete, and auto-restore your Copilot CLI / Claude Code sessions across projects in one window." />
-<meta property="og:image" content="https://ron537.github.io/DPlex/assets/01-hero-projects.png" />
-<meta property="og:url" content="https://ron537.github.io/DPlex/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0c0f" />
+<meta name="color-scheme" content="dark" />
+
+<title>DPlex — AI session management for Copilot CLI &amp; Claude Code</title>
+<meta name="description" content="DPlex is an open-source desktop app for AI session management: discover, resume, and auto-restore every GitHub Copilot CLI and Claude Code session you've ever started — across projects, in one window. MIT-licensed, no telemetry, macOS/Windows/Linux." />
+<meta name="keywords" content="DPlex, AI session management, Copilot CLI session manager, Claude Code session manager, AI coding agent multiplexer, resume Copilot CLI session, manage Claude Code sessions, Copilot CLI GUI, Claude Code GUI, terminal multiplexer AI, AI session tabs" />
+<meta name="author" content="Ron Borysowski" />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+<link rel="canonical" href="https://ron537.github.io/DPlex/" />
+
+<!-- Open Graph -->
 <meta property="og:type" content="website" />
+<meta property="og:site_name" content="DPlex" />
+<meta property="og:title" content="DPlex — AI session management for Copilot CLI &amp; Claude Code" />
+<meta property="og:description" content="Discover, resume, and auto-restore every Copilot CLI and Claude Code session you've ever started, in one window. Open source, MIT, no telemetry." />
+<meta property="og:url" content="https://ron537.github.io/DPlex/" />
+<meta property="og:image" content="https://ron537.github.io/DPlex/assets/01-hero-projects.png" />
+<meta property="og:image:width" content="1600" />
+<meta property="og:image:height" content="1000" />
+<meta property="og:image:alt" content="DPlex Projects view showing AI sessions across multiple repositories" />
+<meta property="og:locale" content="en_US" />
+
+<!-- Twitter / X -->
 <meta name="twitter:card" content="summary_large_image" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%233b82f6'/%3E%3Cpath d='M30 35l15 15-15 15M50 65h25' stroke='white' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
-<style>
-  :root {
-    --bg: #0c0d10;
-    --bg-elev: #14161a;
-    --bg-card: #1a1c21;
-    --border: #25282e;
-    --border-strong: #353941;
-    --text: #e8eaed;
-    --text-muted: #a1a5ad;
-    --text-dim: #6f747d;
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --accent-soft: rgba(59, 130, 246, 0.12);
-    --green: #22c55e;
-    --amber: #f59e0b;
-    --purple: #a78bfa;
-    --max: 1100px;
+<meta name="twitter:title" content="DPlex — AI session management for Copilot CLI &amp; Claude Code" />
+<meta name="twitter:description" content="Discover, resume, and auto-restore every Copilot CLI and Claude Code session you've ever started. Open source · MIT · No telemetry." />
+<meta name="twitter:image" content="https://ron537.github.io/DPlex/assets/01-hero-projects.png" />
+
+<!-- Performance hints -->
+<link rel="preconnect" href="https://api.github.com" crossorigin />
+<link rel="preconnect" href="https://objects.githubusercontent.com" crossorigin />
+<link rel="dns-prefetch" href="https://github.com" />
+
+<!-- Icons -->
+<link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
+<link rel="alternate icon" type="image/x-icon" href="./assets/favicon.ico" />
+<link rel="apple-touch-icon" href="./assets/icon.png" />
+<link rel="mask-icon" href="./assets/icon.svg" color="#3b82f6" />
+
+<link rel="stylesheet" href="./assets/styles.css" />
+
+<!-- Structured data: SoftwareApplication -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "DPlex",
+  "alternateName": "DPlex — AI session manager",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Terminal multiplexer for AI coding agents",
+  "operatingSystem": "macOS, Windows, Linux",
+  "description": "DPlex is an open-source desktop app for AI session management. It discovers every GitHub Copilot CLI and Claude Code session you've ever started, lets you resume any of them in one click, and auto-restores every session tab across app restarts.",
+  "url": "https://ron537.github.io/DPlex/",
+  "downloadUrl": "https://github.com/Ron537/DPlex/releases/latest",
+  "softwareVersion": "latest",
+  "license": "https://github.com/Ron537/DPlex/blob/main/LICENSE",
+  "codeRepository": "https://github.com/Ron537/DPlex",
+  "image": "https://ron537.github.io/DPlex/assets/01-hero-projects.png",
+  "screenshot": [
+    "https://ron537.github.io/DPlex/assets/01-hero-projects.png",
+    "https://ron537.github.io/DPlex/assets/02-sessions-panel.png",
+    "https://ron537.github.io/DPlex/assets/07-split-screen.png"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "Ron Borysowski",
+    "url": "https://github.com/Ron537"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "keywords": "AI session management, Copilot CLI, Claude Code, AI coding agent, terminal multiplexer, session manager"
+}
+</script>
+
+<!-- Structured data: WebSite + SearchAction -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "DPlex",
+  "url": "https://ron537.github.io/DPlex/",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://github.com/Ron537/DPlex/search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { color: var(--accent-hover); text-decoration: underline; }
-  code, pre {
-    font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
-    font-size: 13px;
-  }
-  pre {
-    background: #0a0b0d;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-    overflow-x: auto;
-    margin: 0;
-    color: #d4d4d4;
-  }
-  code:not(pre code) {
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 13px;
-    color: #e8eaed;
-  }
-  .container {
-    max-width: var(--max);
-    margin: 0 auto;
-    padding: 0 24px;
-  }
-  /* ── Navbar ───────────────────────────────────────────────── */
-  nav {
-    position: sticky;
-    top: 0;
-    background: rgba(12, 13, 16, 0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-    z-index: 50;
-    padding: 12px 0;
-  }
-  .nav-row { display: flex; align-items: center; gap: 28px; }
-  .brand {
-    font-weight: 700;
-    font-size: 18px;
-    letter-spacing: -0.01em;
-    color: var(--text);
-  }
-  .brand .dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--accent);
-    margin-right: 8px;
-    vertical-align: middle;
-  }
-  .nav-links { display: flex; gap: 22px; margin-left: auto; }
-  .nav-links a {
-    color: var(--text-muted);
-    font-size: 14px;
-    font-weight: 500;
-  }
-  .nav-links a:hover { color: var(--text); text-decoration: none; }
-  .nav-cta {
-    background: var(--accent);
-    color: white !important;
-    padding: 7px 14px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .nav-cta:hover { background: var(--accent-hover); text-decoration: none !important; }
-  /* ── Hero ─────────────────────────────────────────────────── */
-  .hero {
-    padding: 80px 0 56px;
-    text-align: center;
-  }
-  .hero .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--accent-soft);
-    border: 1px solid rgba(59, 130, 246, 0.25);
-    color: var(--accent);
-    font-size: 13px;
-    font-weight: 500;
-    padding: 6px 14px;
-    border-radius: 999px;
-    margin-bottom: 24px;
-  }
-  .hero h1 {
-    font-size: clamp(36px, 5.5vw, 56px);
-    line-height: 1.08;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0 auto 20px;
-    max-width: 780px;
-  }
-  .hero h1 .accent { color: var(--accent); }
-  .hero .lede {
-    font-size: 18px;
-    color: var(--text-muted);
-    max-width: 620px;
-    margin: 0 auto 32px;
-    line-height: 1.55;
-  }
-  .cta-row {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 11px 22px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 15px;
-    border: 1px solid transparent;
-    transition: all 120ms ease;
-    cursor: pointer;
-  }
-  .btn-primary {
-    background: var(--accent);
-    color: white !important;
-  }
-  .btn-primary:hover { background: var(--accent-hover); text-decoration: none !important; transform: translateY(-1px); }
-  .btn-secondary {
-    background: var(--bg-elev);
-    color: var(--text) !important;
-    border-color: var(--border-strong);
-  }
-  .btn-secondary:hover { background: var(--bg-card); text-decoration: none !important; transform: translateY(-1px); }
-  .hero .micro {
-    font-size: 13px;
-    color: var(--text-dim);
-    margin-top: 8px;
-  }
-  /* ── Hero media ───────────────────────────────────────────── */
-  .hero-media {
-    margin: 56px auto 0;
-    max-width: 980px;
-    border-radius: 14px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.08);
-  }
-  .hero-media img { display: block; width: 100%; height: auto; }
-  /* ── Sections ─────────────────────────────────────────────── */
-  section { padding: 72px 0; border-top: 1px solid var(--border); }
-  section h2 {
-    font-size: clamp(28px, 3vw, 36px);
-    font-weight: 700;
-    letter-spacing: -0.015em;
-    margin: 0 0 12px;
-  }
-  section .section-lede {
-    color: var(--text-muted);
-    font-size: 17px;
-    max-width: 640px;
-    margin: 0 0 40px;
-  }
-  /* Feature grid */
-  .features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 18px;
-  }
-  .feature {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 22px 24px;
-  }
-  .feature-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    display: grid;
-    place-items: center;
-    margin-bottom: 14px;
-  }
-  .feature h3 {
-    margin: 0 0 8px;
-    font-size: 17px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-  }
-  .feature p {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 14.5px;
-    line-height: 1.55;
-  }
-  /* Screenshot gallery */
-  .gallery {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 22px;
-  }
-  @media (max-width: 720px) { .gallery { grid-template-columns: 1fr; } }
-  .shot {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: border-color 120ms ease, transform 120ms ease;
-  }
-  .shot:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .shot img {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-bottom: 1px solid var(--border);
-  }
-  .shot .caption {
-    padding: 14px 18px;
-    font-size: 13.5px;
-  }
-  .shot .caption strong { color: var(--text); display: block; margin-bottom: 4px; }
-  .shot .caption span { color: var(--text-muted); }
-  /* Install */
-  .install-tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
-  .install-tab {
-    padding: 8px 16px;
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  .install-tab.active { background: var(--accent-soft); color: var(--accent); border-color: rgba(59, 130, 246, 0.4); }
-  .install-block { display: none; }
-  .install-block.active { display: block; }
-  .install-note {
-    font-size: 13px;
-    color: var(--text-dim);
-    margin-top: 10px;
-  }
-  /* Footer */
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 40px 0 60px;
-    color: var(--text-dim);
-    font-size: 14px;
-  }
-  .footer-row { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
-  .footer-links { display: flex; gap: 22px; }
-  .footer-links a { color: var(--text-muted); }
-  /* Compare table */
-  .compare {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .compare table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
-  .compare th, .compare td {
-    text-align: left;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
-  }
-  .compare th {
-    background: var(--bg-elev);
-    color: var(--text);
-    font-weight: 600;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .compare tr:last-child td { border-bottom: 0; }
-  .compare td:first-child { font-weight: 600; color: var(--text); width: 22%; }
-  .compare td:nth-child(2) { color: var(--text-muted); }
-  /* Privacy callout */
-  .privacy {
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(59, 130, 246, 0.08));
-    border: 1px solid rgba(34, 197, 94, 0.25);
-    border-radius: 12px;
-    padding: 24px 28px;
-    display: flex;
-    align-items: center;
-    gap: 18px;
-  }
-  .privacy svg { flex-shrink: 0; color: var(--green); }
-  .privacy h3 { margin: 0 0 4px; font-size: 17px; }
-  .privacy p { margin: 0; color: var(--text-muted); font-size: 14.5px; }
-</style>
+}
+</script>
+
+<!-- Structured data: FAQPage (matches the on-page FAQ section) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is AI session management?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "AI session management is the practice of discovering, resuming, and organizing the conversations you've had with terminal-based AI coding agents like GitHub Copilot CLI and Claude Code. DPlex is a dedicated desktop app for it: every past session is searchable, resumable in one click, and tabs auto-restore across app restarts."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I resume a Copilot CLI session in DPlex?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Open the Sessions panel in DPlex's activity bar, find the past session by name, project, or content, and click it. DPlex opens a new tab in the right working directory and runs the correct resume command for the provider — no copy-pasting session IDs."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does DPlex support Claude Code sessions?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Claude Code sessions are discovered, resumable, and manageable side-by-side with Copilot CLI sessions. Adding a new provider is a single TypeScript interface."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is DPlex free and open source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. DPlex is MIT-licensed and the source lives at github.com/Ron537/DPlex. It makes zero network requests on its own — there is no telemetry and no analytics."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which platforms does DPlex run on?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "macOS (Apple Silicon and Intel), Windows, and Linux (AppImage and .deb). Pre-built binaries are published on every release, with Sigstore-signed build provenance."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is DPlex different from tmux, Zellij, or Warp?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "tmux and Zellij are generic terminal multiplexers — they have no concept of AI sessions, projects, or session discovery. Warp embeds its own AI in a closed-source terminal. DPlex orchestrates the AI CLI tools you already use (Copilot CLI, Claude Code, …) and adds project sidebar, session history, resume in one click, and workspace persistence."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Will my AI session tabs come back after I quit DPlex?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Every AI session tab — including splits, tab order, the resume command, and the working directory — is serialized to disk on quit and restored exactly when you reopen the app."
+      }
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
-<nav>
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<nav aria-label="Primary">
   <div class="container nav-row">
-    <a href="#" class="brand"><span class="dot"></span>DPlex</a>
-    <div class="nav-links">
+    <a href="#" class="brand" aria-label="DPlex home"><span class="dot" aria-hidden="true"></span>DPlex</a>
+    <button class="nav-toggle" type="button" aria-label="Toggle menu" aria-expanded="false" aria-controls="primary-nav">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+      </svg>
+    </button>
+    <div class="nav-links" id="primary-nav">
       <a href="#features">Features</a>
       <a href="#screenshots">Screenshots</a>
+      <a href="#whats-new">What's new</a>
       <a href="#install">Install</a>
       <a href="#compare">Compare</a>
-      <a href="https://github.com/Ron537/DPlex/blob/main/docs/architecture.md">Docs</a>
+      <a href="#faq">FAQ</a>
+      <a href="./changelog/">Changelog</a>
+      <a href="https://github.com/Ron537/DPlex/blob/main/docs/architecture.md" rel="noopener">Docs</a>
+      <a href="https://github.com/Ron537/DPlex" class="nav-cta" rel="noopener">★ Star on GitHub</a>
     </div>
-    <a href="https://github.com/Ron537/DPlex" class="nav-cta">⭐ Star on GitHub</a>
   </div>
 </nav>
+
+<main id="main">
 
 <header class="hero">
   <div class="container">
     <div class="badge">
-      <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><circle cx="6" cy="6" r="5"/></svg>
       Open source · MIT · <span id="version-badge">latest</span>
     </div>
-    <h1>One window for every <span class="accent">AI coding session</span> you run.</h1>
+    <h1>AI session management for <span class="accent">Copilot CLI &amp; Claude Code</span>.</h1>
     <p class="lede">
-      DPlex discovers every <strong>Copilot CLI</strong> and <strong>Claude Code</strong> session you've ever started, lets you <strong>resume</strong> any of them in one click, and <strong>auto-restores every session tab</strong> the next time you open the app — splits, order, and resume command preserved.
+      DPlex is the desktop workspace that discovers every <strong>Copilot CLI</strong> and <strong>Claude Code</strong> session you've ever started, lets you <strong>resume any of them in one click</strong>, and <strong>auto-restores every session tab</strong> the next time you open the app — splits, order, working directory, and resume command preserved.
     </p>
     <div class="cta-row">
       <a href="#install" class="btn btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for macOS, Windows, Linux
       </a>
-      <a href="https://github.com/Ron537/DPlex" class="btn btn-secondary">View on GitHub →</a>
+      <a href="https://github.com/Ron537/DPlex" class="btn btn-secondary" rel="noopener">View on GitHub →</a>
     </div>
-    <div class="micro">macOS · Windows · Linux · No telemetry · Built-in Copilot CLI + Claude Code support</div>
+    <p class="micro">macOS · Windows · Linux · No telemetry · Built-in Copilot CLI + Claude Code support</p>
     <div class="hero-media">
-      <img src="./assets/demo.gif" alt="DPlex demo: switching between Projects and Source Control, then opening the Sessions panel, resuming a past AI session in one click, and chatting with the resumed Copilot session" loading="lazy" />
+      <img src="./assets/demo.gif" width="1600" height="1000" alt="DPlex demo: switching between Projects and Source Control, then opening the Sessions panel, resuming a past AI session in one click, and chatting with the resumed Copilot session" loading="eager" decoding="async" />
     </div>
   </div>
 </header>
 
-<section id="features">
+<section id="features" aria-labelledby="features-heading">
   <div class="container">
-    <h2>Built around AI session management.</h2>
-    <p class="section-lede">DPlex's headline capability is full lifecycle control over your AI coding sessions — discover them, resume them, close them, delete them, and never lose your place across restarts.</p>
+    <h2 id="features-heading">Built around AI session management.</h2>
+    <p class="section-lede">DPlex's headline capability is full-lifecycle control over your AI coding sessions — discover them, resume them, close them, delete them, and never lose your place across restarts.</p>
     <div class="features">
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
         </div>
         <h3>Discover every past session</h3>
-        <p>Auto-reads each provider's data directory and lists every Copilot CLI / Claude Code session you've ever started — searchable by name, ID, summary, or workspace.</p>
+        <p>Auto-reads each provider's data directory and lists every Copilot CLI and Claude Code session you've ever started — searchable by name, ID, summary, or workspace.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="6 4 20 12 6 20 6 4"/></svg>
         </div>
-        <h3>Resume in one click</h3>
-        <p>Click any past session and it opens in a new tab with the right resume command and original CWD pre-filled. No copy-pasting session IDs.</p>
+        <h3>Resume any session in one click</h3>
+        <p>Click a past session and it opens in a new tab with the right resume command and original working directory pre-filled. No copy-pasting session IDs.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 10 15 10"/></svg>
         </div>
         <h3>Auto-restore on restart</h3>
         <p>Quit the app, reopen it tomorrow — every AI session tab is back exactly where you left it. Splits, tab order, resume command, and CWD all preserved.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         </div>
-        <h3>Close & delete from the sidebar</h3>
+        <h3>Close &amp; delete from the sidebar</h3>
         <p>Stop a running AI session without finding its terminal — closing the tab terminates the process. Right-click a past session to delete its data from disk.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M9 6h6M6 9v6"/></svg>
         </div>
-        <h3>Multi-provider</h3>
-        <p>Copilot CLI and Claude Code work out of the box. Add a provider with one TypeScript interface — pluggable, open architecture.</p>
+        <h3>Multi-provider, pluggable</h3>
+        <p>Copilot CLI and Claude Code work out of the box. Add a new AI coding agent with a single TypeScript interface — open architecture, no fork required.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </div>
-        <h3>Project-aware</h3>
-        <p>Activity-bar Projects view groups sessions by folder. One click starts a new AI session in any project — with the right cwd and provider.</p>
+        <h3>Project-aware sidebar</h3>
+        <p>The Projects view groups sessions by folder. One click starts a new AI session in any project — with the right working directory and provider already set.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
         </div>
-        <h3>First-class worktrees</h3>
-        <p>Create, switch between, and tear down Git worktrees per project — concurrent feature work without polluting your main checkout.</p>
+        <h3>First-class Git worktrees</h3>
+        <p>Create, switch between, and tear down Git worktrees per project — run concurrent feature work without polluting your main checkout.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
         </div>
-        <h3>Splits & tabs</h3>
-        <p>Horizontal + vertical splits, draggable tabs, drag-between-panes — drop a freshly-resumed session next to the one you already had open.</p>
+        <h3>Splits, tabs, drag-and-drop</h3>
+        <p>Horizontal and vertical splits, draggable tabs, drag-between-panes — drop a freshly-resumed session next to the one you already had open.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
         </div>
         <h3>Attention inbox</h3>
         <p>One bell for every session that needs you — waiting for approval, waiting for input, finished. Auto-clears on focus.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
+        <div class="feature-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
         </div>
-        <h3>VSCode-style Source Control</h3>
-        <p>Project-scoped changes view with worktree picker. Single-click preview, double-click promotes to permanent diff.</p>
+        <h3>VS Code–style Source Control</h3>
+        <p>Project-scoped changes view with a worktree picker. Single-click preview, double-click promotes to a permanent diff tab.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        <div class="feature-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </div>
-        <h3>12 themes</h3>
-        <p>Dracula, Monokai, Nord, Solarized, GitHub Light/Dark, and more — terminal palette and UI stay perfectly in sync.</p>
+        <h3>Global search palette</h3>
+        <p><kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>P</kbd> finds projects, sessions, open tabs, settings, and actions in one place. <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> filters to actions.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/><circle cx="12" cy="12" r="5"/></svg>
+        </div>
+        <h3>12 built-in themes</h3>
+        <p>Dracula, Monokai, Nord, Solarized, GitHub Light and Dark, and more — terminal palette and UI stay perfectly in sync.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section id="screenshots">
+<section id="screenshots" aria-labelledby="screenshots-heading">
   <div class="container">
-    <h2>See it.</h2>
+    <h2 id="screenshots-heading">See it in action.</h2>
     <p class="section-lede">Click any screenshot to view full size.</p>
     <div class="gallery">
       <a class="shot" href="./assets/01-hero-projects.png" target="_blank" rel="noopener">
-        <img src="./assets/01-hero-projects.png" alt="Projects view" loading="lazy" />
+        <img src="./assets/01-hero-projects.png" alt="DPlex Projects view: pinned projects, worktrees, and AI sessions nested per project" loading="lazy" decoding="async" />
         <div class="caption"><strong>Projects view</strong><span>Pinned projects + worktrees + nested AI sessions, one click away.</span></div>
       </a>
       <a class="shot" href="./assets/02-sessions-panel.png" target="_blank" rel="noopener">
-        <img src="./assets/02-sessions-panel.png" alt="Sessions panel" loading="lazy" />
-        <div class="caption"><strong>Sessions panel</strong><span>Every Copilot CLI / Claude Code session you've ever started — click to resume, right-click to delete.</span></div>
+        <img src="./assets/02-sessions-panel.png" alt="Sessions panel listing past Copilot CLI and Claude Code sessions, ready to resume" loading="lazy" decoding="async" />
+        <div class="caption"><strong>Sessions panel</strong><span>Every Copilot CLI and Claude Code session you've ever started — click to resume, right-click to delete.</span></div>
       </a>
       <a class="shot" href="./assets/07-split-screen.png" target="_blank" rel="noopener">
-        <img src="./assets/07-split-screen.png" alt="Split panes" loading="lazy" />
-        <div class="caption"><strong>Splits & tabs</strong><span>Horizontal + vertical splits with multiple AI sessions side-by-side.</span></div>
+        <img src="./assets/07-split-screen.png" alt="Multiple AI sessions running side-by-side in horizontal and vertical splits" loading="lazy" decoding="async" />
+        <div class="caption"><strong>Splits &amp; tabs</strong><span>Horizontal and vertical splits with multiple AI sessions side-by-side.</span></div>
       </a>
       <a class="shot" href="./assets/03-source-control.png" target="_blank" rel="noopener">
-        <img src="./assets/03-source-control.png" alt="Source Control" loading="lazy" />
-        <div class="caption"><strong>Source Control</strong><span>VSCode-style changes, scoped to whichever project (or worktree) you pick.</span></div>
+        <img src="./assets/03-source-control.png" alt="Source Control panel showing Git changes scoped to the selected project or worktree" loading="lazy" decoding="async" />
+        <div class="caption"><strong>Source Control</strong><span>VS Code–style changes, scoped to whichever project or worktree you pick.</span></div>
       </a>
       <a class="shot" href="./assets/08-worktrees-settings.png" target="_blank" rel="noopener">
-        <img src="./assets/08-worktrees-settings.png" alt="Worktree defaults" loading="lazy" />
+        <img src="./assets/08-worktrees-settings.png" alt="DPlex worktree default settings: location pattern, env files, post-create scripts" loading="lazy" decoding="async" />
         <div class="caption"><strong>Worktree defaults</strong><span>Location pattern, env files, post-create scripts — set once, reused.</span></div>
       </a>
       <a class="shot" href="./assets/04-settings-notifications.png" target="_blank" rel="noopener">
-        <img src="./assets/04-settings-notifications.png" alt="Notification settings" loading="lazy" />
+        <img src="./assets/04-settings-notifications.png" alt="Notification settings: per-event toggles, Do Not Disturb, focus-aware suppression" loading="lazy" decoding="async" />
         <div class="caption"><strong>Notification controls</strong><span>Per-event toggles, Do Not Disturb, focus-aware suppression.</span></div>
       </a>
       <a class="shot" href="./assets/05-light-theme.png" target="_blank" rel="noopener">
-        <img src="./assets/05-light-theme.png" alt="Light theme" loading="lazy" />
+        <img src="./assets/05-light-theme.png" alt="DPlex running in a light theme (GitHub Light), showing theme adaptability" loading="lazy" decoding="async" />
         <div class="caption"><strong>Light themes too</strong><span>GitHub Light, Solarized Light, Quiet Light — palette and UI stay in sync.</span></div>
       </a>
     </div>
   </div>
 </section>
 
-<section id="install">
+<section id="whats-new" aria-labelledby="whats-new-heading">
   <div class="container">
-    <h2>Install.</h2>
-    <p class="section-lede">Pre-built binaries for macOS, Windows, and Linux. Note: builds are currently <strong>unsigned</strong> — verify the SHA-256 from the release page if you want extra confidence.</p>
-    <div class="install-tabs">
-      <button class="install-tab active" data-tab="mac">macOS</button>
-      <button class="install-tab" data-tab="win">Windows</button>
-      <button class="install-tab" data-tab="linux">Linux</button>
-      <button class="install-tab" data-tab="src">From source</button>
+    <h2 id="whats-new-heading">What's new in DPlex.</h2>
+    <p class="section-lede">Latest releases of the open-source AI session manager. We ship fast — see the <a href="./changelog/">full changelog</a> for every version since v0.1.0.</p>
+    <div class="whats-new-grid">
+      {{LATEST_RELEASES}}
+    </div>
+    <p class="whats-new-cta">
+      <a href="./changelog/" class="btn btn-secondary">View full changelog →</a>
+    </p>
+  </div>
+</section>
+
+<section id="install" aria-labelledby="install-heading">
+  <div class="container">
+    <h2 id="install-heading">Install DPlex.</h2>
+    <p class="section-lede">Pre-built binaries for macOS, Windows, and Linux. Builds are currently <strong>unsigned</strong> — verify the SHA-256 from the release page if you want extra confidence.</p>
+    <div class="install-tabs" aria-label="Install instructions">
+      <button class="install-tab active" data-tab="mac" type="button" aria-pressed="true">macOS</button>
+      <button class="install-tab" data-tab="win" type="button" aria-pressed="false">Windows</button>
+      <button class="install-tab" data-tab="linux" type="button" aria-pressed="false">Linux</button>
+      <button class="install-tab" data-tab="src" type="button" aria-pressed="false">From source</button>
     </div>
     <div id="tab-mac" class="install-block active">
 <pre><code># Apple Silicon
@@ -515,15 +376,15 @@ curl -L https://github.com/Ron537/DPlex/releases/latest/download/DPlex-x64.dmg -
 # Drag DPlex to /Applications, then on first launch:
 xattr -dr com.apple.quarantine /Applications/DPlex.app
 open /Applications/DPlex.app</code></pre>
-      <p class="install-note">The xattr line removes the macOS quarantine flag — equivalent to right-click → Open, but cleaner from the terminal. Builds are <a href="https://github.com/Ron537/DPlex/blob/main/.github/workflows/release.yml">ad-hoc signed</a> + carry <a href="https://docs.github.com/en/actions/security-guides/using-artifact-attestations">Sigstore provenance</a>.</p>
+      <p class="install-note">The <code>xattr</code> line removes the macOS quarantine flag — equivalent to right-click → Open, but cleaner from the terminal. Builds are <a href="https://github.com/Ron537/DPlex/blob/main/.github/workflows/release.yml" rel="noopener">ad-hoc signed</a> and carry <a href="https://docs.github.com/en/actions/security-guides/using-artifact-attestations" rel="noopener">Sigstore provenance</a>.</p>
     </div>
-    <div id="tab-win" class="install-block">
+    <div id="tab-win" class="install-block" hidden>
 <pre><code># Download the latest installer
 Invoke-WebRequest -Uri https://github.com/Ron537/DPlex/releases/latest/download/DPlex-Setup.exe -OutFile DPlex-Setup.exe
 .\DPlex-Setup.exe</code></pre>
       <p class="install-note">SmartScreen will warn about the unsigned installer — click <strong>More info → Run anyway</strong> after verifying the SHA-256 matches the release page.</p>
     </div>
-    <div id="tab-linux" class="install-block">
+    <div id="tab-linux" class="install-block" hidden>
 <pre><code># AppImage (any distro)
 curl -L https://github.com/Ron537/DPlex/releases/latest/download/DPlex.AppImage -o DPlex.AppImage
 chmod +x DPlex.AppImage
@@ -533,7 +394,7 @@ chmod +x DPlex.AppImage
 curl -LO https://github.com/Ron537/DPlex/releases/latest/download/DPlex-amd64.deb
 sudo dpkg -i DPlex-amd64.deb</code></pre>
     </div>
-    <div id="tab-src" class="install-block">
+    <div id="tab-src" class="install-block" hidden>
 <pre><code>git clone https://github.com/Ron537/DPlex.git
 cd DPlex
 npm install
@@ -543,14 +404,14 @@ npm run dev</code></pre>
   </div>
 </section>
 
-<section id="compare">
+<section id="compare" aria-labelledby="compare-heading">
   <div class="container">
-    <h2>How DPlex compares.</h2>
-    <p class="section-lede">DPlex isn't trying to replace any of these — it's optimizing for one specific workflow.</p>
+    <h2 id="compare-heading">How DPlex compares.</h2>
+    <p class="section-lede">DPlex isn't trying to replace any of these — it's optimized for one specific workflow: managing AI coding sessions across many projects.</p>
     <div class="compare">
       <table>
         <thead>
-          <tr><th>Tool</th><th>Where it differs from DPlex</th></tr>
+          <tr><th scope="col">Tool</th><th scope="col">Where it differs from DPlex</th></tr>
         </thead>
         <tbody>
           <tr><td>tmux / Zellij</td><td>Powerful but generic; no AI-tool awareness, no project sidebar, no session discovery.</td></tr>
@@ -565,61 +426,143 @@ npm run dev</code></pre>
   </div>
 </section>
 
-<section>
+<section id="faq" aria-labelledby="faq-heading">
+  <div class="container">
+    <h2 id="faq-heading">Frequently asked questions.</h2>
+    <p class="section-lede">Short answers to the things people ask first about DPlex and AI session management.</p>
+    <div class="faq">
+      <details>
+        <summary>What is AI session management?</summary>
+        <div class="faq-body">
+          <p>AI session management is the practice of discovering, resuming, and organizing the conversations you've had with terminal-based AI coding agents — GitHub Copilot CLI, Claude Code, and similar tools. Every chat you start writes to disk; without a manager, those sessions become impossible to find again.</p>
+          <p>DPlex is a dedicated desktop app for that workflow: every past session is searchable, resumable in one click, and your tab layout auto-restores across app restarts.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I resume a Copilot CLI session?</summary>
+        <div class="faq-body">
+          <p>Open the Sessions panel in DPlex's activity bar, find the past session by name, project, or text content, and click it. DPlex opens a new tab in the right working directory and runs the correct resume command for that provider — no copy-pasting session IDs and no manual <code>cd</code>.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does DPlex support Claude Code as well as Copilot CLI?</summary>
+        <div class="faq-body">
+          <p>Yes. Claude Code sessions are discovered, resumable, and manageable side-by-side with Copilot CLI sessions. The provider system is open: adding a third agent is one TypeScript interface — no fork, no plugin manifest.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Is DPlex free and open source?</summary>
+        <div class="faq-body">
+          <p>Yes — MIT-licensed, source at <a href="https://github.com/Ron537/DPlex" rel="noopener">github.com/Ron537/DPlex</a>. DPlex makes zero network requests on its own. No telemetry, no analytics, no remote feature flags. Everything claimed in <a href="https://github.com/Ron537/DPlex/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> is grep-able in the source.</p>
+        </div>
+      </details>
+      <details>
+        <summary>What platforms does DPlex run on?</summary>
+        <div class="faq-body">
+          <p>macOS (Apple Silicon and Intel), Windows, and Linux (AppImage and <code>.deb</code>). Every release ships pre-built binaries with Sigstore-signed build provenance you can verify with <code>gh attestation verify</code>.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Will my session tabs come back after I quit DPlex?</summary>
+        <div class="faq-body">
+          <p>Yes. Every AI session tab — including splits, tab order, the resume command, and the working directory — is serialized to disk on quit and restored exactly when you reopen the app the next day.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How does DPlex compare to tmux, Warp, or Wave Terminal?</summary>
+        <div class="faq-body">
+          <p>tmux and Zellij are generic terminal multiplexers — they have no concept of AI sessions, projects, or session history. Warp ships a closed-source terminal with its own embedded AI, not the CLI tools you already use. Wave has an adjacent vision with broader scope and a more opinionated UI; DPlex stays narrow and Electron-portable today.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Where can I report bugs or request features?</summary>
+        <div class="faq-body">
+          <p>Open an issue on <a href="https://github.com/Ron537/DPlex/issues" rel="noopener">github.com/Ron537/DPlex/issues</a>. The project follows semver and ships an auto-generated <a href="./changelog/">changelog</a>.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="privacy-heading">
   <div class="container">
     <div class="privacy">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
       <div>
-        <h3>No telemetry. No analytics. Ever.</h3>
-        <p>DPlex makes zero network requests on its own. Read <a href="https://github.com/Ron537/DPlex/blob/main/PRIVACY.md">PRIVACY.md</a> — every claim is grep-able in the source.</p>
+        <h3 id="privacy-heading">No telemetry. No analytics. Ever.</h3>
+        <p>DPlex makes zero network requests on its own. Read <a href="https://github.com/Ron537/DPlex/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> — every claim is grep-able in the source.</p>
       </div>
     </div>
   </div>
 </section>
 
+</main>
+
 <footer>
   <div class="container footer-row">
-    <div>
-      Built with ❤️ by developers who got tired of having 14 terminal windows open.
+    <div class="footer-credit">
+      Built with ❤️ by <a href="https://github.com/Ron537" rel="noopener author">Ron Borysowski</a>.
     </div>
-    <div class="footer-links">
-      <a href="https://github.com/Ron537/DPlex">GitHub</a>
-      <a href="https://github.com/Ron537/DPlex/releases">Releases</a>
-      <a href="https://github.com/Ron537/DPlex/issues">Issues</a>
-      <a href="https://github.com/Ron537/DPlex/blob/main/CHANGELOG.md">Changelog</a>
-      <a href="https://github.com/Ron537/DPlex/blob/main/PRIVACY.md">Privacy</a>
-    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="https://github.com/Ron537/DPlex" rel="noopener">GitHub</a>
+      <a href="https://github.com/Ron537/DPlex/releases" rel="noopener">Releases</a>
+      <a href="https://github.com/Ron537/DPlex/issues" rel="noopener">Issues</a>
+      <a href="./changelog/">Changelog</a>
+      <a href="https://github.com/Ron537/DPlex/blob/main/PRIVACY.md" rel="noopener">Privacy</a>
+      <a href="https://github.com/Ron537/DPlex/blob/main/LICENSE" rel="noopener">License</a>
+    </nav>
   </div>
 </footer>
 
 <script>
-  // Install tab switcher.
-  document.querySelectorAll('.install-tab').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab
-      document.querySelectorAll('.install-tab').forEach((b) => b.classList.toggle('active', b === btn))
-      document.querySelectorAll('.install-block').forEach((b) => {
-        b.classList.toggle('active', b.id === 'tab-' + tab)
+  // Mobile nav toggle.
+  (function () {
+    var btn = document.querySelector('.nav-toggle')
+    var menu = document.getElementById('primary-nav')
+    if (!btn || !menu) return
+    btn.addEventListener('click', function () {
+      var open = menu.classList.toggle('open')
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false')
+    })
+    // Close menu when a link is tapped on mobile.
+    menu.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        menu.classList.remove('open')
+        btn.setAttribute('aria-expanded', 'false')
+      })
+    })
+  })()
+
+  // Install tab switcher (a button group, not an ARIA tablist).
+  document.querySelectorAll('.install-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var tab = btn.dataset.tab
+      document.querySelectorAll('.install-tab').forEach(function (b) {
+        var active = b === btn
+        b.classList.toggle('active', active)
+        b.setAttribute('aria-pressed', active ? 'true' : 'false')
+      })
+      document.querySelectorAll('.install-block').forEach(function (b) {
+        var active = b.id === 'tab-' + tab
+        b.classList.toggle('active', active)
+        if (active) b.removeAttribute('hidden')
+        else b.setAttribute('hidden', '')
       })
     })
   })
 
-  // Latest release version — fetched from the public GitHub API. Cached
-  // by the browser via the API's CDN; falls back to the placeholder
-  // text if the request fails (rate limit, offline, etc.). 60 unauth
-  // requests/hr per IP is plenty for a landing page.
+  // Latest release version — fetched from the public GitHub API.
+  // Falls back silently to the "latest" placeholder if the request fails.
   fetch('https://api.github.com/repos/Ron537/DPlex/releases/latest', {
     headers: { Accept: 'application/vnd.github+json' }
   })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((data) => {
+    .then(function (r) { return r.ok ? r.json() : null })
+    .then(function (data) {
       if (!data || !data.tag_name) return
-      const el = document.getElementById('version-badge')
+      var el = document.getElementById('version-badge')
       if (el) el.textContent = data.tag_name
     })
-    .catch(() => {
-      /* ignore — the placeholder "latest" stays */
-    })
+    .catch(function () { /* ignore — placeholder stays */ })
 </script>
 
 </body>
