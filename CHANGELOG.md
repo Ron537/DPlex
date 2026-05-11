@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] — 2026-05-11
+
+### Bug Fixes
+
+- DPlex on Intel Macs now launches AI sessions correctly. The previous
+  Intel build shipped wrong-architecture native binaries, so every new
+  session failed silently with no usable error in the UI.
+
 ## [0.14.0] — 2026-05-10
 
 ### Improvements
@@ -415,6 +423,7 @@ AI-assisted development.
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
 [Unreleased]: https://github.com/Ron537/DPlex/compare/v0.14.0...HEAD
+[0.14.1]: https://github.com/Ron537/DPlex/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/Ron537/DPlex/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/Ron537/DPlex/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Ron537/DPlex/compare/v0.11.3...v0.12.0
