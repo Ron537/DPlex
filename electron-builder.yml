@@ -2,6 +2,11 @@ appId: dev.dplex.app
 productName: DPlex
 directories:
   buildResources: build
+# Apply an ad-hoc codesignature to the macOS .app after pack but before
+# DMG sealing. Without this the published DMG ships an entirely unsigned
+# .app (see issue #45 thread). No-op on Windows/Linux; no-op on macOS
+# when CSC_LINK is set (real Developer ID signing takes over).
+afterPack: scripts/mac-adhoc-sign.mjs
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -24,11 +29,16 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
-  # identity: null produces an unsigned .app (local/dev builds). When signed
-  # ad-hoc by electron-builder without a Developer ID cert, the main binary
-  # and the bundled Electron Framework end up with different Team IDs, so
-  # macOS 14+ refuses to load the framework ("different Team IDs"). Keeping
-  # the app unsigned avoids the mismatch and lets it launch locally.
+  # `identity: null` disables electron-builder's built-in signing path
+  # entirely. We intentionally skip it because its per-component ad-hoc
+  # signing leaves the bundled `Electron Framework.framework` with a
+  # different (empty/missing) Team ID than the main binary, and macOS
+  # 14+ then refuses to load the framework with `"Team IDs differ"`.
+  # Instead, the `afterPack` hook in this file runs a single recursive
+  # `codesign --deep --sign -` against the fully-packed .app — every
+  # nested Mach-O ends up with the same ad-hoc identity, eliminating
+  # the mismatch. When CSC_LINK is set in CI, both paths are skipped
+  # and electron-builder's real Developer ID signing runs normally.
   identity: null
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:

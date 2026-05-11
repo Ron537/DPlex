@@ -66,26 +66,6 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run build:mac:ci -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
 
-      # Ad-hoc codesign as a free fallback when no Developer ID secret is
-      # configured. `codesign -s -` adds a self-anchored signature that
-      # avoids the "DPlex is damaged and can't be opened" Gatekeeper
-      # error on macOS Catalina+. Users still need to right-click → Open
-      # (or run `xattr -dr com.apple.quarantine`) on first launch, but
-      # the binary is no longer treated as outright malicious.
-      - name: Ad-hoc sign macOS app (no Developer ID)
-        if: matrix.os == 'macos-latest' && env.CSC_LINK == ''
-        env:
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-        run: |
-          set -e
-          for app in dist/mac*/*.app; do
-            if [ -d "$app" ]; then
-              echo "Ad-hoc signing $app"
-              codesign --force --deep --sign - "$app"
-              codesign --verify --verbose=2 "$app" || true
-            fi
-          done
-
       - name: Build Windows
         if: matrix.os == 'windows-latest'
         env:
