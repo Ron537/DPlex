@@ -63,7 +63,14 @@ appImage:
   artifactName: ${productName}.${ext}
 deb:
   artifactName: ${productName}-${arch}.${ext}
-npmRebuild: false
+# Note: `npmRebuild` is intentionally left at its default (true) so
+# electron-builder runs @electron/rebuild per target arch when packaging
+# multi-arch builds. Disabling it leaks the host runner's host-arch
+# native binaries into every arch's DMG — that was the root cause of
+# issue #45 (Intel Mac users got arm64 spawn-helper from a macos-latest
+# arm64 runner). On macOS, clang cross-compiles x86_64 from arm64 hosts
+# out of the box, so a single macos-latest runner produces correct
+# binaries for both archs.
 publish:
   provider: github
   owner: Ron537
