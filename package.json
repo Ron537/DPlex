@@ -68,7 +68,7 @@
     "diff": "^9.0.0",
     "electron-log": "^5.4.3",
     "electron-updater": "^6.8.3",
-    "ignore": "^5.3.2",
+    "ignore": "^7.0.5",
     "lucide-react": "^1.14.0",
     "monaco-editor": "^0.55.1",
     "node-pty": "^1.1.0",
