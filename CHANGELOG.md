@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2] — 2026-05-11
+
+### Bug Fixes
+
+- macOS builds now ship with a valid ad-hoc code signature, so the
+  Electron framework loads cleanly on macOS 14+ and the "DPlex is
+  damaged" Gatekeeper error no longer appears. Previous builds were
+  published completely unsigned. (You may still need
+  `xattr -dr com.apple.quarantine /Applications/DPlex.app` on first
+  launch until a Developer ID signature is in place.)
+
 ## [0.14.1] — 2026-05-11
 
 ### Bug Fixes
@@ -423,6 +434,7 @@ AI-assisted development.
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
 [Unreleased]: https://github.com/Ron537/DPlex/compare/v0.14.0...HEAD
+[0.14.2]: https://github.com/Ron537/DPlex/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/Ron537/DPlex/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/Ron537/DPlex/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/Ron537/DPlex/compare/v0.12.0...v0.13.0
