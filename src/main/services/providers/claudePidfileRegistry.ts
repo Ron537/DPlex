@@ -69,8 +69,25 @@ export class ClaudePidfileRegistry {
   private listeners = new Set<Listener>()
   private watcher: fs.FSWatcher | null = null
   private debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  /**
+   * Polling timer that re-scans the directory at a fixed interval. Acts as a
+   * safety net for {@link fs.FSWatcher} missing events — on macOS, `fs.watch`
+   * is implemented via FSEvents and is known to miss in-place rewrites of
+   * small files (the exact pattern Claude Code uses for its pidfiles). When
+   * the watcher drops a `busy → waiting` transition, the UI stays stuck on
+   * the previous status (green "Running Tool" while the user is actually
+   * staring at an approval prompt). The poll guarantees eventual consistency
+   * within {@link POLL_MS}.
+   */
+  private pollTimer: ReturnType<typeof setInterval> | null = null
   private started = false
   private startPromise: Promise<void> | null = null
+  /**
+   * True after the first `scanAll` has notified subscribers. Lets the
+   * polling rescan stay silent in steady state while still seeding the
+   * initial state even when the directory is empty.
+   */
+  private seededSubscribers = false
   /**
    * Increments on every `stop()`. In-flight async operations (initial scan,
    * debounced refreshFile, attachWatcher) capture the generation at entry
@@ -80,6 +97,7 @@ export class ClaudePidfileRegistry {
   private generation = 0
 
   private static readonly DEBOUNCE_MS = 200
+  private static readonly POLL_MS = 2000
   private static readonly HEARTBEAT_FILE = '.fleetview-heartbeat'
 
   constructor(sessionsDir?: string) {
@@ -216,10 +234,15 @@ export class ClaudePidfileRegistry {
       }
       this.watcher = null
     }
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer)
+      this.pollTimer = null
+    }
     for (const t of this.debounceTimers.values()) clearTimeout(t)
     this.debounceTimers.clear()
     this.snapshots.clear()
     this.bySessionId.clear()
+    this.seededSubscribers = false
   }
 
   // ── Internal ─────────────────────────────────────────────────────
@@ -238,6 +261,33 @@ export class ClaudePidfileRegistry {
     await this.scanAll(myGen)
     if (myGen !== this.generation) return
     this.attachWatcher()
+    this.attachPoller()
+  }
+
+  /**
+   * Periodic safety-net rescan. {@link fs.FSWatcher} drops events under
+   * a number of platform-specific conditions (FSEvents coalescing on macOS,
+   * non-recursive watches missing rapid sequential writes, network mounts,
+   * etc.). When that happens, snapshots silently drift away from the
+   * on-disk truth and downstream consumers (status dot colour, attention
+   * inbox, sessionStore) act on stale state.
+   *
+   * The poll is deliberately cheap: read directory listing, refresh each
+   * `.json` file, dedup unchanged snapshots via `shallowEqualSnapshot`.
+   * In the steady state (no pidfile mutations) it produces zero listener
+   * notifications. The first poll after a missed watcher event closes the
+   * status-detection gap within {@link POLL_MS}.
+   */
+  private attachPoller(): void {
+    if (this.pollTimer) clearInterval(this.pollTimer)
+    this.pollTimer = setInterval(() => {
+      const myGen = this.generation
+      void this.scanAll(myGen)
+    }, ClaudePidfileRegistry.POLL_MS)
+    // Allow the Node event loop to exit even when only the poller is left
+    // (matters in CLI/test contexts; harmless in Electron where the app
+    // process is held alive by other handles).
+    if (typeof this.pollTimer.unref === 'function') this.pollTimer.unref()
   }
 
   private attachWatcher(): void {
@@ -278,56 +328,81 @@ export class ClaudePidfileRegistry {
     }
     if (generation !== this.generation) return
     const seenPids = new Set<number>()
+    let changed = false
     for (const name of entries) {
       if (!name.endsWith('.json')) continue
       const pid = parseInt(name.slice(0, -5), 10)
       if (Number.isNaN(pid) || pid <= 0) continue
       seenPids.add(pid)
-      await this.refreshFile(path.join(this.dir, name), { silent: true, generation })
+      const fileChanged = await this.refreshFile(path.join(this.dir, name), {
+        silent: true,
+        generation
+      })
+      if (fileChanged) changed = true
       if (generation !== this.generation) return
     }
     // Drop any cached snapshots whose file no longer exists.
     for (const pid of [...this.snapshots.keys()]) {
-      if (!seenPids.has(pid)) this.removePid(pid)
+      if (!seenPids.has(pid)) {
+        if (this.removePid(pid)) changed = true
+      }
     }
-    this.notify()
+    // Always notify on the first scan so subscribers receive an initial
+    // seed even when the directory is empty. Subsequent polls only
+    // notify if something actually changed — keeping steady-state polling
+    // free of downstream parseSession/parse work.
+    if (changed || !this.seededSubscribers) {
+      this.seededSubscribers = true
+      this.notify()
+    }
   }
 
+  /**
+   * Read and apply a single pidfile's contents to the in-memory snapshot
+   * map. Returns `true` if applying the file produced an observable change
+   * (snapshot inserted, removed, or replaced with a non-shallow-equal
+   * value); `false` otherwise. The boolean is what lets {@link scanAll}
+   * stay quiet during steady-state polling.
+   */
   private async refreshFile(
     fullPath: string,
     opts: { silent?: boolean; generation?: number } = {}
-  ): Promise<void> {
+  ): Promise<boolean> {
     const gen = opts.generation ?? this.generation
     const base = path.basename(fullPath)
     const pid = parseInt(base.slice(0, -5), 10)
-    if (Number.isNaN(pid) || pid <= 0) return
+    if (Number.isNaN(pid) || pid <= 0) return false
 
     let raw: string
     try {
       raw = await fsp.readFile(fullPath, 'utf-8')
     } catch (err) {
-      if (gen !== this.generation) return
+      if (gen !== this.generation) return false
       if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
-        if (this.removePid(pid) && !opts.silent) this.notify()
+        const removed = this.removePid(pid)
+        if (removed && !opts.silent) this.notify()
+        return removed
       }
-      return
+      return false
     }
-    if (gen !== this.generation) return
+    if (gen !== this.generation) return false
     let parsed: unknown
     try {
       parsed = JSON.parse(raw)
     } catch {
       // Truncated/partial write — debounced retry will pick it up.
-      return
+      return false
     }
     const snap = sanitizeSnapshot(pid, parsed)
-    if (!snap) return
+    if (!snap) return false
     if (!this.isLive(snap)) {
-      if (this.removePid(pid) && !opts.silent) this.notify()
-      return
+      const removed = this.removePid(pid)
+      if (removed && !opts.silent) this.notify()
+      return removed
     }
 
     const prev = this.snapshots.get(pid)
+    const changed = !shallowEqualSnapshot(prev, snap)
     this.snapshots.set(pid, snap)
 
     // Maintain bySessionId. Same sessionId may migrate between PIDs across
@@ -338,7 +413,8 @@ export class ClaudePidfileRegistry {
     }
     this.bySessionId.set(snap.sessionId, pid)
 
-    if (!opts.silent && !shallowEqualSnapshot(prev, snap)) this.notify()
+    if (!opts.silent && changed) this.notify()
+    return changed
   }
 
   private removePid(pid: number): boolean {
