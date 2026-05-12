@@ -726,6 +726,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                   </SettingItem>
 
                   <SettingItem
+                    label="Mark seen on click"
+                    settingId="notify-click-clears-waiting"
+                    description="When on, clicking a row in the attention bell will navigate to the tab and clear the notification. The bell will re-surface the event if the session keeps waiting after a state change or stays idle past the escalation threshold. You can also toggle this mode inline from the bell dropdown header."
+                  >
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.attentionClickClearsWaiting}
+                        onChange={(e) =>
+                          applyNow({ attentionClickClearsWaiting: e.target.checked })
+                        }
+                        className="accent-[var(--dplex-accent)]"
+                      />
+                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                        Mark waiting notifications as seen when I click them
+                      </span>
+                    </label>
+                  </SettingItem>
+
+                  <SettingItem
                     label="Play sound"
                     settingId="notify-sound"
                     description="Use the OS default sound when a notification fires."

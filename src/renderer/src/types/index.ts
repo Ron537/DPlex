@@ -133,6 +133,16 @@ export interface AppSettings {
   dndTo: string | null
   notificationCooldownSeconds: number
   idleTooLongMinutes: number
+  /**
+   * When true, clicking a row in the attention bell will navigate to the
+   * tab AND dismiss waiting events (`waitingForApproval`, `waitingForInput`),
+   * matching Slack/Gmail "click to mark seen" behavior. Finished events are
+   * always acknowledged on click regardless of this setting. The bell will
+   * re-surface dismissed events on the next status transition or via the
+   * idle-too-long escalation. Default is false to preserve historical
+   * behavior where row-click only navigates.
+   */
+  attentionClickClearsWaiting: boolean
   /** Global defaults for worktree creation (inherited by per-project settings). */
   worktreeDefaults: WorktreeDefaults
   /** Show the health footer bar at the bottom of the Projects panel. */

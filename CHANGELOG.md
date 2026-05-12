@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-05-12
+
+### Features
+
+- Attention bell can now mark waiting notifications as seen when you
+  click them, matching Slack/Gmail-style behavior. A mode pill at the
+  top of the bell dropdown ("View only" / "Mark seen on click") shows
+  the current behavior and toggles it with one click; the same setting
+  also lives under Settings → Notifications. Off by default — when on,
+  clicking a waiting row both jumps to the tab and clears the badge,
+  and the bell will re-surface the event if the session keeps waiting.
+
 ## [0.14.2] — 2026-05-11
 
 ### Bug Fixes
@@ -433,7 +445,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/Ron537/DPlex/compare/v0.14.2...v0.15.0
 [0.14.2]: https://github.com/Ron537/DPlex/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/Ron537/DPlex/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/Ron537/DPlex/compare/v0.13.0...v0.14.0
