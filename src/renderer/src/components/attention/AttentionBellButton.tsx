@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { Bell, Check, X } from 'lucide-react'
+import { Bell, Check, Eye, X } from 'lucide-react'
 import { useAttentionStore } from '../../stores/attentionStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { focusSessionTab } from '../../utils/sessionTabs'
+import { decideRowClickAction } from './rowClickAction'
 import type { AttentionEvent, AttentionKind } from '../../../../preload/attentionTypes'
 
 const KIND_LABEL: Record<AttentionKind, string> = {
@@ -34,6 +36,8 @@ export function AttentionBellButton(): React.JSX.Element {
   const acknowledge = useAttentionStore((s) => s.acknowledge)
   const acknowledgeAll = useAttentionStore((s) => s.acknowledgeAll)
   const dismiss = useAttentionStore((s) => s.dismiss)
+  const clickClearsWaiting = useSettingsStore((s) => s.settings.attentionClickClearsWaiting)
+  const updateSettings = useSettingsStore((s) => s.updateSettings)
 
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -59,8 +63,14 @@ export function AttentionBellButton(): React.JSX.Element {
 
   const handleRowClick = (event: AttentionEvent): void => {
     focusSessionTab(event.sessionId, event.providerId)
-    if (event.kind === 'finished') acknowledge(event.compositeId)
+    const action = decideRowClickAction(event.kind, clickClearsWaiting)
+    if (action === 'acknowledge') acknowledge(event.compositeId)
+    else if (action === 'dismiss') dismiss(event.compositeId)
     setOpen(false)
+  }
+
+  const toggleClickMode = (): void => {
+    updateSettings({ attentionClickClearsWaiting: !clickClearsWaiting })
   }
 
   return (
@@ -94,12 +104,40 @@ export function AttentionBellButton(): React.JSX.Element {
           }}
         >
           <div
-            className="flex items-center justify-between px-3 py-2"
+            className="flex items-center gap-2 px-3 py-2"
             style={{ borderBottom: '1px solid var(--dplex-border)' }}
           >
             <span className="text-[11px] font-semibold" style={{ color: 'var(--dplex-text)' }}>
               Attention
             </span>
+            <button
+              onClick={toggleClickMode}
+              className="text-[10px] flex items-center gap-1 px-2 py-[2px] rounded-full transition-colors hover:bg-[var(--dplex-hover)]"
+              style={
+                clickClearsWaiting
+                  ? {
+                      color: 'var(--dplex-accent)',
+                      border: '1px solid var(--dplex-accent)',
+                      backgroundColor: 'var(--dplex-accent-soft)'
+                    }
+                  : {
+                      color: 'var(--dplex-text-muted)',
+                      border: '1px solid var(--dplex-border)',
+                      backgroundColor: 'transparent'
+                    }
+              }
+              title={
+                clickClearsWaiting
+                  ? 'Clicking a row navigates and clears the notification. Click here to switch to view-only.'
+                  : 'Clicking a row only navigates. Click here to also clear waiting notifications when you click them.'
+              }
+              aria-pressed={clickClearsWaiting}
+              aria-label="Toggle: mark waiting notifications as seen on click"
+            >
+              {clickClearsWaiting ? <Check size={10} /> : <Eye size={10} />}
+              {clickClearsWaiting ? 'Mark seen on click' : 'View only'}
+            </button>
+            <span className="flex-1" />
             {grouped.finished.length > 0 && (
               <button
                 onClick={() => acknowledgeAll()}

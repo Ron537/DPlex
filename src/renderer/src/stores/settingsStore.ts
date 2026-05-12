@@ -147,6 +147,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   dndTo: null,
   notificationCooldownSeconds: 30,
   idleTooLongMinutes: 5,
+  attentionClickClearsWaiting: false,
   worktreeDefaults: DEFAULT_WORKTREE_DEFAULTS,
   projectPanelShowFooter: true,
   gitPanel: {
