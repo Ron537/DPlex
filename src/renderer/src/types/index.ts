@@ -147,6 +147,11 @@ export interface AppSettings {
   worktreeDefaults: WorktreeDefaults
   /** Show the health footer bar at the bottom of the Projects panel. */
   projectPanelShowFooter: boolean
+  /** Per-tag color overrides keyed by the normalized tag name. Value is a
+   *  `TAG_PALETTE` token id (e.g. `"violet"`). Tags without an entry fall
+   *  back to a deterministic hash of the tag name, so existing tags keep
+   *  their visual identity until the user picks an explicit color. */
+  tagColors?: Record<string, string>
   /** Right-side Git panel UI state. */
   gitPanel: GitPanelSettings
   /**
@@ -203,6 +208,10 @@ export interface Project {
   createdByDplexWorktree?: boolean
   /** Pinned projects render in a dedicated section at the top of the panel. */
   pinned?: boolean
+  /** Free-form user-defined tags. Normalized lowercase, leading `#` stripped,
+   *  deduped. Used for filtering the projects sidebar and for fuzzy matching
+   *  in the command palette. Absent / empty array both mean "no tags". */
+  tags?: string[]
   /** Git panel UI state scoped to this project. Persists across sessions
    *  so the user lands back on the file they last opened. Validated on
    *  each refresh — stale paths fall back to the first changed file. */

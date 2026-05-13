@@ -15,6 +15,7 @@ import { useProvidersStore } from '../../stores/providersStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { SessionList } from '../sessions/SessionList'
 import { ProjectList } from '../projects/ProjectList'
+import { TagFilterBar } from '../projects/TagFilterBar'
 import { ProjectPanelFooter } from '../projects/ProjectPanelFooter'
 import { SessionPanelFooter } from '../sessions/SessionPanelFooter'
 import { GitSidePanelView } from '../git/GitSidePanelView'
@@ -54,6 +55,7 @@ export function SidePanel(): React.JSX.Element | null {
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [projectSearchQuery, setProjectSearchQuery] = useState('')
   const [projectActiveOnly, setProjectActiveOnly] = useState(false)
+  const [projectTagFilter, setProjectTagFilter] = useState<string | null>(null)
   const [showProjectFilterMenu, setShowProjectFilterMenu] = useState(false)
   // Collapse-all signal for SessionList groups. The nonce bumps each time
   // the user clicks the toolbar button so each <CollapsibleGroup> can react
@@ -460,7 +462,14 @@ export function SidePanel(): React.JSX.Element | null {
 
           <div className="flex-1 overflow-y-auto dplex-scroll-autohide">
             {activeTab === 'projects' ? (
-              <ProjectList searchQuery={projectSearchQuery} activeOnly={projectActiveOnly} />
+              <>
+                <TagFilterBar value={projectTagFilter} onChange={setProjectTagFilter} />
+                <ProjectList
+                  searchQuery={projectSearchQuery}
+                  activeOnly={projectActiveOnly}
+                  tagFilter={projectTagFilter}
+                />
+              </>
             ) : (
               <SessionList
                 groupMode={groupMode}

@@ -33,7 +33,7 @@ const SHORTCUTS: { category: string; items: { keys: string; description: string 
       { keys: `${MOD}B`, description: 'Toggle sidebar' },
       { keys: `${MOD}F`, description: 'Focus panel search' },
       { keys: `${MOD}${SHIFT}F`, description: 'Open Search side panel' },
-      { keys: `${MOD}P`, description: 'Global search' },
+      { keys: `${MOD}P`, description: 'Global search — projects, sessions, tabs, settings (try #tag)' },
       { keys: `${MOD}${SHIFT}P`, description: 'Run a command' }
     ]
   },

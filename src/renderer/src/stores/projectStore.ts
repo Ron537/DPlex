@@ -3,6 +3,7 @@ import type { Project, ProjectGitPanelState, ProjectWorktreeOverrides } from '..
 import { useSettingsStore } from './settingsStore'
 import { useTerminalStore } from './terminalStore'
 import { normalizePath } from '../hooks/useProjectSessions'
+import { normalizeTag, normalizeTags } from '../utils/projectTags'
 
 function generateId(): string {
   return `proj-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -57,6 +58,14 @@ interface ProjectState {
   setActiveProject: (id: string | null) => void
   setProjectGitState: (id: string, patch: ProjectGitPanelState) => void
   togglePin: (id: string) => void
+  /** Replace this project's tags with the given list (will be normalized).
+   *  Use this from the tag picker after committing edits. */
+  setProjectTags: (id: string, tags: readonly string[]) => void
+  /** Convenience: add a single tag (idempotent). Returns nothing; callers
+   *  read the next render. */
+  addProjectTag: (id: string, tag: string) => void
+  /** Convenience: remove a single tag. No-op if not present. */
+  removeProjectTag: (id: string, tag: string) => void
   startAISession: (project: Project, providerId?: string) => Promise<string | null>
   updateProjectWorktreeOverrides: (
     projectId: string,
@@ -261,6 +270,49 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return { projects: [pinnedTarget, ...without] }
     })
     get().persistProjects()
+  },
+
+  setProjectTags: (id, tags) => {
+    const normalized = normalizeTags(tags)
+    let changed = false
+    set((state) => {
+      const idx = state.projects.findIndex((p) => p.id === id)
+      if (idx === -1) return state
+      const current = state.projects[idx]
+      const before = current.tags ?? []
+      if (before.length === normalized.length && before.every((t, i) => t === normalized[i])) {
+        return state
+      }
+      changed = true
+      const next: Project =
+        normalized.length === 0 ? { ...current, tags: undefined } : { ...current, tags: normalized }
+      const newProjects = [...state.projects]
+      newProjects[idx] = next
+      return { projects: newProjects }
+    })
+    if (changed) get().persistProjects()
+  },
+
+  addProjectTag: (id, tag) => {
+    const t = normalizeTag(tag)
+    if (!t) return
+    const { projects, setProjectTags } = get()
+    const current = projects.find((p) => p.id === id)
+    if (!current) return
+    if (current.tags?.includes(t)) return
+    setProjectTags(id, [...(current.tags ?? []), t])
+  },
+
+  removeProjectTag: (id, tag) => {
+    const t = normalizeTag(tag)
+    if (!t) return
+    const { projects, setProjectTags } = get()
+    const current = projects.find((p) => p.id === id)
+    if (!current || !current.tags?.includes(t)) return
+    setProjectTags(
+      id,
+      current.tags.filter((x) => x !== t)
+    )
   },
 
   reorderProject: (draggedId, targetId, position) => {
