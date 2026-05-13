@@ -150,6 +150,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   attentionClickClearsWaiting: false,
   worktreeDefaults: DEFAULT_WORKTREE_DEFAULTS,
   projectPanelShowFooter: true,
+  tagColors: {},
   gitPanel: {
     open: false,
     width: 300,

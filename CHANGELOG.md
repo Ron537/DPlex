@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-05-13
+
+### Features
+
+- Tag your projects to group related ones together, then filter the
+  projects sidebar with one click on a tag chip. Right-click a project
+  → **Tags…** to add, remove, or create tags.
+- Pick a color for each tag from an 8-swatch palette (or let DPlex
+  assign one automatically). Tag colors are shared across the sidebar
+  and command palette, so the same tag always looks the same.
+- Global search (⌘P) now matches projects by tag — type `#infra` to
+  filter, or just type a tag name. Each project result shows its
+  avatar and tag pills so you can see why it matched.
+- New **Search** button in the status bar opens the command palette,
+  with its ⌘P shortcut shown right on the button.
+
+### Improvements
+
+- Filtering projects by tag keeps a parent's worktree branches visible
+  underneath it, so a tag on the origin pulls the whole tree along.
+- Project rows fit as many tag pills as actually have room, then
+  surface the rest as a `+N` chip whose tooltip lists what's hidden —
+  nothing is silently clipped.
+
 ## [0.15.0] — 2026-05-12
 
 ### Features
@@ -445,7 +469,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/Ron537/DPlex/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/Ron537/DPlex/compare/v0.14.2...v0.15.0
 [0.14.2]: https://github.com/Ron537/DPlex/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/Ron537/DPlex/compare/v0.14.0...v0.14.1

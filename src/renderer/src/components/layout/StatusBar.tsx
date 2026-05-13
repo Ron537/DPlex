@@ -1,7 +1,8 @@
-import { Terminal, PanelLeftOpen, PanelLeftClose, Settings } from 'lucide-react'
+import { Terminal, PanelLeftOpen, PanelLeftClose, Settings, Search } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
+import { useCommandPaletteStore } from '../../stores/commandPaletteStore'
 import { MOD } from '../../utils/shortcuts'
 
 interface StatusBarProps {
@@ -40,6 +41,30 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
           title={panelCollapsed ? `Show panel (${MOD}B)` : `Hide panel (${MOD}B)`}
         >
           {panelCollapsed ? <PanelLeftOpen size={13} /> : <PanelLeftClose size={13} />}
+        </button>
+        <button
+          onClick={() => useCommandPaletteStore.getState().toggle('all')}
+          className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
+          style={{ height: 18, color: 'var(--dplex-text-muted)' }}
+          title="Search projects, sessions, settings (try #tag)"
+          aria-label={`Open command palette (${MOD}P)`}
+        >
+          <Search size={11} />
+          <span>Search</span>
+          <kbd
+            className="font-medium"
+            style={{
+              fontSize: 10,
+              padding: '0 4px',
+              borderRadius: 3,
+              border: '1px solid var(--dplex-border)',
+              color: 'var(--dplex-text-dim)',
+              backgroundColor: 'var(--dplex-bg-input)',
+              fontFamily: 'inherit'
+            }}
+          >
+            {MOD}P
+          </kbd>
         </button>
       </div>
       <div className="flex items-center gap-3 pr-1 min-w-0">

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { MatchRange, RankedItem, SearchResultGroup } from '../../services/search/types'
+import { TagPill } from '../projects/TagPill'
 
 interface SearchResultsListProps {
   groups: SearchResultGroup[]
@@ -120,6 +121,9 @@ export function SearchResultsList({
                 data-testid="search-result"
                 data-search-item-id={ranked.item.id}
               >
+                {ranked.item.icon && (
+                  <span className="flex-shrink-0 flex items-center">{ranked.item.icon}</span>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="text-[12.5px] truncate">
                     <HighlightedText text={ranked.item.label} ranges={ranked.ranges} />
@@ -130,6 +134,13 @@ export function SearchResultsList({
                       style={{ color: 'var(--dplex-text-muted)' }}
                     >
                       {ranked.item.description}
+                    </div>
+                  )}
+                  {ranked.item.tags && ranked.item.tags.length > 0 && (
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                      {ranked.item.tags.map((t) => (
+                        <TagPill key={t} tag={t} compact />
+                      ))}
                     </div>
                   )}
                 </div>

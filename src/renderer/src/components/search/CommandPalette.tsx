@@ -70,7 +70,9 @@ export function CommandPalette(): React.JSX.Element | null {
   }
 
   const placeholder =
-    mode === 'commands' ? 'Type a command…' : 'Search projects, sessions, settings…'
+    mode === 'commands'
+      ? 'Type a command…'
+      : 'Search projects, sessions, settings… (try #tag)'
 
   // Compute the active descendant id for the input.
   let active: string | undefined

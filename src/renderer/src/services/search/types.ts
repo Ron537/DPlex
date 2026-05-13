@@ -54,6 +54,13 @@ export interface SearchItem {
   /** Optional keywords that the matcher considers in addition to `label`.
    *  Used to make settings findable by synonyms (e.g. "color" → theme). */
   keywords?: string[]
+  /** Optional list of tag names to render as colored pills next to the
+   *  result row. Used for project items so users can see which tags caused
+   *  a match (and so the palette doubles as a tag browser). */
+  tags?: string[]
+  /** Optional leading icon node (e.g. project avatar, lucide icon). Sources
+   *  pass arbitrary JSX so they aren't constrained to a single icon shape. */
+  icon?: React.ReactNode
   /** Action invoked when the user picks this item. May be async. */
   run: () => void | Promise<void>
 }

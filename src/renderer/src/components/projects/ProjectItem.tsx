@@ -14,7 +14,8 @@ import {
   PinOff,
   ArrowUp,
   ArrowDown,
-  GitCompare
+  GitCompare,
+  Tag as TagIcon
 } from 'lucide-react'
 import type { Project, AISession, ProviderInfo, WorktreeDefaults } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
@@ -29,6 +30,8 @@ import { isMixedProviderList } from '../../utils/providerHelpers'
 import { aggregateVisual } from '../../utils/aggregateVisual'
 import { PromptsDialog } from '../sessions/PromptsDialog'
 import { ProjectSessionList, selectRecentSessions } from './ProjectSessionList'
+import { InlineTagList } from './InlineTagList'
+import { TagPickerPopover } from './TagPickerPopover'
 import { WorktreeSection } from './WorktreeSection'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
 import { focusFirstTabForPaths } from '../../utils/sessionTabs'
@@ -52,6 +55,10 @@ interface ProjectItemProps {
   moveUpTargetId?: string | null
   /** Id of the next top-level sibling in the same pinned group (for "Move down"). */
   moveDownTargetId?: string | null
+  /** Render the expanded body regardless of the user's persisted expansion
+   *  state. Used by `ProjectList` in filter mode so a matched parent shows
+   *  its full worktree subtree even when the user had it collapsed. */
+  forceExpanded?: boolean
 }
 
 /**
@@ -78,7 +85,8 @@ export function ProjectItem({
   childProjects,
   getActivity,
   moveUpTargetId = null,
-  moveDownTargetId = null
+  moveDownTargetId = null,
+  forceExpanded = false
 }: ProjectItemProps): React.JSX.Element {
   const expandedIds = useProjectStore((s) => s.expandedProjectIds)
   const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
@@ -107,6 +115,8 @@ export function ProjectItem({
   const [manageOpen, setManageOpen] = useState(false)
   const [defaultsOpen, setDefaultsOpen] = useState(false)
   const [removeWtOpen, setRemoveWtOpen] = useState(false)
+  const [tagPickerOpen, setTagPickerOpen] = useState(false)
+  const tagPickerAnchorRef = useRef<HTMLDivElement>(null)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   // Virtual anchor for right-click context menu — positioned at the cursor
   // so the menu opens where the user clicked (not next to the ⋯ button).
@@ -129,7 +139,7 @@ export function ProjectItem({
   const watchPath = isWorktreeProject ? (project.parentRepoPath ?? project.path) : project.path
   const { repoRoot } = useWorktrees(needWtWatch ? watchPath : undefined)
 
-  const isExpanded = expandedIds.has(project.id)
+  const isExpanded = forceExpanded || expandedIds.has(project.id)
   // The project row reads as "active" when it's the directly-active project
   // OR when one of its worktree-child projects is active. The latter case
   // is the "ambient parent highlight" — selecting a worktree section under
@@ -205,6 +215,7 @@ export function ProjectItem({
           alone, and the expanded body hangs below with an indent + dashed
           guide line (matches the mockup's `.proj-children`). */}
       <div
+        ref={tagPickerAnchorRef}
         data-project-id={project.id}
         className="group flex items-center gap-2.5 pl-3 pr-2.5 py-2 cursor-pointer relative rounded-lg transition-colors"
         style={{
@@ -233,9 +244,7 @@ export function ProjectItem({
           // store state after that would mis-classify a freshly-clicked
           // collapsed project as "already expanded" and immediately
           // collapse it again.
-          const wasExpandedBefore = useProjectStore
-            .getState()
-            .expandedProjectIds.has(project.id)
+          const wasExpandedBefore = useProjectStore.getState().expandedProjectIds.has(project.id)
           const wasEmphasizedBefore =
             useProjectStore.getState().lastExpandedProjectId === project.id
 
@@ -366,6 +375,14 @@ export function ProjectItem({
                 )
               })()}
           </div>
+          {/* Line 3 (tags) — rendered on its own row so the hover-revealed
+              action buttons (absolute, vertically-centered) only mask the
+              branch+time line and leave tags fully visible. `InlineTagList`
+              measures actual pill widths and surfaces overflow as a `+N`
+              chip whose tooltip lists the hidden tags. */}
+          {project.tags && project.tags.length > 0 && (
+            <InlineTagList tags={project.tags} />
+          )}
         </div>
 
         {/* Chevron — right-aligned, grey. Clicking always toggles expansion,
@@ -561,6 +578,20 @@ export function ProjectItem({
             </button>
           )}
 
+          <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowMenu(false)
+              setContextMenuPos(null)
+              setTagPickerOpen(true)
+            }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+            style={{ color: 'var(--dplex-text)' }}
+          >
+            <TagIcon size={11} /> Tags…
+          </button>
+
           {canPin && (
             <>
               <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
@@ -627,6 +658,13 @@ export function ProjectItem({
             <Trash2 size={11} /> {isWorktreeProject ? 'Remove worktree…' : 'Remove Project'}
           </button>
         </PopoverMenu>
+
+        <TagPickerPopover
+          projectId={project.id}
+          open={tagPickerOpen}
+          onClose={() => setTagPickerOpen(false)}
+          anchorRef={tagPickerAnchorRef}
+        />
       </div>
 
       {/* Expanded body — nested under the project row with a dashed left

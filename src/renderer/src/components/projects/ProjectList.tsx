@@ -26,6 +26,9 @@ const EMPTY_ATTENTION: AttentionEvent[] = []
 interface ProjectListProps {
   searchQuery?: string
   activeOnly?: boolean
+  /** Single tag to filter by. A project matches if it carries this tag OR
+   *  has a worktree child that carries it. Null/undefined means no tag filter. */
+  tagFilter?: string | null
   /** Render the rail-style avatar-only column instead of full rows. */
   compact?: boolean
 }
@@ -38,6 +41,7 @@ interface ProjectEntry {
 export function ProjectList({
   searchQuery,
   activeOnly,
+  tagFilter,
   compact
 }: ProjectListProps): React.JSX.Element {
   const projects = useProjectStore((s) => s.projects)
@@ -104,7 +108,7 @@ export function ProjectList({
     return m
   }, [projects])
 
-  const hasFilter = Boolean(searchQuery) || Boolean(activeOnly)
+  const hasFilter = Boolean(searchQuery) || Boolean(activeOnly) || Boolean(tagFilter)
 
   // Render-order projects. Only top-level origins render directly here — their
   // worktree children render INSIDE the parent's expanded body (so they share
@@ -119,6 +123,7 @@ export function ProjectList({
     const matchesFilter = (p: Project): boolean => {
       if (q && !p.name.toLowerCase().includes(q)) return false
       if (activeOnly && !sessionIndex.get(p.path)?.hasActive) return false
+      if (tagFilter && !(p.tags?.includes(tagFilter) ?? false)) return false
       return true
     }
 
@@ -134,13 +139,22 @@ export function ProjectList({
       if (!isTopLevel(p)) continue
 
       const kids = childrenByParent.get(p.id) ?? []
-      const visibleKids = kids.filter(matchesFilter)
       const parentMatches = matchesFilter(p)
 
       if (hasFilter) {
-        // Flat match list while filtering — pinning ignored for clarity.
-        if (parentMatches) restOut.push({ project: p })
-        for (const kid of visibleKids) restOut.push({ project: kid })
+        if (parentMatches) {
+          // Parent matches → render with the FULL worktree subtree, even if
+          // individual worktrees don't satisfy the filter. A matching parent
+          // is a strong "I want this project" signal, and worktrees inherit
+          // that context (a tag like `#client-acme` on the origin clearly
+          // applies to its branches too).
+          restOut.push({ project: p, children: kids })
+        } else {
+          // Parent doesn't match → surface any worktree children that DO
+          // match as top-level rows so a matching branch isn't hidden
+          // behind a non-matching origin.
+          for (const kid of kids.filter(matchesFilter)) restOut.push({ project: kid })
+        }
       } else {
         const entry: ProjectEntry = { project: p, children: kids }
         if (p.pinned) pinnedOut.push(entry)
@@ -148,7 +162,7 @@ export function ProjectList({
       }
     }
     return { pinned: pinnedOut, rest: restOut }
-  }, [projects, childrenByParent, searchQuery, activeOnly, sessionIndex, hasFilter])
+  }, [projects, childrenByParent, searchQuery, activeOnly, tagFilter, sessionIndex, hasFilter])
 
   const totalVisible = pinned.length + rest.length
 
@@ -206,6 +220,7 @@ export function ProjectList({
       providers={providers}
       moveUpTargetId={index > 0 ? list[index - 1].project.id : null}
       moveDownTargetId={index < list.length - 1 ? list[index + 1].project.id : null}
+      forceExpanded={hasFilter && children !== undefined && children.length > 0}
     />
   )
 
