@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-05-18
+
+### Features
+
+- Every pane now wears a **breadcrumb header** under its tab bar
+  showing the active tab's project avatar, project name, working
+  directory, branch, and (for AI sessions) the provider and live
+  status — so context never lives only in a tab title.
+- Tabs now show a project **avatar with the project's initials** —
+  scan a busy row and see at a glance which project each tab
+  belongs to, even after manual reordering. Worktree tabs share
+  their parent repo's avatar.
+- New **Focus project** filter dims tabs that don't belong to the
+  active project, right from the status bar. Tab order, splits,
+  and running sessions stay exactly as they were — click the pill
+  again to clear.
+
 ## [0.16.0] — 2026-05-13
 
 ### Features
@@ -470,6 +487,7 @@ AI-assisted development.
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
 [Unreleased]: https://github.com/Ron537/DPlex/compare/v0.16.0...HEAD
+[0.17.0]: https://github.com/Ron537/DPlex/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/Ron537/DPlex/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/Ron537/DPlex/compare/v0.14.2...v0.15.0
 [0.14.2]: https://github.com/Ron537/DPlex/compare/v0.14.1...v0.14.2

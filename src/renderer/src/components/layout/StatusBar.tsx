@@ -1,8 +1,11 @@
-import { Terminal, PanelLeftOpen, PanelLeftClose, Settings, Search } from 'lucide-react'
+import { Terminal, PanelLeftOpen, PanelLeftClose, Settings, Search, Focus, X } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useCommandPaletteStore } from '../../stores/commandPaletteStore'
+import { useProjectStore } from '../../stores/projectStore'
+import { useTabFocusStore } from '../../stores/tabFocusStore'
+import { getTabIdentity } from '../../utils/tabProject'
 import { MOD } from '../../utils/shortcuts'
 
 interface StatusBarProps {
@@ -19,6 +22,14 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const sessions = useSessionStore((s) => s.sessions)
   const activeSessionCount = sessions.filter((s) => s.status === 'active').length
+  const projects = useProjectStore((s) => s.projects)
+  const focusedProjectId = useTabFocusStore((s) => s.focusedProjectId)
+  const setFocusedProject = useTabFocusStore((s) => s.setFocusedProject)
+  const toggleFocusedProject = useTabFocusStore((s) => s.toggleFocusedProject)
+  const activeTabIdentity = activeTab ? getTabIdentity(activeTab, projects) : undefined
+  const focusedProject = focusedProjectId
+    ? projects.find((p) => p.id === focusedProjectId)
+    : undefined
 
   return (
     <div
@@ -68,6 +79,41 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         </button>
       </div>
       <div className="flex items-center gap-3 pr-1 min-w-0">
+        {focusedProjectId ? (
+          <button
+            onClick={() => setFocusedProject(null)}
+            className="inline-flex items-center gap-1.5 px-2 rounded-full transition-colors flex-shrink-0"
+            style={{
+              height: 18,
+              border: '1px solid var(--dplex-accent)',
+              color: 'var(--dplex-text)',
+              backgroundColor: 'var(--dplex-bg-input)'
+            }}
+            title={
+              focusedProject
+                ? `Showing only tabs from "${focusedProject.name}". Click to clear.`
+                : 'Clear stale focus filter'
+            }
+          >
+            <Focus size={11} />
+            <span className="truncate" style={{ maxWidth: 160 }}>
+              Focus: {focusedProject?.name ?? 'cleared'}
+            </span>
+            <X size={11} />
+          </button>
+        ) : (
+          activeTabIdentity && (
+            <button
+              onClick={() => toggleFocusedProject(activeTabIdentity.colorProject.id)}
+              className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
+              style={{ height: 18, color: 'var(--dplex-text-muted)' }}
+              title={`Focus only tabs from "${activeTabIdentity.colorProject.name}"`}
+            >
+              <Focus size={11} />
+              <span>Focus project</span>
+            </button>
+          )
+        )}
         {activeSessionCount > 0 && (
           <span
             className="inline-flex items-center gap-1.5 px-2 rounded-full flex-shrink-0"

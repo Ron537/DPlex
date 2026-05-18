@@ -8,9 +8,12 @@ import {
 } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSessionStore } from '../../stores/sessionStore'
+import { useProjectStore } from '../../stores/projectStore'
+import { useTabFocusStore } from '../../stores/tabFocusStore'
 import { StatusDot } from '../common/StatusDot'
 import { labelForVisual } from '../../utils/sessionStatusVisual'
 import { effectiveSessionVisual } from '../../utils/sessionPairing'
+import { getTabIdentity } from '../../utils/tabProject'
 import { ShellSelector } from './ShellSelector'
 import type { EditorGroup } from '../../types'
 
@@ -44,6 +47,8 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
   const inputRef = useRef<HTMLInputElement>(null)
 
   const sessions = useSessionStore((s) => s.sessions)
+  const projects = useProjectStore((s) => s.projects)
+  const focusedProjectId = useTabFocusStore((s) => s.focusedProjectId)
 
   const handleDoubleClick = (tabId: string, currentTitle: string): void => {
     setEditingTabId(tabId)
@@ -123,6 +128,19 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
           const tabProviderId = isFileDiff ? undefined : tab.providerId
           const isActive = isActiveGroup && tab.id === group.activeTabId
           const isPreview = isFileDiff && (tab as { preview?: boolean }).preview === true
+          const identity = getTabIdentity(tab, projects)
+          const focusActive = focusedProjectId !== null
+          const isInFocus =
+            !focusActive ||
+            (identity !== undefined &&
+              (identity.colorProject.id === focusedProjectId ||
+                identity.matched.id === focusedProjectId))
+          const dimmed = focusActive && !isInFocus && !isActive
+          const projectTitle = identity
+            ? identity.matched.id === identity.colorProject.id
+              ? identity.matched.name
+              : `${identity.colorProject.name} › ${identity.matched.name}`
+            : undefined
           return (
             <div
               key={tab.id}
@@ -131,6 +149,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               onDragOver={(e) => handleDragOver(e, index)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, index)}
+              title={projectTitle ? `${tab.title} — ${projectTitle}` : undefined}
               className={`group flex items-center gap-2 px-3.5 cursor-pointer text-[12.5px] transition-colors relative ${
                 dragOverIndex === index ? 'border-l-2' : ''
               }`}
@@ -147,6 +166,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
                 backgroundColor: isActive ? 'var(--dplex-bg)' : 'var(--dplex-bg-alt)',
                 color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+                opacity: dimmed ? 0.4 : 1,
                 zIndex: isActive ? 1 : 0
               }}
               onClick={() => {
@@ -161,8 +181,10 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 }
               }}
             >
-              {/* Active tab gets a 2-px accent stripe along the top edge — flat
-                  VS Code style. */}
+              {/* Active tab gets a 2-px accent stripe along the top edge —
+                  flat VS Code style. Project identity is now carried by
+                  the avatar (below) and the pane's TabHeader, so the tab
+                  itself only needs the active indicator. */}
               {isActive && (
                 <span
                   aria-hidden
@@ -177,11 +199,27 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   }}
                 />
               )}
-              <TerminalIcon
-                size={13}
-                className="flex-shrink-0"
-                style={{ color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)' }}
-              />
+              {identity ? (
+                <span
+                  aria-hidden
+                  className="inline-flex items-center justify-center rounded-[3px] font-bold leading-none flex-shrink-0"
+                  style={{
+                    width: 14,
+                    height: 14,
+                    backgroundColor: identity.color.bg,
+                    color: identity.color.fg,
+                    fontSize: 9
+                  }}
+                >
+                  {identity.initials}
+                </span>
+              ) : (
+                <TerminalIcon
+                  size={13}
+                  className="flex-shrink-0"
+                  style={{ color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)' }}
+                />
+              )}
               {(() => {
                 if (!tabSessionId || !tabProviderId) return null
                 const session = sessions.find(
@@ -218,7 +256,10 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               ) : (
                 <span
                   className="truncate max-w-[140px]"
-                  style={{ fontStyle: isPreview ? 'italic' : undefined }}
+                  style={{
+                    fontStyle: isPreview ? 'italic' : undefined,
+                    fontWeight: isActive ? 600 : undefined
+                  }}
                   data-testid="editor-tab-label"
                 >
                   {tab.title}

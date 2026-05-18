@@ -3,6 +3,7 @@ import type { EditorGroup as EditorGroupType } from '../../types'
 import { isFileDiffTab } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { GroupTabBar } from './GroupTabBar'
+import { TabHeader } from './TabHeader'
 import { TerminalView } from './TerminalView'
 import { FileDiffTabView } from '../diff/FileDiffTabView'
 
@@ -18,6 +19,7 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
   const moveTerminalToNewSplit = useTerminalStore((s) => s.moveTerminalToNewSplit)
   const isActiveGroup = group.id === activeGroupId
   const [dropZone, setDropZone] = useState<DropZone>(null)
+  const activeTab = group.tabs.find((t) => t.id === group.activeTabId)
 
   const getDropZone = (e: DragEvent<HTMLDivElement>): DropZone => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -82,6 +84,7 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
       onClick={() => setActiveGroup(group.id)}
     >
       <GroupTabBar group={group} isActiveGroup={isActiveGroup} />
+      {activeTab && <TabHeader tab={activeTab} />}
 
       {/* Terminal area with drop zones */}
       <div

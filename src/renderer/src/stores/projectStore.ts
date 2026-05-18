@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { Project, ProjectGitPanelState, ProjectWorktreeOverrides } from '../types'
 import { useSettingsStore } from './settingsStore'
 import { useTerminalStore } from './terminalStore'
+import { useTabFocusStore } from './tabFocusStore'
 import { normalizePath } from '../hooks/useProjectSessions'
 import { normalizeTag, normalizeTags } from '../utils/projectTags'
 
@@ -247,6 +248,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         activeProjectId: activeCleared ? null : state.activeProjectId
       }
     })
+    // Clear the tab focus filter if it pointed at the removed project,
+    // otherwise the user is left with a dimmed UI and no in-app way to
+    // dismiss it (the focus pill resolves the project lookup to undefined
+    // and disappears).
+    if (useTabFocusStore.getState().focusedProjectId === id) {
+      useTabFocusStore.getState().clear()
+    }
     get().persistProjects()
     if (activeCleared) window.dplex.settings.merge({ activeProjectId: null })
   },
