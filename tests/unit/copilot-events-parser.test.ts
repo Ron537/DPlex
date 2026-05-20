@@ -126,4 +126,81 @@ describe('copilotEventsParser', () => {
     expect(parsed.detailedStatus).toBe('idle')
     expect(parsed.lastActivityTime).toBe(0)
   })
+
+  it('sets awaitingApproval on permission.requested and resumes on permission.completed', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      {
+        type: 'user.message',
+        data: { content: 'do something' },
+        timestamp: '2024-01-01T00:00:01.000Z'
+      },
+      {
+        type: 'permission.requested',
+        data: { requestId: 'req-1', permissionRequest: { kind: 'shell' } },
+        timestamp: '2024-01-01T00:00:02.000Z'
+      }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    const pending = await parseCopilotEvents(eventsFile)
+    expect(pending.detailedStatus).toBe('awaitingApproval')
+
+    // User approves — no tools are running so agent should resume thinking
+    await fsp.appendFile(
+      eventsFile,
+      JSON.stringify({
+        type: 'permission.completed',
+        data: { requestId: 'req-1', result: { kind: 'approved' } },
+        timestamp: '2024-01-01T00:00:03.000Z'
+      }) + '\n',
+      'utf-8'
+    )
+
+    const approved = await parseCopilotEvents(eventsFile)
+    expect(approved.detailedStatus).toBe('thinking')
+  })
+
+  it('keeps executingTool status when permission.completed fires with pending tools', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      {
+        type: 'user.message',
+        data: { content: 'do something' },
+        timestamp: '2024-01-01T00:00:01.000Z'
+      },
+      {
+        type: 'tool.execution_start',
+        data: { toolName: 'bash' },
+        timestamp: '2024-01-01T00:00:02.000Z'
+      },
+      {
+        type: 'permission.requested',
+        data: { requestId: 'req-1', permissionRequest: { kind: 'shell' } },
+        timestamp: '2024-01-01T00:00:03.000Z'
+      }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    // Permission completed while tool still running — should stay awaitingApproval
+    // (not flip to thinking since pendingToolCalls > 0)
+    await fsp.appendFile(
+      eventsFile,
+      JSON.stringify({
+        type: 'permission.completed',
+        data: { requestId: 'req-1', result: { kind: 'approved' } },
+        timestamp: '2024-01-01T00:00:04.000Z'
+      }) + '\n',
+      'utf-8'
+    )
+
+    const result = await parseCopilotEvents(eventsFile)
+    expect(result.detailedStatus).toBe('awaitingApproval')
+  })
 })

@@ -130,8 +130,17 @@ function processEvent(
       break
 
     case 'tool.user_requested':
+    case 'permission.requested':
       // Copilot is waiting on the user to approve a tool call.
       data.detailedStatus = 'awaitingApproval'
+      break
+
+    case 'permission.completed':
+      // User responded to a permission prompt — only revert to thinking
+      // if no other tools are still running (mirrors tool.execution_complete guard).
+      if (pendingToolCalls <= 0) {
+        data.detailedStatus = 'thinking'
+      }
       break
 
     case 'tool.execution_start': {

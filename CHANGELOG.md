@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] — 2026-05-20
+
+### Bug Fixes
+
+- Copilot CLI sessions waiting for tool approval now correctly show **Needs approval** status instead of **Running**.
+
 ## [0.17.0] — 2026-05-18
 
 ### Features
