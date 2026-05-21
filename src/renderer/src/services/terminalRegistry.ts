@@ -2,6 +2,7 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { getTheme } from './themes'
+import { FlowController } from './flowControl'
 
 export interface TerminalEntry {
   term: Terminal
@@ -15,6 +16,80 @@ export interface TerminalEntry {
 
 // Global registry — lives outside React lifecycle
 const registry = new Map<string, TerminalEntry>()
+
+// ── Centralized PTY Data Dispatcher ─────────────────────────────────────
+// Single global IPC listener routes data to the correct terminal via O(1)
+// Map lookup instead of O(N) broadcast across all terminal listeners.
+// Flow control is handled by FlowController per terminal.
+
+interface PtyDataHandler {
+  terminalId: string
+  entry: TerminalEntry
+  flowController: FlowController
+  onReady: (() => void) | null
+}
+
+const dataHandlers = new Map<string, PtyDataHandler>()
+const exitHandlers = new Map<string, (exitCode: number) => void>()
+
+let globalDataListenerCleanup: (() => void) | null = null
+
+function ensureGlobalListeners(): void {
+  if (globalDataListenerCleanup) return
+
+  globalDataListenerCleanup = window.dplex.pty.onData((ptyId, data) => {
+    const handler = dataHandlers.get(ptyId)
+    if (!handler) return
+
+    handler.flowController.write(data)
+
+    if (!handler.entry.ready) {
+      handler.entry.ready = true
+      if (handler.onReady) {
+        handler.onReady()
+        handler.onReady = null
+      }
+    }
+  })
+
+  window.dplex.pty.onExit((ptyId, exitCode) => {
+    const handler = exitHandlers.get(ptyId)
+    if (handler) handler(exitCode)
+  })
+}
+
+/** Register a terminal to receive PTY data via the centralized dispatcher. */
+export function registerPtyDataHandler(
+  ptyId: string,
+  terminalId: string,
+  entry: TerminalEntry,
+  onExit: (exitCode: number) => void,
+  onReady?: () => void
+): () => void {
+  ensureGlobalListeners()
+
+  const transport = {
+    pause: (id: string) => window.dplex.pty.pause(id),
+    resume: (id: string) => window.dplex.pty.resume(id)
+  }
+
+  const flowController = new FlowController(ptyId, entry.term, transport)
+
+  dataHandlers.set(ptyId, {
+    terminalId,
+    entry,
+    flowController,
+    onReady: onReady || null
+  })
+
+  exitHandlers.set(ptyId, onExit)
+
+  return () => {
+    flowController.dispose()
+    dataHandlers.delete(ptyId)
+    exitHandlers.delete(ptyId)
+  }
+}
 
 export function getOrCreateTerminal(
   terminalId: string,

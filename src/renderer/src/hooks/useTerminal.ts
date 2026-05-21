@@ -7,6 +7,7 @@ import {
   updateTerminalFont,
   applyThemeToAll,
   fireExitHandler,
+  registerPtyDataHandler,
   type TerminalEntry
 } from '../services/terminalRegistry'
 
@@ -127,32 +128,19 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       entry.creating = true
       setReady(false)
 
-      // Subscribe to IPC data FIRST
+      // Buffer data that arrives before PTY ID is known (race between
+      // IPC listener registration and pty:create response)
       const earlyBuffer: { id: string; data: string }[] = []
-      let ptyIdResolved: string | null = null
+      let earlyCleanup: (() => void) | null = null
 
-      const removeDataListener = window.dplex.pty.onData((id, data) => {
-        if (ptyIdResolved) {
-          if (id === ptyIdResolved) {
-            entry.term.write(data)
-            if (!entry.ready) {
-              entry.ready = true
-              setReady(true)
-            }
-          }
-        } else {
-          earlyBuffer.push({ id, data })
-        }
+      earlyCleanup = window.dplex.pty.onData((id, data) => {
+        earlyBuffer.push({ id, data })
       })
 
       const removeExitListener = window.dplex.pty.onExit((id, exitCode) => {
-        if (id === ptyIdResolved) {
-          entry.term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n')
-          // Notify any callers that registered a pending exit handler for
-          // this terminal (e.g. worktree setup-script flow) so they can
-          // record results and clean up resources without polling.
-          fireExitHandler(terminalId, exitCode)
-        }
+        // Early exit before PTY ID resolved — unlikely but handle gracefully
+        earlyBuffer.push({ id, data: '' })
+        void exitCode
       })
 
       // Create PTY — use tab-specific shell, then settings default, then system default
@@ -174,14 +162,34 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           // Guard: if tab was removed from store before PTY resolved, clean up
           if (!tabExists(terminalId)) {
             window.dplex.pty.destroy(ptyId)
-            removeDataListener()
+            if (earlyCleanup) earlyCleanup()
             removeExitListener()
             entry.creating = false
             return
           }
 
           entry.ptyId = ptyId
-          ptyIdResolved = ptyId
+
+          // Remove the early listeners — the centralized dispatcher takes over
+          if (earlyCleanup) {
+            earlyCleanup()
+            earlyCleanup = null
+          }
+          removeExitListener()
+
+          // Register with centralized dispatcher for O(1) routing + flow control
+          const unregisterHandler = registerPtyDataHandler(
+            ptyId,
+            terminalId,
+            entry,
+            (exitCode) => {
+              entry.term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n')
+              fireExitHandler(terminalId, exitCode)
+            },
+            () => {
+              setReady(true)
+            }
+          )
 
           // Store PID on the tab for session ID resolution
           if (tabCommand && pid) {
@@ -252,15 +260,14 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
 
           entry.creating = false
           entry.cleanupIpc = () => {
+            unregisterHandler()
             onDataDisposable.dispose()
             onResizeDisposable.dispose()
             onTitleDisposable.dispose()
-            removeDataListener()
-            removeExitListener()
           }
         })
         .catch(() => {
-          removeDataListener()
+          if (earlyCleanup) earlyCleanup()
           removeExitListener()
           entry.creating = false
           entry.term.write('\r\n\x1b[31m[Failed to start terminal]\x1b[0m\r\n')

@@ -19,6 +19,8 @@ import {
   writePty,
   resizePty,
   destroyPty,
+  pausePty,
+  resumePty,
   destroyAllPtys,
   destroyPtysForWindow,
   getDefaultShellPath,
@@ -381,6 +383,14 @@ function registerIpcHandlers(): void {
 
   ipcMain.on('pty:destroy', (_event, id: string) => {
     destroyPty(id)
+  })
+
+  ipcMain.on('pty:pause', (_event, id: string) => {
+    pausePty(id)
+  })
+
+  ipcMain.on('pty:resume', (_event, id: string) => {
+    resumePty(id)
   })
 
   // Session discovery — routes through provider registry

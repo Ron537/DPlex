@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.2] — 2026-05-21
+
+### Performance
+
+- Dramatically reduced UI lag and freezes when multiple AI sessions produce output simultaneously.
+- Terminal output is now batched before delivery, preventing IPC flooding under heavy load.
+- Added flow control so fast-producing terminals automatically throttle when the display falls behind.
+
 ## [0.17.1] — 2026-05-20
 
 ### Bug Fixes
@@ -493,6 +501,8 @@ AI-assisted development.
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
 [Unreleased]: https://github.com/Ron537/DPlex/compare/v0.16.0...HEAD
+[0.17.2]: https://github.com/Ron537/DPlex/compare/v0.17.1...v0.17.2
+[0.17.1]: https://github.com/Ron537/DPlex/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/Ron537/DPlex/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/Ron537/DPlex/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/Ron537/DPlex/compare/v0.14.2...v0.15.0

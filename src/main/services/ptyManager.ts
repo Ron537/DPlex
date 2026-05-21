@@ -2,10 +2,12 @@ import * as pty from 'node-pty'
 import { BrowserWindow } from 'electron'
 import * as os from 'os'
 import * as fs from 'fs'
+import { DataBatcher } from './dataBatcher'
 
 interface PtyEntry {
   process: pty.IPty
   windowId: number
+  batcher: DataBatcher
 }
 
 const ptys = new Map<string, PtyEntry>()
@@ -212,20 +214,26 @@ export function createPty(
     } as Record<string, string>
   })
 
-  ptyProcess.onData((data) => {
+  const batcher = new DataBatcher((data) => {
     if (!window.isDestroyed()) {
       window.webContents.send('pty:data', { id, data })
     }
   })
 
+  ptyProcess.onData((data) => {
+    batcher.write(data)
+  })
+
   ptyProcess.onExit(({ exitCode }) => {
+    const entry = ptys.get(id)
+    if (entry) entry.batcher.dispose()
     ptys.delete(id)
     if (!window.isDestroyed()) {
       window.webContents.send('pty:exit', { id, exitCode })
     }
   })
 
-  ptys.set(id, { process: ptyProcess, windowId: window.id })
+  ptys.set(id, { process: ptyProcess, windowId: window.id, batcher })
 
   return { id, pid: ptyProcess.pid }
 }
@@ -245,12 +253,27 @@ export function resizePty(id: string, cols: number, rows: number): void {
 export function destroyPty(id: string): void {
   const entry = ptys.get(id)
   if (entry) {
+    entry.batcher.dispose()
     try {
       entry.process.kill()
     } catch {
       // Already exited
     }
     ptys.delete(id)
+  }
+}
+
+export function pausePty(id: string): void {
+  const entry = ptys.get(id)
+  if (entry) {
+    entry.process.pause()
+  }
+}
+
+export function resumePty(id: string): void {
+  const entry = ptys.get(id)
+  if (entry) {
+    entry.process.resume()
   }
 }
 

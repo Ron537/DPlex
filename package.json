@@ -1,6 +1,6 @@
 {
   "name": "dplex",
-  "version": "0.17.1",
+  "version": "0.17.2",
   "description": "A terminal multiplexer built for AI-assisted development. Manage multiple AI CLI sessions (Copilot, Claude, and more) alongside regular terminals in one window.",
   "main": "./out/main/index.js",
   "author": {
