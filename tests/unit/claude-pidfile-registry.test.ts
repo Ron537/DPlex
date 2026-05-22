@@ -165,4 +165,87 @@ describe('claudePidfileRegistry', () => {
 
     expect(registry.getBySessionId('sess-fresh')?.sessionId).toBe('sess-fresh')
   })
+
+  it('polling fallback catches status transitions when fs.watch misses an event', async () => {
+    // Repro: a pidfile rewrite is dropped by `fs.watch` (FSEvents coalescing
+    // on macOS is the most common cause in production — Claude's tight
+    // busy→waiting rewrite gets folded into a single FSEvents notification
+    // that the registry's debouncer then ignores). The polling rescan must
+    // still observe the new contents within POLL_MS and notify subscribers.
+    //
+    // To simulate the dropped event deterministically we stop the
+    // {@link fs.FSWatcher} immediately after the registry attaches it,
+    // leaving only the poller in place. If the poller is removed the test
+    // fails — exactly the regression we're guarding against.
+    const events: Array<{ status?: string; waitingFor?: string }> = []
+    registry.subscribe((snaps) => {
+      const s = snaps.find((x) => x.sessionId === 'sess-poll')
+      if (s) events.push({ status: s.status, waitingFor: s.waitingFor })
+    })
+
+    await writePidfile(tmpDir, process.pid, {
+      pid: process.pid,
+      sessionId: 'sess-poll',
+      cwd: '/repo',
+      status: 'busy',
+      detail: 'Bash · npm test'
+    })
+
+    // Let the initial scan + watcher attach complete.
+    await sleep(150)
+
+    // Forcibly close the FSWatcher to simulate FSEvents coalescing /
+    // platform unreliability. The next write therefore CANNOT be observed
+    // through fs.watch; only the poller can recover.
+    const internalWatcher = (registry as unknown as { watcher: { close(): void } | null }).watcher
+    if (internalWatcher) internalWatcher.close()
+    ;(registry as unknown as { watcher: unknown }).watcher = null
+
+    // Write the "missed" transition: busy → waiting (approve Bash).
+    await writePidfile(tmpDir, process.pid, {
+      pid: process.pid,
+      sessionId: 'sess-poll',
+      cwd: '/repo',
+      status: 'waiting',
+      waitingFor: 'approve Bash'
+    })
+
+    // Wait long enough for the 2-second poll to fire at least once.
+    await sleep(2500)
+
+    expect(registry.getBySessionId('sess-poll')?.status).toBe('waiting')
+    expect(registry.getBySessionId('sess-poll')?.waitingFor).toBe('approve Bash')
+    // Subscriber must have observed the transition.
+    expect(events.some((e) => e.status === 'waiting' && e.waitingFor === 'approve Bash')).toBe(
+      true
+    )
+  })
+
+  it('polling fallback stays quiet in steady state (no duplicate notifications)', async () => {
+    // The poll must NOT spam subscribers when nothing changes. Otherwise
+    // every downstream consumer (claudeCodeProvider → parseSession →
+    // attentionService) would re-run every POLL_MS for no reason.
+    await writePidfile(tmpDir, process.pid, {
+      pid: process.pid,
+      sessionId: 'sess-quiet',
+      cwd: '/r',
+      status: 'idle'
+    })
+
+    let notifyCount = 0
+    registry.subscribe(() => {
+      notifyCount++
+    })
+
+    // Wait for initial scan to seed the subscriber.
+    await sleep(150)
+    const afterSeed = notifyCount
+
+    // Sit through 2.5 polling intervals with no pidfile mutations.
+    await sleep(2500)
+
+    // Allow at most one extra notify (defensive — first interval after
+    // seeding may fire if seedSubscribers happens to land at boundary).
+    expect(notifyCount - afterSeed).toBeLessThanOrEqual(1)
+  })
 })
