@@ -14,6 +14,11 @@ function normalizeSgrParams(params: string): string {
 }
 
 function findIncompleteCsiStart(data: string): number {
+  // A lone trailing ESC may begin a CSI sequence whose '[' lands in the next
+  // PTY chunk. Hold it back so a colon-form SGR split exactly at the ESC/'['
+  // boundary still gets rewritten instead of slipping through unchanged.
+  if (data.endsWith('\x1b')) return data.length - 1
+
   const escStart = data.lastIndexOf(CSI_7BIT)
   const c1Start = data.lastIndexOf(CSI_8BIT)
   const start = Math.max(escStart, c1Start)
