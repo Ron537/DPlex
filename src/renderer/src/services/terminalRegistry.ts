@@ -3,6 +3,8 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { getTheme } from './themes'
 import { FlowController } from './flowControl'
+import { isMac } from '../utils/shortcuts'
+import { wordMotionSequence } from '../utils/terminalKeys'
 
 export interface TerminalEntry {
   term: Terminal
@@ -95,6 +97,7 @@ export function getOrCreateTerminal(
   terminalId: string,
   fontSize: number,
   fontFamily: string,
+  macOptionIsMeta: boolean,
   themeId?: string
 ): TerminalEntry {
   const existing = registry.get(terminalId)
@@ -109,13 +112,28 @@ export function getOrCreateTerminal(
     cursorBlink: true,
     cursorStyle: 'block',
     allowProposedApi: true,
-    macOptionIsMeta: true,
+    macOptionIsMeta,
     scrollback: 10000
   })
 
   const fitAddon = new FitAddon()
   term.loadAddon(fitAddon)
   term.loadAddon(new WebLinksAddon())
+
+  // macOS-only: when ⌥ Option is left to compose characters (macOptionIsMeta
+  // off), restore word-wise navigation by translating ⌥+Arrow / ⌥+Backspace
+  // to readline escape sequences. The Option-as-Meta conflict does not exist
+  // on Windows/Linux, where non-US layouts compose symbols via AltGr.
+  if (isMac) {
+    term.attachCustomKeyEventHandler((e) => {
+      if (term.options.macOptionIsMeta) return true
+      const seq = wordMotionSequence(e)
+      if (seq === null) return true
+      e.preventDefault()
+      term.input(seq)
+      return false
+    })
+  }
 
   // Create a persistent wrapper element for the xterm DOM
   const wrapperEl = document.createElement('div')
@@ -217,6 +235,12 @@ export function updateTerminalFont(terminalId: string, fontSize: number, fontFam
   } catch {
     // ignore
   }
+}
+
+export function updateTerminalMacOptionIsMeta(terminalId: string, macOptionIsMeta: boolean): void {
+  const entry = registry.get(terminalId)
+  if (!entry) return
+  entry.term.options.macOptionIsMeta = macOptionIsMeta
 }
 
 export function applyThemeToAll(themeId: string): void {

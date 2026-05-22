@@ -104,6 +104,14 @@ export interface AppSettings {
   defaultAITool: string
   fontSize: number
   fontFamily: string
+  /**
+   * Treat the macOS ⌥ Option key as the Meta key inside terminals. When true
+   * (default), Option is sent to the shell as Alt/Meta. When false, Option is
+   * left to the OS so it can compose characters — required to type
+   * @ # [ ] { } \ | on Spanish and other non-US layouts; word navigation is
+   * still available via ⌥+Arrow keys. Ignored on Windows and Linux.
+   */
+  macOptionIsMeta: boolean
   theme: string
   sidebarWidth: number
   sidebarVisible: boolean

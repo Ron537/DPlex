@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Features
+
+- Added a **Use ⌥ Option as Meta key** terminal setting (macOS). Turn it
+  off so ⌥ Option composes characters — letting you type `@ # [ ] { }` on
+  Spanish and other non-US keyboard layouts — while ⌥+Arrow keys keep
+  word-wise navigation working.
+
 ## [0.17.2] — 2026-05-21
 
 ### Performance

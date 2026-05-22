@@ -6,7 +6,7 @@ import { useUpdateStore } from '../../stores/updateStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
 import type { ShellInfo, AppSettings } from '../../types'
-import { MOD, SHIFT } from '../../utils/shortcuts'
+import { MOD, SHIFT, isMac } from '../../utils/shortcuts'
 import { timeAgo } from '../../utils/timeAgo'
 
 interface SettingsModalProps {
@@ -489,6 +489,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       }}
                     />
                   </SettingItem>
+
+                  {isMac && (
+                    <SettingItem
+                      label="Use ⌥ Option as Meta key"
+                      settingId="mac-option-is-meta"
+                      description="When off, ⌥ Option composes characters — needed to type @ # [ ] { } on Spanish and other non-US keyboard layouts. When on (default), it acts as the Alt/Meta key."
+                    >
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.macOptionIsMeta}
+                          onChange={(e) => applyNow({ macOptionIsMeta: e.target.checked })}
+                          className="accent-[var(--dplex-accent)]"
+                        />
+                        <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                          Send ⌥ Option as Alt/Meta to the terminal
+                        </span>
+                      </label>
+                    </SettingItem>
+                  )}
                 </>
               )}
 

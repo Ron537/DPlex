@@ -127,6 +127,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultAITool: 'copilot-cli',
   fontSize: 14,
   fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+  macOptionIsMeta: true,
   theme: cachedTheme,
   sidebarWidth: 260,
   sidebarVisible: true,
