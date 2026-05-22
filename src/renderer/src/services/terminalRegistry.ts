@@ -3,12 +3,14 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { getTheme } from './themes'
 import { FlowController } from './flowControl'
+import { TruecolorSgrNormalizer } from './truecolorSgrNormalizer'
 
 export interface TerminalEntry {
   term: Terminal
   fitAddon: FitAddon
   ptyId: string | null
   wrapperEl: HTMLDivElement
+  truecolorNormalizer: TruecolorSgrNormalizer
   ready: boolean
   creating: boolean
   cleanupIpc: (() => void) | null
@@ -41,7 +43,7 @@ function ensureGlobalListeners(): void {
     const handler = dataHandlers.get(ptyId)
     if (!handler) return
 
-    handler.flowController.write(data)
+    handler.flowController.write(handler.entry.truecolorNormalizer.write(data))
 
     if (!handler.entry.ready) {
       handler.entry.ready = true
@@ -130,6 +132,7 @@ export function getOrCreateTerminal(
     fitAddon,
     ptyId: null,
     wrapperEl,
+    truecolorNormalizer: new TruecolorSgrNormalizer(),
     ready: false,
     creating: false,
     cleanupIpc: null
