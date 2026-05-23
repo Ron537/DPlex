@@ -200,7 +200,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           let hadData = false
           for (const item of earlyBuffer) {
             if (item.id === ptyId) {
-              entry.term.write(item.data)
+              entry.term.write(entry.truecolorNormalizer.write(item.data))
               hadData = true
             }
           }
