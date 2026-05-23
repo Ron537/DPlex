@@ -47,4 +47,31 @@ describe('TruecolorSgrNormalizer', () => {
     expect(normalizer.write('\x1b[0m\x1b')).toBe('\x1b[0m')
     expect(normalizer.write('[38:2:122:162:247mblue')).toBe('\x1b[38;2;122;162;247mblue')
   })
+
+  it('retains an unterminated colon-SGR when the chunk also ends in a trailing ESC', () => {
+    const normalizer = new TruecolorSgrNormalizer()
+
+    // If the trailing-ESC heuristic short-circuits the unterminated-CSI scan,
+    // the incomplete SGR leaks raw to xterm.js and reintroduces the colon-
+    // form color bug. Both candidates must be considered together and the
+    // earlier split point retained.
+    expect(normalizer.write('hi\x1b[38:2:1:2:3\x1b')).toBe('hi')
+  })
+
+  it('handles a lone trailing 8-bit CSI introducer', () => {
+    const normalizer = new TruecolorSgrNormalizer()
+
+    expect(normalizer.write('a\x9b')).toBe('a')
+    expect(normalizer.write('38:2:122:162:247mblue')).toBe('\x9b38;2;122;162;247mblue')
+  })
+
+  it('flushes and resets when the pending buffer exceeds the cap', () => {
+    const normalizer = new TruecolorSgrNormalizer()
+    const huge = '\x1b[' + '9'.repeat(8192)
+
+    // No final byte ever arrives; the cap forces a flush instead of growing
+    // pending without bound. Subsequent writes start fresh.
+    expect(normalizer.write(huge)).toBe(huge)
+    expect(normalizer.write('\x1b[48:2:30:30:46m b')).toBe('\x1b[48;2;30;30;46m b')
+  })
 })
