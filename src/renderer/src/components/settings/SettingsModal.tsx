@@ -492,9 +492,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
                   {isMac && (
                     <SettingItem
-                      label="Use ⌥ Option as Meta key"
+                      label="Option key as Alt"
                       settingId="mac-option-is-meta"
-                      description="When off, ⌥ Option composes characters — needed to type @ # [ ] { } on Spanish and other non-US keyboard layouts. When on (default), it acts as the Alt/Meta key."
+                      description={
+                        'Send the ⌥ Option key to the terminal as Alt (Meta). Turn this off ' +
+                        'to let macOS compose characters with Option — required to type ' +
+                        '@ # [ ] { } \\ | on international keyboard layouts. Word-wise ' +
+                        'navigation with ⌥+←/→ and ⌥+⌫ keeps working either way.'
+                      }
                     >
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -504,7 +509,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                           className="accent-[var(--dplex-accent)]"
                         />
                         <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                          Send ⌥ Option as Alt/Meta to the terminal
+                          Send ⌥ Option as Alt to the shell
                         </span>
                       </label>
                     </SettingItem>

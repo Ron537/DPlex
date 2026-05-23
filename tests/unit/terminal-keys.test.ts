@@ -30,6 +30,10 @@ describe('wordMotionSequence', () => {
     expect(wordMotionSequence(keyEvent({ key: 'Backspace' }))).toBe('\x1b\x7f')
   })
 
+  it('maps ⌥+Delete to kill-word forward (ESC d)', () => {
+    expect(wordMotionSequence(keyEvent({ key: 'Delete' }))).toBe('\x1bd')
+  })
+
   it('returns null without the Alt modifier', () => {
     expect(wordMotionSequence(keyEvent({ altKey: false }))).toBeNull()
   })
