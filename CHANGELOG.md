@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-05-24
+
 ### Features
 
 - Type `@ # [ ] { } \ |` in the terminal on Spanish, French, German and
   other non-US macOS keyboards (⌥+Arrow keys keep working).
+
+### Bug Fixes
+
+- Truecolor themes (e.g. Neovim with `termguicolors`) now render with
+  correct colors instead of a shifted green/yellow tint.
 
 ## [0.17.2] — 2026-05-21
 
@@ -505,7 +512,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/Ron537/DPlex/compare/v0.17.2...v0.18.0
 [0.17.2]: https://github.com/Ron537/DPlex/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/Ron537/DPlex/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/Ron537/DPlex/compare/v0.16.0...v0.17.0
