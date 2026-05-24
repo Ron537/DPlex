@@ -5,6 +5,7 @@ import { useTerminalStore } from '../stores/terminalStore'
 import {
   getOrCreateTerminal,
   updateTerminalFont,
+  updateTerminalMacOptionIsMeta,
   applyThemeToAll,
   fireExitHandler,
   registerPtyDataHandler,
@@ -102,6 +103,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       terminalId,
       settings.fontSize,
       settings.fontFamily,
+      settings.macOptionIsMeta,
       settings.theme
     )
     entryRef.current = entry
@@ -299,6 +301,11 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
   useEffect(() => {
     updateTerminalFont(terminalId, settings.fontSize, settings.fontFamily)
   }, [terminalId, settings.fontSize, settings.fontFamily])
+
+  // Apply the Option-as-Meta preference live to this terminal
+  useEffect(() => {
+    updateTerminalMacOptionIsMeta(terminalId, settings.macOptionIsMeta)
+  }, [terminalId, settings.macOptionIsMeta])
 
   // Apply theme changes to this terminal
   useEffect(() => {

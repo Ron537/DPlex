@@ -6,7 +6,7 @@ import { useUpdateStore } from '../../stores/updateStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
 import type { ShellInfo, AppSettings } from '../../types'
-import { MOD, SHIFT } from '../../utils/shortcuts'
+import { MOD, SHIFT, isMac } from '../../utils/shortcuts'
 import { timeAgo } from '../../utils/timeAgo'
 
 interface SettingsModalProps {
@@ -489,6 +489,31 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       }}
                     />
                   </SettingItem>
+
+                  {isMac && (
+                    <SettingItem
+                      label="Option key as Alt"
+                      settingId="mac-option-is-meta"
+                      description={
+                        'Send the ⌥ Option key to the terminal as Alt (Meta). Turn this off ' +
+                        'to let macOS compose characters with Option — required to type ' +
+                        '@ # [ ] { } \\ | on international keyboard layouts. Word-wise ' +
+                        'navigation with ⌥+←/→ and ⌥+⌫ keeps working either way.'
+                      }
+                    >
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.macOptionIsMeta}
+                          onChange={(e) => applyNow({ macOptionIsMeta: e.target.checked })}
+                          className="accent-[var(--dplex-accent)]"
+                        />
+                        <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
+                          Send ⌥ Option as Alt to the shell
+                        </span>
+                      </label>
+                    </SettingItem>
+                  )}
                 </>
               )}
 

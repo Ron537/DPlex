@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Features
+
+- Type `@ # [ ] { } \ |` in the terminal on Spanish, French, German and
+  other non-US macOS keyboards (⌥+Arrow keys keep working).
+
 ## [0.17.2] — 2026-05-21
 
 ### Performance
