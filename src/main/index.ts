@@ -10,10 +10,11 @@ import {
 import { join } from 'path'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, is } from '@electron-toolkit/utils'
 import * as fs from 'fs'
 import * as os from 'os'
 import icon from '../../resources/icon.png?asset'
+import { shouldBlockShortcut } from './windowShortcuts'
 import {
   createPty,
   writePty,
@@ -1089,7 +1090,9 @@ app.whenReady().then(() => {
   }
 
   app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+    window.webContents.on('before-input-event', (event, input) => {
+      if (shouldBlockShortcut(input, { isDev: is.dev })) event.preventDefault()
+    })
   })
 
   registerIpcHandlers()

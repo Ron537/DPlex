@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] — 2026-05-25
+
+### Bug Fixes
+
+- Reverse-i-search (`Ctrl+R`) works in the terminal again.
+
 ## [0.18.0] — 2026-05-24
 
 ### Features
