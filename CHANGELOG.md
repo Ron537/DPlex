@@ -518,7 +518,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/Ron537/DPlex/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/Ron537/DPlex/compare/v0.17.2...v0.18.0
 [0.17.2]: https://github.com/Ron537/DPlex/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/Ron537/DPlex/compare/v0.17.0...v0.17.1

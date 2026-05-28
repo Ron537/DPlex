@@ -239,7 +239,12 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Disable DevTools entirely in packaged builds. This covers every entry
+      // point — F12, the Cmd+Alt+I / Ctrl+Shift+I accelerator, right-click →
+      // Inspect, webContents.openDevTools() — at the Electron level, so the
+      // shortcut policy doesn't need to intercept those keys for the PTY.
+      devTools: is.dev
     }
   })
 
@@ -1091,7 +1096,7 @@ app.whenReady().then(() => {
 
   app.on('browser-window-created', (_, window) => {
     window.webContents.on('before-input-event', (event, input) => {
-      if (shouldBlockShortcut(input, { isDev: is.dev })) event.preventDefault()
+      if (shouldBlockShortcut(input)) event.preventDefault()
     })
   })
 

@@ -4,11 +4,7 @@ import type { Input } from 'electron'
  * Subset of `Electron.Input` consumed by {@link shouldBlockShortcut}. Derived
  * with `Pick` so the type tracks Electron's definition automatically.
  */
-export type ShortcutInput = Pick<Input, 'type' | 'code' | 'control' | 'meta' | 'alt' | 'shift'>
-
-export interface ShortcutPolicyOptions {
-  isDev: boolean
-}
+export type ShortcutInput = Pick<Input, 'type' | 'code' | 'control' | 'meta' | 'shift'>
 
 /**
  * Returns `true` when an input event should be `preventDefault`ed before it
@@ -16,26 +12,19 @@ export interface ShortcutPolicyOptions {
  *
  * Replaces `optimizer.watchWindowShortcuts` from `@electron-toolkit/utils`,
  * which preventDefaulted `KeyR + (control || meta)` in packaged builds and
- * broke reverse-i-search inside the terminal. DPlex is a terminal: Ctrl+R
- * belongs to the PTY, so this policy intentionally never blocks `KeyR`.
+ * broke reverse-i-search inside the terminal. DPlex is a terminal: every key
+ * the main process intercepts is a key the PTY can't see, so this policy
+ * blocks as little as possible.
  *
- * What we still block (matching the toolkit's defaults):
- *   - The DevTools accelerator in production (Cmd+Alt+I / Ctrl+Shift+I).
- *   - Chromium's zoom shortcuts — DPlex exposes its own font-size setting.
+ * Only Chromium's zoom shortcuts are blocked — DPlex exposes its own
+ * font-size setting and accidental zoom desyncs the terminal grid. DevTools
+ * is handled at the Electron level via `webPreferences.devTools` rather than
+ * by intercepting keys here.
  */
-export function shouldBlockShortcut(input: ShortcutInput, opts: ShortcutPolicyOptions): boolean {
+export function shouldBlockShortcut(input: ShortcutInput): boolean {
   if (input.type !== 'keyDown') return false
 
   const mod = input.control || input.meta
-
-  if (!opts.isDev) {
-    if (
-      input.code === 'KeyI' &&
-      ((input.alt && input.meta) || (input.control && input.shift))
-    ) {
-      return true
-    }
-  }
 
   if (input.code === 'Minus' && mod) return true
   if (input.code === 'Equal' && input.shift && mod) return true
