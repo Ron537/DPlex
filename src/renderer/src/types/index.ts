@@ -121,6 +121,14 @@ export interface AppSettings {
   sidebarPanelCollapsed: boolean
   sessionPollIntervalMs: number
   sessionMaxAgeDays: number
+  /**
+   * Override the session-watcher debounce in milliseconds. When `null`/unset,
+   * the platform default is used (1000 ms on Windows, 300 ms on macOS/Linux
+   * for filesystem session providers; 600 ms / 200 ms respectively for the
+   * Claude pidfile registry). Higher values reduce CPU on noisy filesystems
+   * (Windows + AV) at the cost of slightly slower live-status updates.
+   */
+  watcherDebounceMs: number | null
   /** Hide idle sessions that have no messages yet. Active sessions are always shown. */
   hideEmptySessions: boolean
   /**

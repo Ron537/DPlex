@@ -135,6 +135,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   sidebarPanelCollapsed: false,
   sessionPollIntervalMs: 5000,
   sessionMaxAgeDays: 7,
+  watcherDebounceMs: null,
   hideEmptySessions: true,
   showRecentSessionsInProject: true,
   recentSessionsCount: 3,

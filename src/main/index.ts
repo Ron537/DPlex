@@ -29,6 +29,7 @@ import {
 } from './services/ptyManager'
 import { createDefaultRegistry } from './services/providers'
 import { BaseSessionProvider } from './services/providers/baseProvider'
+import { ClaudePidfileRegistry } from './services/providers/claudePidfileRegistry'
 import {
   loadWorkspace,
   saveWorkspace,
@@ -159,6 +160,12 @@ function applySettingsToServices(settings: Record<string, unknown>): void {
   const maxAge = settings.sessionMaxAgeDays
   if (typeof maxAge === 'number') {
     BaseSessionProvider.setMaxAgeDays(maxAge)
+  }
+
+  const debounceMs = settings.watcherDebounceMs
+  if (debounceMs === null || debounceMs === undefined || typeof debounceMs === 'number') {
+    BaseSessionProvider.setDebounceMs(debounceMs as number | null | undefined)
+    ClaudePidfileRegistry.setDebounceMs(debounceMs as number | null | undefined)
   }
 
   const notificationPatch: Record<string, unknown> = {}

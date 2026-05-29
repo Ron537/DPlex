@@ -66,10 +66,11 @@ export abstract class BaseSessionProvider implements SessionProvider {
   /** Cache of `sessionId → entry path`, populated by discovery and watcher.
    *  Used to avoid re-walking the session tree to resolve a sessionId to its
    *  filesystem entry on every operation. */
-  private entryPathCache = new Map<string, string>()
+  protected entryPathCache = new Map<string, string>()
   private watchGeneration = 0
 
-  private static readonly DEBOUNCE_MS = 300
+  private static readonly DEFAULT_DEBOUNCE_MS = process.platform === 'win32' ? 1000 : 300
+  private static debounceMs: number = BaseSessionProvider.DEFAULT_DEBOUNCE_MS
   private static readonly STALE_CHECK_MS = 5000
   private static readonly DEFAULT_MAX_AGE_DAYS = 7
   private static maxAgeDays: number = BaseSessionProvider.DEFAULT_MAX_AGE_DAYS
@@ -79,6 +80,28 @@ export abstract class BaseSessionProvider implements SessionProvider {
     if (Number.isFinite(days) && days >= 1) {
       BaseSessionProvider.maxAgeDays = Math.min(365, Math.floor(days))
     }
+  }
+
+  static getMaxAgeDays(): number {
+    return BaseSessionProvider.maxAgeDays
+  }
+
+  /**
+   * Set the watcher debounce in milliseconds. Pass `null`/`undefined` (or a
+   * non-finite/zero value) to restore the platform default
+   * (1000 ms on Windows, 300 ms elsewhere). Bounded to [50, 10_000].
+   * Applies to subsequent fs.watch events; no need to tear down watchers.
+   */
+  static setDebounceMs(ms: number | null | undefined): void {
+    if (ms == null || !Number.isFinite(ms) || ms <= 0) {
+      BaseSessionProvider.debounceMs = BaseSessionProvider.DEFAULT_DEBOUNCE_MS
+      return
+    }
+    BaseSessionProvider.debounceMs = Math.max(50, Math.min(10_000, Math.floor(ms)))
+  }
+
+  static getDebounceMs(): number {
+    return BaseSessionProvider.debounceMs
   }
 
   // ── Abstract methods — each provider implements these ────────────
@@ -477,6 +500,25 @@ export abstract class BaseSessionProvider implements SessionProvider {
     }
   }
 
+  /**
+   * Companion to {@link pushSessionUpdate} for cases where a subclass detects
+   * a session has disappeared via an out-of-band channel (e.g. SQLite diff)
+   * rather than a filesystem event.
+   */
+  protected pushSessionRemoved(sessionId: string): void {
+    if (!this.watchCallbacks) return
+    if (!this.knownSessionIds.has(sessionId)) return
+    this.knownSessionIds.delete(sessionId)
+    this.sessionCache.delete(sessionId)
+    this.entryPathCache.delete(sessionId)
+    this.watchCallbacks.onRemoved(sessionId, this.id)
+  }
+
+  /** Subclass access to the currently-tracked session ids (read-only). */
+  protected getKnownSessionIds(): ReadonlySet<string> {
+    return this.knownSessionIds
+  }
+
   // ── Prompts ──────────────────────────────────────────────────────
 
   async getPrompts(sessionId: string, limit = 20): Promise<SessionPrompt[]> {
@@ -527,7 +569,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
       setTimeout(() => {
         this.debounceTimers.delete(sessionId)
         this.processSessionChange(sessionId)
-      }, BaseSessionProvider.DEBOUNCE_MS)
+      }, BaseSessionProvider.debounceMs)
     )
   }
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-05-25
+
+### Improvements
+
+- Much faster Copilot CLI session discovery on installs with many sessions — the sidebar opens and refreshes immediately instead of stalling while every session is scanned.
+- New advanced **Watcher Debounce** setting under **AI Tools** lets you tune how often DPlex reacts to filesystem changes — useful on Windows or with antivirus software watching the same folders.
+
+### Performance
+
+- Smoother Sessions sidebar on Windows with large session lists.
+- Faster active-session detection on installs with many archived sessions.
+
 ## [0.18.1] — 2026-05-25
 
 ### Bug Fixes
@@ -518,7 +530,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/Ron537/DPlex/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/Ron537/DPlex/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/Ron537/DPlex/compare/v0.17.2...v0.18.0
 [0.17.2]: https://github.com/Ron537/DPlex/compare/v0.17.1...v0.17.2

@@ -79,8 +79,26 @@ export class ClaudePidfileRegistry {
    */
   private generation = 0
 
-  private static readonly DEBOUNCE_MS = 200
+  private static readonly DEFAULT_DEBOUNCE_MS = process.platform === 'win32' ? 600 : 200
+  private static debounceMs: number = ClaudePidfileRegistry.DEFAULT_DEBOUNCE_MS
   private static readonly HEARTBEAT_FILE = '.fleetview-heartbeat'
+
+  /**
+   * Set the registry's debounce in milliseconds. Pass `null`/`undefined` (or
+   * a non-finite/zero value) to restore the platform default
+   * (600 ms on Windows, 200 ms elsewhere). Bounded to [50, 10_000].
+   */
+  static setDebounceMs(ms: number | null | undefined): void {
+    if (ms == null || !Number.isFinite(ms) || ms <= 0) {
+      ClaudePidfileRegistry.debounceMs = ClaudePidfileRegistry.DEFAULT_DEBOUNCE_MS
+      return
+    }
+    ClaudePidfileRegistry.debounceMs = Math.max(50, Math.min(10_000, Math.floor(ms)))
+  }
+
+  static getDebounceMs(): number {
+    return ClaudePidfileRegistry.debounceMs
+  }
 
   constructor(sessionsDir?: string) {
     this.dir = sessionsDir ?? path.join(os.homedir(), '.claude', 'sessions')
@@ -257,7 +275,7 @@ export class ClaudePidfileRegistry {
             this.debounceTimers.delete(name)
             if (myGen !== this.generation) return
             void this.refreshFile(path.join(this.dir, name), { generation: myGen })
-          }, ClaudePidfileRegistry.DEBOUNCE_MS)
+          }, ClaudePidfileRegistry.debounceMs)
         )
       })
       this.watcher.on('error', () => {

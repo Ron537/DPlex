@@ -135,6 +135,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
   const refreshSessions = useSessionStore((s) => s.refreshSessions)
   const [shells, setShells] = useState<ShellInfo[]>([])
   const [providers, setProviders] = useState<{ id: string; name: string; command: string }[]>([])
+  const [platform, setPlatform] = useState<string>('')
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
   const { dark: darkThemes, light: lightThemes } = getThemesByVariant()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -147,6 +148,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
     if (isOpen) {
       window.dplex.app.getAvailableShells().then(setShells)
       window.dplex.sessions.getProviders().then(setProviders)
+      window.dplex.app.getPlatform().then(setPlatform)
     }
   }, [isOpen])
 
@@ -578,6 +580,49 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       />
                       <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
                         days
+                      </span>
+                    </div>
+                  </SettingItem>
+
+                  <SettingItem
+                    label="Watcher Debounce (advanced)"
+                    settingId="watcher-debounce"
+                    description={
+                      settings.watcherDebounceMs == null
+                        ? `Higher values reduce CPU on noisy filesystems (e.g. Windows + AV) at the cost of slightly slower live status updates. Leave blank to use the platform default (${platform === 'win32' ? '1000' : '300'} ms).`
+                        : `Currently ${settings.watcherDebounceMs} ms. Leave blank to use the platform default (${platform === 'win32' ? '1000' : '300'} ms).`
+                    }
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min={50}
+                        max={10000}
+                        step={50}
+                        placeholder={platform === 'win32' ? '1000' : '300'}
+                        value={settings.watcherDebounceMs ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value.trim()
+                          if (raw === '') {
+                            applyDebounced({ watcherDebounceMs: null })
+                            return
+                          }
+                          const n = Number(raw)
+                          if (Number.isFinite(n) && n > 0) {
+                            applyDebounced({
+                              watcherDebounceMs: Math.max(50, Math.min(10000, Math.floor(n)))
+                            })
+                          }
+                        }}
+                        className="w-24 rounded px-2 py-1 text-xs outline-none"
+                        style={{
+                          backgroundColor: 'var(--dplex-bg-alt)',
+                          border: '1px solid var(--dplex-border)',
+                          color: 'var(--dplex-text)'
+                        }}
+                      />
+                      <span className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
+                        ms
                       </span>
                     </div>
                   </SettingItem>
