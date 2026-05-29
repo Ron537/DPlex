@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] — 2026-05-25
+
+### Bug Fixes
+
+- Reverse-i-search (`Ctrl+R`) works in the terminal again.
+
 ## [0.18.0] — 2026-05-24
 
 ### Features
@@ -512,7 +518,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/Ron537/DPlex/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/Ron537/DPlex/compare/v0.17.2...v0.18.0
 [0.17.2]: https://github.com/Ron537/DPlex/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/Ron537/DPlex/compare/v0.17.0...v0.17.1

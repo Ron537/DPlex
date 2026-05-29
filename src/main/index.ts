@@ -10,10 +10,11 @@ import {
 import { join } from 'path'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, is } from '@electron-toolkit/utils'
 import * as fs from 'fs'
 import * as os from 'os'
 import icon from '../../resources/icon.png?asset'
+import { shouldBlockShortcut } from './windowShortcuts'
 import {
   createPty,
   writePty,
@@ -238,7 +239,12 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Disable DevTools entirely in packaged builds. This covers every entry
+      // point — F12, the Cmd+Alt+I / Ctrl+Shift+I accelerator, right-click →
+      // Inspect, webContents.openDevTools() — at the Electron level, so the
+      // shortcut policy doesn't need to intercept those keys for the PTY.
+      devTools: is.dev
     }
   })
 
@@ -1089,7 +1095,9 @@ app.whenReady().then(() => {
   }
 
   app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+    window.webContents.on('before-input-event', (event, input) => {
+      if (shouldBlockShortcut(input)) event.preventDefault()
+    })
   })
 
   registerIpcHandlers()
