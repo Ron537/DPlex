@@ -1,5 +1,4 @@
 import { useCallback, type JSX } from 'react'
-import { History } from 'lucide-react'
 import type { AISession } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { focusSessionTab } from '../../utils/sessionTabs'
@@ -14,6 +13,11 @@ interface RecentSessionRowProps {
  * surface recent (idle) sessions without the visual weight of the full
  * `SessionItem`. No status dot, no message-count chip, no inline menu —
  * the lighter weight signals "past" so live rows above stand out.
+ *
+ * The row is dimmed at rest and brightens on hover via the
+ * `.recent-session-row` rule in main.css. The leading icon was dropped
+ * because the surrounding "Recent" section already communicates the
+ * row's nature — adding a clock per row was visual noise.
  *
  * Click resumes via the same path as `SessionItem.handleResume`: focus
  * any open tab backing this session, otherwise spawn a new terminal
@@ -43,10 +47,6 @@ export function RecentSessionRow({ session }: RecentSessionRowProps): JSX.Elemen
       onClick={handleResume}
       title={session.displayName}
     >
-      <History
-        size={12}
-        style={{ color: 'var(--dplex-text-muted)', flexShrink: 0 }}
-      />
       <span
         className="flex-1 min-w-0 truncate"
         style={{ fontSize: 12, color: 'var(--dplex-text)' }}

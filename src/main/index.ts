@@ -1,12 +1,4 @@
-import {
-  app,
-  shell,
-  BrowserWindow,
-  ipcMain,
-  dialog,
-  nativeImage,
-  globalShortcut
-} from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, nativeImage, globalShortcut } from 'electron'
 import { join } from 'path'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
@@ -215,10 +207,15 @@ function createWindow(): void {
   // Read saved theme to set correct initial window background
   const savedSettings = loadSettings()
   const savedTheme = (savedSettings.theme as string) || 'dplex'
-  // Map theme ID to its UI background color
+  // Map theme ID to its UI background color. Kept in sync with the
+  // canonical `ui.bg` values in `src/renderer/src/services/themes.ts` so
+  // the BrowserWindow's first paint matches the renderer's first paint
+  // (no light/dark flash). When themes change, update both sides.
   const themeBgMap: Record<string, string> = {
-    dplex: '#131313',
-    'dplex-light': '#fafafa',
+    // v2
+    dplex: '#0a0a0c',
+    'dplex-light': '#fbfbfd',
+    // Other built-in themes
     midnight: '#1a1a2e',
     dracula: '#282a36',
     monokai: '#272822',
@@ -229,7 +226,7 @@ function createWindow(): void {
     'solarized-light': '#fdf6e3',
     'quiet-light': '#f5f5f5'
   }
-  const windowBg = themeBgMap[savedTheme] || '#131313'
+  const windowBg = themeBgMap[savedTheme] || '#0a0a0c'
 
   mainWindow = new BrowserWindow({
     width: 1200,

@@ -5,6 +5,7 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { useUpdateStore } from '../../stores/updateStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
 import { applyThemeToAll } from '../../services/terminalRegistry'
+import { Switch } from '../common/Switch'
 import type { ShellInfo, AppSettings } from '../../types'
 import { MOD, SHIFT, isMac } from '../../utils/shortcuts'
 import { timeAgo } from '../../utils/timeAgo'
@@ -33,7 +34,10 @@ const SHORTCUTS: { category: string; items: { keys: string; description: string 
       { keys: `${MOD}B`, description: 'Toggle sidebar' },
       { keys: `${MOD}F`, description: 'Focus panel search' },
       { keys: `${MOD}${SHIFT}F`, description: 'Open Search side panel' },
-      { keys: `${MOD}P`, description: 'Global search — projects, sessions, tabs, settings (try #tag)' },
+      {
+        keys: `${MOD}P`,
+        description: 'Global search — projects, sessions, tabs, settings (try #tag)'
+      },
       { keys: `${MOD}${SHIFT}P`, description: 'Run a command' }
     ]
   },
@@ -126,6 +130,39 @@ function SettingItem({
       )}
       {children}
     </div>
+  )
+}
+
+/**
+ * Settings-row toggle. Renders the supplied label on the left and a
+ * themed Switch on the right, separated by a stretching spacer so the
+ * switch always sits at the right edge of the row (matches the v2
+ * settings mockup — Section 23 / 25 / 26).
+ */
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+  disabled
+}: {
+  label: string
+  checked: boolean
+  onChange: (next: boolean) => void
+  disabled?: boolean
+}): React.JSX.Element {
+  return (
+    <label
+      className="flex items-center gap-3 py-1"
+      style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+    >
+      <span
+        className="text-[11px] flex-1"
+        style={{ color: 'var(--dplex-text)', opacity: disabled ? 0.5 : 1 }}
+      >
+        {label}
+      </span>
+      <Switch checked={checked} onChange={onChange} disabled={disabled} ariaLabel={label} />
+    </label>
   )
 }
 
@@ -241,15 +278,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" data-testid="settings-modal">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      data-testid="settings-modal"
+      style={{ backgroundColor: 'rgba(10,10,12,0.65)', backdropFilter: 'blur(8px)' }}
+    >
       <div
-        className="rounded-2xl shadow-2xl flex flex-col"
+        className="rounded-2xl flex flex-col"
         style={{
           width: 900,
           height: 560,
           backgroundColor: 'var(--dplex-bg-panel)',
           border: '1px solid var(--dplex-border-strong)',
-          boxShadow: '0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)'
+          boxShadow: 'var(--dplex-shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04)'
         }}
       >
         <div className="flex flex-1 min-h-0 overflow-hidden rounded-2xl">
@@ -503,17 +544,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                         'navigation with ⌥+←/→ and ⌥+⌫ keeps working either way.'
                       }
                     >
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={settings.macOptionIsMeta}
-                          onChange={(e) => applyNow({ macOptionIsMeta: e.target.checked })}
-                          className="accent-[var(--dplex-accent)]"
-                        />
-                        <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                          Send ⌥ Option as Alt to the shell
-                        </span>
-                      </label>
+                      <ToggleRow
+                        label="Send ⌥ Option as Alt to the shell"
+                        checked={settings.macOptionIsMeta}
+                        onChange={(v) => applyNow({ macOptionIsMeta: v })}
+                      />
                     </SettingItem>
                   )}
                 </>
@@ -632,17 +667,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     settingId="hide-empty-sessions"
                     description="Hide idle sessions that have no messages yet. Active sessions are always shown."
                   >
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.hideEmptySessions}
-                        onChange={(e) => applyNow({ hideEmptySessions: e.target.checked })}
-                        className="accent-[var(--dplex-accent)]"
-                      />
-                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                        Hide sessions with no messages
-                      </span>
-                    </label>
+                    <ToggleRow
+                      label="Hide sessions with no messages"
+                      checked={settings.hideEmptySessions}
+                      onChange={(v) => applyNow({ hideEmptySessions: v })}
+                    />
                   </SettingItem>
 
                   <SettingItem
@@ -650,19 +679,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     settingId="recent-sessions-in-projects"
                     description="Show a slim list of recent (idle) sessions inside each expanded project so you can resume them without leaving the panel."
                   >
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.showRecentSessionsInProject}
-                        onChange={(e) =>
-                          applyNow({ showRecentSessionsInProject: e.target.checked })
-                        }
-                        className="accent-[var(--dplex-accent)]"
-                      />
-                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                        Show recent sessions per project
-                      </span>
-                    </label>
+                    <ToggleRow
+                      label="Show recent sessions per project"
+                      checked={settings.showRecentSessionsInProject}
+                      onChange={(v) => applyNow({ showRecentSessionsInProject: v })}
+                    />
                   </SettingItem>
 
                   <SettingItem
@@ -722,17 +743,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     settingId="notifications-enabled"
                     description="Master toggle for desktop notifications and the attention inbox badge."
                   >
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.notificationsEnabled}
-                        onChange={(e) => applyNow({ notificationsEnabled: e.target.checked })}
-                        className="accent-[var(--dplex-accent)]"
-                      />
-                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                        Show desktop notifications
-                      </span>
-                    </label>
+                    <ToggleRow
+                      label="Show desktop notifications"
+                      checked={settings.notificationsEnabled}
+                      onChange={(v) => applyNow({ notificationsEnabled: v })}
+                    />
                   </SettingItem>
 
                   <SettingItem
@@ -740,40 +755,22 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     settingId="notify-events"
                     description="Pick which kinds of events raise a desktop notification."
                   >
-                    <div className="space-y-1.5">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifyOnApproval}
-                          onChange={(e) => applyNow({ notifyOnApproval: e.target.checked })}
-                          className="accent-[var(--dplex-accent)]"
-                        />
-                        <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                          Waiting for approval
-                        </span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifyOnInput}
-                          onChange={(e) => applyNow({ notifyOnInput: e.target.checked })}
-                          className="accent-[var(--dplex-accent)]"
-                        />
-                        <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                          Waiting for input
-                        </span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={settings.notifyOnFinished}
-                          onChange={(e) => applyNow({ notifyOnFinished: e.target.checked })}
-                          className="accent-[var(--dplex-accent)]"
-                        />
-                        <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                          Session finished (became idle)
-                        </span>
-                      </label>
+                    <div className="space-y-1">
+                      <ToggleRow
+                        label="Waiting for approval"
+                        checked={settings.notifyOnApproval}
+                        onChange={(v) => applyNow({ notifyOnApproval: v })}
+                      />
+                      <ToggleRow
+                        label="Waiting for input"
+                        checked={settings.notifyOnInput}
+                        onChange={(v) => applyNow({ notifyOnInput: v })}
+                      />
+                      <ToggleRow
+                        label="Session finished (became idle)"
+                        checked={settings.notifyOnFinished}
+                        onChange={(v) => applyNow({ notifyOnFinished: v })}
+                      />
                     </div>
                   </SettingItem>
 
@@ -782,17 +779,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     settingId="notify-only-unfocused"
                     description="Suppress notifications when the DPlex window is already focused."
                   >
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.notifyOnlyWhenUnfocused}
-                        onChange={(e) => applyNow({ notifyOnlyWhenUnfocused: e.target.checked })}
-                        className="accent-[var(--dplex-accent)]"
-                      />
-                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                        Only notify when window is not focused
-                      </span>
-                    </label>
+                    <ToggleRow
+                      label="Only notify when window is not focused"
+                      checked={settings.notifyOnlyWhenUnfocused}
+                      onChange={(v) => applyNow({ notifyOnlyWhenUnfocused: v })}
+                    />
                   </SettingItem>
 
                   <SettingItem
@@ -800,19 +791,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     settingId="notify-click-clears-waiting"
                     description="When on, clicking a row in the attention bell will navigate to the tab and clear the notification. The bell will re-surface the event if the session keeps waiting after a state change or stays idle past the escalation threshold. You can also toggle this mode inline from the bell dropdown header."
                   >
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.attentionClickClearsWaiting}
-                        onChange={(e) =>
-                          applyNow({ attentionClickClearsWaiting: e.target.checked })
-                        }
-                        className="accent-[var(--dplex-accent)]"
-                      />
-                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                        Mark waiting notifications as seen when I click them
-                      </span>
-                    </label>
+                    <ToggleRow
+                      label="Mark waiting notifications as seen when I click them"
+                      checked={settings.attentionClickClearsWaiting}
+                      onChange={(v) => applyNow({ attentionClickClearsWaiting: v })}
+                    />
                   </SettingItem>
 
                   <SettingItem
@@ -820,17 +803,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     settingId="notify-sound"
                     description="Use the OS default sound when a notification fires."
                   >
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.notificationSound}
-                        onChange={(e) => applyNow({ notificationSound: e.target.checked })}
-                        className="accent-[var(--dplex-accent)]"
-                      />
-                      <span className="text-[11px]" style={{ color: 'var(--dplex-text)' }}>
-                        Enable notification sound
-                      </span>
-                    </label>
+                    <ToggleRow
+                      label="Enable notification sound"
+                      checked={settings.notificationSound}
+                      onChange={(v) => applyNow({ notificationSound: v })}
+                    />
                   </SettingItem>
 
                   <SettingItem
@@ -1128,17 +1105,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                   background: 'linear-gradient(180deg, var(--dplex-accent), var(--dplex-accent-2))',
                   color: '#fff',
                   border: 0,
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(123,162,255,0.4)'
+                  boxShadow:
+                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px var(--dplex-accent-glow)'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-1px)'
                   e.currentTarget.style.boxShadow =
-                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 6px 16px rgba(123,162,255,0.5)'
+                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 20px var(--dplex-accent-glow)'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = ''
                   e.currentTarget.style.boxShadow =
-                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(123,162,255,0.4)'
+                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px var(--dplex-accent-glow)'
                 }}
               >
                 Done
@@ -1200,46 +1178,28 @@ function AboutPanel(): React.JSX.Element {
 
   return (
     <div className="space-y-4" data-setting-id="about-version">
-      <div
-        className="rounded-lg p-4"
-        style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
-      >
+      <div className="rounded-lg p-4" style={{ backgroundColor: 'var(--dplex-bg-alt)' }}>
         <div className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
           Version
         </div>
-        <div
-          className="text-sm font-mono mt-0.5"
-          style={{ color: 'var(--dplex-text)' }}
-        >
+        <div className="text-sm font-mono mt-0.5" style={{ color: 'var(--dplex-text)' }}>
           {version || '—'}
-          <span
-            className="ml-2 text-[10px]"
-            style={{ color: 'var(--dplex-text-dim)' }}
-          >
+          <span className="ml-2 text-[10px]" style={{ color: 'var(--dplex-text-dim)' }}>
             ({platform || '—'})
           </span>
         </div>
       </div>
 
-      <div
-        className="rounded-lg p-4 space-y-3"
-        style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
-      >
+      <div className="rounded-lg p-4 space-y-3" style={{ backgroundColor: 'var(--dplex-bg-alt)' }}>
         <div>
           <div className="text-[11px]" style={{ color: 'var(--dplex-text-muted)' }}>
             Updates
           </div>
-          <div
-            className="text-[12px] mt-1"
-            style={{ color: 'var(--dplex-text)' }}
-          >
+          <div className="text-[12px] mt-1" style={{ color: 'var(--dplex-text)' }}>
             {statusLabel}
           </div>
           {state?.lastChecked && (
-            <div
-              className="text-[10px] mt-1"
-              style={{ color: 'var(--dplex-text-dim)' }}
-            >
+            <div className="text-[10px] mt-1" style={{ color: 'var(--dplex-text-dim)' }}>
               Last checked {timeAgo(state.lastChecked)} ago
             </div>
           )}
@@ -1251,9 +1211,7 @@ function AboutPanel(): React.JSX.Element {
             onClick={() => void check()}
             className="text-[11px] px-3 py-1 rounded"
             style={{
-              background: state?.canCheck
-                ? 'var(--dplex-accent)'
-                : 'var(--dplex-bg)',
+              background: state?.canCheck ? 'var(--dplex-accent)' : 'var(--dplex-bg)',
               color: state?.canCheck ? 'var(--dplex-bg)' : 'var(--dplex-text-muted)',
               border: '1px solid var(--dplex-border)',
               cursor: state?.canCheck ? 'pointer' : 'not-allowed',

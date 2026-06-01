@@ -111,12 +111,16 @@ export function DeleteWorktreeModal({
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ backgroundColor: 'rgba(10,10,12,0.65)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
       <div
-        className="w-[480px] rounded-lg shadow-2xl"
-        style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}
+        className="w-[480px] rounded-xl"
+        style={{
+          backgroundColor: 'var(--dplex-bg-elev)',
+          border: '1px solid var(--dplex-border-strong)',
+          boxShadow: 'var(--dplex-shadow-xl)'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -253,7 +257,7 @@ export function DeleteWorktreeModal({
             onClick={() => void submit()}
             disabled={submitting || !canSubmit}
             className="px-3 py-1 text-[11px] rounded disabled:opacity-40"
-            style={{ backgroundColor: '#dc2626', color: 'white' }}
+            style={{ backgroundColor: 'var(--dplex-status-error-strong)', color: '#fff' }}
           >
             {submitting ? 'Deleting…' : 'Delete'}
           </button>

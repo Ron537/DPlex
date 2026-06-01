@@ -3,12 +3,14 @@ import { useTerminalStore } from '../../stores/terminalStore'
 import { persistWorkspaceNow } from '../../stores/terminalStore'
 import { useSettingsStore, applyCssVarsSync } from '../../stores/settingsStore'
 import { useAttentionStore } from '../../stores/attentionStore'
+import { useCommandPaletteStore } from '../../stores/commandPaletteStore'
 import { SidePanel } from './SidePanel'
 import { ActivityBar } from './ActivityBar'
 import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
 import { AttentionBellButton } from '../attention/AttentionBellButton'
+import { DPlexLogo } from '../common/DPlexLogo'
 import { useSessions } from '../../hooks/useSessions'
 import { getTheme } from '../../services/themes'
 import { MOD } from '../../utils/shortcuts'
@@ -271,19 +273,28 @@ export function AppLayout(): React.JSX.Element {
 
   return (
     <div
-      className="flex flex-col h-screen text-white overflow-hidden"
+      className="flex flex-col h-screen overflow-hidden"
       style={{ backgroundColor: theme.ui.bg, color: theme.ui.text }}
     >
-      {/* macOS title bar / drag region */}
+      {/* macOS title bar / drag region — v2: gradient logo + name centered */}
       <div
         className="h-10 drag-region flex-shrink-0 flex items-center"
-        style={{ backgroundColor: theme.ui.bgAlt, borderBottom: `1px solid ${theme.ui.border}` }}
+        style={{
+          backgroundColor: 'var(--dplex-bg-panel)',
+          borderBottom: '1px solid var(--dplex-border-subtle)'
+        }}
       >
         <div className="w-[76px] flex-shrink-0" />
-        <div className="flex-1 text-center">
-          <span className="text-[11px] text-zinc-600 font-medium select-none">DPlex</span>
+        <div className="flex-1 flex items-center justify-center gap-2 pointer-events-none select-none">
+          <DPlexLogo size={18} flat />
+          <span
+            className="text-[11px] font-semibold"
+            style={{ color: 'var(--dplex-text-2)', letterSpacing: '0.02em' }}
+          >
+            DPlex
+          </span>
         </div>
-        <div className="w-[76px] flex-shrink-0 flex items-center justify-end pr-2">
+        <div className="w-[76px] flex-shrink-0 flex items-center justify-end pr-2 no-drag">
           <AttentionBellButton />
         </div>
       </div>
@@ -297,222 +308,193 @@ export function AppLayout(): React.JSX.Element {
             {groups.length > 0 ? (
               <GroupLayout node={layout} />
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center flex flex-col items-center gap-4">
-                  {/* DPlex logo */}
-                  <svg viewBox="0 0 512 512" width="72" height="72" style={{ opacity: 0.6 }}>
-                    {/* Sidebar */}
-                    <rect
-                      x="66"
-                      y="86"
-                      width="105"
-                      height="340"
-                      rx="14"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.4"
-                    />
-                    <rect
-                      x="66"
-                      y="86"
-                      width="105"
-                      height="340"
-                      rx="14"
-                      fill="none"
-                      stroke="var(--dplex-text-muted)"
-                      strokeWidth="2"
-                      opacity="0.3"
-                    />
-                    {/* Sidebar entries */}
-                    <rect
-                      x="80"
-                      y="112"
-                      width="76"
-                      height="9"
-                      rx="4"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.4"
-                    />
-                    <rect
-                      x="80"
-                      y="128"
-                      width="50"
-                      height="5"
-                      rx="2.5"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.25"
-                    />
-                    <rect
-                      x="66"
-                      y="150"
-                      width="3"
-                      height="35"
-                      rx="1.5"
-                      fill="var(--dplex-accent)"
-                    />
-                    <rect
-                      x="80"
-                      y="156"
-                      width="76"
-                      height="9"
-                      rx="4"
-                      fill="var(--dplex-text)"
-                      opacity="0.5"
-                    />
-                    <rect
-                      x="80"
-                      y="172"
-                      width="40"
-                      height="5"
-                      rx="2.5"
-                      fill="var(--dplex-accent)"
-                      opacity="0.4"
-                    />
-                    <rect
-                      x="80"
-                      y="200"
-                      width="76"
-                      height="9"
-                      rx="4"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.2"
-                    />
-                    {/* Divider */}
-                    <rect
-                      x="181"
-                      y="96"
-                      width="2"
-                      height="320"
-                      rx="1"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.3"
-                    />
-                    {/* Terminal area */}
-                    <rect
-                      x="193"
-                      y="86"
-                      width="253"
-                      height="340"
-                      rx="14"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.2"
-                    />
-                    <rect
-                      x="193"
-                      y="86"
-                      width="253"
-                      height="340"
-                      rx="14"
-                      fill="none"
-                      stroke="var(--dplex-text-muted)"
-                      strokeWidth="2"
-                      opacity="0.2"
-                    />
-                    {/* Tab bar */}
-                    <rect
-                      x="207"
-                      y="97"
-                      width="55"
-                      height="4"
-                      rx="2"
-                      fill="var(--dplex-accent)"
-                      opacity="0.8"
-                    />
-                    <rect
-                      x="270"
-                      y="97"
-                      width="40"
-                      height="4"
-                      rx="2"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.2"
-                    />
-                    {/* Prompt 1 */}
-                    <path
-                      d="M220,175 L248,196 L220,217"
-                      stroke="var(--dplex-accent)"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                    <rect
-                      x="262"
-                      y="188"
-                      width="90"
-                      height="8"
-                      rx="4"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.4"
-                    />
-                    {/* Response lines */}
-                    <rect
-                      x="220"
-                      y="240"
-                      width="185"
-                      height="7"
-                      rx="3.5"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.2"
-                    />
-                    <rect
-                      x="220"
-                      y="258"
-                      width="140"
-                      height="7"
-                      rx="3.5"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.15"
-                    />
-                    <rect
-                      x="220"
-                      y="276"
-                      width="165"
-                      height="7"
-                      rx="3.5"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.18"
-                    />
-                    {/* Prompt 2 — green like the icon */}
-                    <path
-                      d="M220,325 L248,346 L220,367"
-                      stroke="var(--dplex-status-waiting)"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                    <rect
-                      x="262"
-                      y="338"
-                      width="60"
-                      height="8"
-                      rx="4"
-                      fill="var(--dplex-text-muted)"
-                      opacity="0.3"
-                    />
-                    <rect
-                      x="332"
-                      y="332"
-                      width="5"
-                      height="24"
-                      rx="2.5"
-                      fill="var(--dplex-status-waiting)"
-                    />
-                  </svg>
-                  <div>
-                    <div
-                      className="text-sm font-semibold"
+              <div
+                className="flex items-center justify-center h-full px-6"
+                style={{
+                  backgroundImage:
+                    'radial-gradient(ellipse 800px 400px at 50% 30%, var(--dplex-accent-faint) 0%, transparent 70%)'
+                }}
+              >
+                <div className="flex flex-col items-center gap-7 text-center max-w-md">
+                  <div
+                    aria-hidden
+                    className="relative flex items-center justify-center"
+                    style={{
+                      filter: 'drop-shadow(0 16px 40px var(--dplex-accent-glow))'
+                    }}
+                  >
+                    <DPlexLogo size={72} />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <h1
+                      className="text-[28px] font-semibold tracking-tight"
+                      style={{ color: 'var(--dplex-text)', letterSpacing: '-0.02em' }}
+                    >
+                      Welcome to DPlex
+                    </h1>
+                    <p
+                      className="text-[14px] leading-relaxed"
                       style={{ color: 'var(--dplex-text-muted)' }}
                     >
-                      DPlex
-                    </div>
-                    <div
-                      className="text-xs mt-1"
-                      style={{ color: 'var(--dplex-text-muted)', opacity: 0.8 }}
-                    >
-                      Press {MOD}T to open a new terminal
-                    </div>
+                      Your terminal multiplexer for AI-assisted development. Open a terminal, start
+                      an AI session, or jump straight into your projects.
+                    </p>
                   </div>
+
+                  <div className="flex flex-col gap-2 w-full">
+                    <button
+                      onClick={() => createTerminal()}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all"
+                      style={{
+                        background: 'var(--dplex-bg-elev)',
+                        border: '1px solid var(--dplex-border)',
+                        color: 'var(--dplex-text)',
+                        textAlign: 'left',
+                        boxShadow: 'var(--dplex-shadow-sm)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--dplex-bg-elev-2)'
+                        e.currentTarget.style.borderColor = 'var(--dplex-border-strong)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'var(--dplex-bg-elev)'
+                        e.currentTarget.style.borderColor = 'var(--dplex-border)'
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        className="grid place-items-center flex-shrink-0"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 8,
+                          background: 'var(--dplex-accent-soft)',
+                          border: '1px solid var(--dplex-accent-ring)',
+                          color: 'var(--dplex-accent)'
+                        }}
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                      </span>
+                      <span className="flex-1 text-[13px] font-medium">Open a new terminal</span>
+                      <kbd
+                        className="text-[10.5px] font-medium"
+                        style={{
+                          fontFamily: 'var(--dplex-font-mono)',
+                          color: 'var(--dplex-text-dim)',
+                          background: 'var(--dplex-bg-elev-2)',
+                          border: '1px solid var(--dplex-border-subtle)',
+                          borderRadius: 4,
+                          padding: '2px 6px'
+                        }}
+                      >
+                        {MOD}T
+                      </kbd>
+                    </button>
+
+                    <button
+                      onClick={() => useCommandPaletteStore.getState().toggle('all')}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all"
+                      style={{
+                        background: 'var(--dplex-bg-elev)',
+                        border: '1px solid var(--dplex-border)',
+                        color: 'var(--dplex-text)',
+                        textAlign: 'left',
+                        boxShadow: 'var(--dplex-shadow-sm)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--dplex-bg-elev-2)'
+                        e.currentTarget.style.borderColor = 'var(--dplex-border-strong)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'var(--dplex-bg-elev)'
+                        e.currentTarget.style.borderColor = 'var(--dplex-border)'
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        className="grid place-items-center flex-shrink-0"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 8,
+                          background: 'var(--dplex-accent-soft)',
+                          border: '1px solid var(--dplex-accent-ring)',
+                          color: 'var(--dplex-accent)'
+                        }}
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="11" cy="11" r="7" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                      </span>
+                      <span className="flex-1 text-[13px] font-medium">
+                        Search projects &amp; sessions
+                      </span>
+                      <kbd
+                        className="text-[10.5px] font-medium"
+                        style={{
+                          fontFamily: 'var(--dplex-font-mono)',
+                          color: 'var(--dplex-text-dim)',
+                          background: 'var(--dplex-bg-elev-2)',
+                          border: '1px solid var(--dplex-border-subtle)',
+                          borderRadius: 4,
+                          padding: '2px 6px'
+                        }}
+                      >
+                        {MOD}P
+                      </kbd>
+                    </button>
+                  </div>
+
+                  <p className="text-[11px]" style={{ color: 'var(--dplex-text-faint)' }}>
+                    Press{' '}
+                    <kbd
+                      style={{
+                        fontFamily: 'var(--dplex-font-mono)',
+                        background: 'var(--dplex-bg-elev)',
+                        border: '1px solid var(--dplex-border-subtle)',
+                        borderRadius: 3,
+                        padding: '1px 5px'
+                      }}
+                    >
+                      {MOD},
+                    </kbd>{' '}
+                    to open settings, or{' '}
+                    <kbd
+                      style={{
+                        fontFamily: 'var(--dplex-font-mono)',
+                        background: 'var(--dplex-bg-elev)',
+                        border: '1px solid var(--dplex-border-subtle)',
+                        borderRadius: 3,
+                        padding: '1px 5px'
+                      }}
+                    >
+                      {MOD}B
+                    </kbd>{' '}
+                    to toggle the sidebar
+                  </p>
                 </div>
               </div>
             )}

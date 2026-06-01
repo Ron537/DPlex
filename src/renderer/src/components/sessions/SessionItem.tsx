@@ -138,16 +138,17 @@ export function SessionItem({
       className={
         compact
           ? 'group flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1 relative'
-          : 'group flex items-start gap-2.5 px-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1 relative'
+          : 'group flex items-start gap-2.5 pl-4 pr-3 py-2 hover:bg-[var(--dplex-hover)] cursor-pointer rounded-md mx-1 relative transition-colors'
       }
       style={
         isActiveTab
           ? {
-              // Subtle "selected tab" lift — soft outer drop shadow with a
-              // slight accent tint. Reads as elevation without competing
-              // with the parent project's selection card.
-              backgroundColor: 'var(--dplex-accent-faint)',
-              boxShadow: '0 0 0 1px var(--dplex-accent-ring), 0 4px 12px -2px rgba(0,0,0,0.35)'
+              // v2 selection: matches project rows, activity-bar items, and
+              // the search palette — accent-soft fill + 2 px left stripe
+              // with a soft accent glow. Replaces the older ring +
+              // drop-shadow framing which read as a "card" instead of a
+              // "selected list item".
+              backgroundColor: 'var(--dplex-accent-soft)'
             }
           : undefined
       }
@@ -157,6 +158,22 @@ export function SessionItem({
         setShowMenu(!showMenu)
       }}
     >
+      {!compact && isActiveTab && (
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: 4,
+            top: 6,
+            bottom: 6,
+            width: 2,
+            borderRadius: '0 2px 2px 0',
+            backgroundColor: 'var(--dplex-accent)',
+            boxShadow: '0 0 8px var(--dplex-accent-glow)',
+            pointerEvents: 'none'
+          }}
+        />
+      )}
       {compact ? (
         <>
           {/* Compact single-line layout: dot · glyph · "provider · title" · time.
@@ -189,9 +206,9 @@ export function SessionItem({
         </>
       ) : (
         <>
-          {/* Status avatar — replaces the bare dot. The avatar slot reflects
-              state; the corner badge appears only when the surrounding list
-              contains more than one provider (showProviderBadge prop). */}
+          {/* Status avatar — same as before. Carries the AI status visual,
+              plus a corner provider badge when the surrounding list spans
+              multiple providers. */}
           <div className="flex-shrink-0 mt-0.5">
             <StatusAvatar
               visual={visualForStatus(status)}
@@ -202,93 +219,101 @@ export function SessionItem({
           </div>
 
           {/* Main content */}
-          <div className="flex-1 min-w-0">
-            {/* Row 1: name + open-tab badge. Active-tab cue is a typographic
-                color shift on the title — same pattern the active worktree
-                section uses for its branch name, deliberately quiet so the
-                parent project's selection card stays the dominant surface. */}
-            <div className="flex items-center gap-1.5">
+          <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 1 }}>
+            {/* Row 1 — title, optional `open` dot, and time-ago.
+                Time on the right matches the project-row pattern; OPEN
+                shrinks from a pill to a 6 px accent dot beside the title
+                so it reads as "subtle status flag" instead of competing
+                for horizontal space. */}
+            <div className="flex items-center gap-1.5 min-w-0">
               <span
-                className="text-[12.5px] font-medium truncate"
-                style={{ color: 'var(--dplex-text)' }}
+                className="flex-1 truncate"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--dplex-text)',
+                  letterSpacing: '-0.005em'
+                }}
               >
                 {session.displayName}
               </span>
               {isOpen && (
                 <span
-                  className="text-[8px] font-bold px-1 rounded flex-shrink-0"
+                  aria-label="Open in a tab"
+                  title="Open in a tab"
+                  className="flex-shrink-0 rounded-full"
                   style={{
-                    color: 'var(--dplex-accent)',
-                    backgroundColor: 'var(--dplex-accent-soft)'
+                    width: 6,
+                    height: 6,
+                    backgroundColor: 'var(--dplex-accent)',
+                    boxShadow: '0 0 4px var(--dplex-accent-glow)'
                   }}
-                >
-                  OPEN
-                </span>
+                />
               )}
+              <span
+                className="flex-shrink-0 tabular-nums"
+                style={{
+                  fontSize: 10.5,
+                  color: 'var(--dplex-text-dim)'
+                }}
+              >
+                {timeAgo(session.updatedAt)}
+              </span>
             </div>
 
-            {/* Row 2: CWD subtitle */}
-            {session.cwd && (
+            {/* Row 2 — subtitle: cwd · branch. Provider is conveyed by
+                the avatar's corner glyph (when the list spans multiple
+                providers); no need to repeat it as text. Each segment
+                renders only when present. `min-w-0` on the cwd lets it
+                truncate before the branch chip. */}
+            {(session.cwd || session.branch) && (
               <div
-                className="text-[10.5px] truncate mt-0.5"
-                style={{ color: 'var(--dplex-text-muted)' }}
+                className="flex items-center min-w-0"
+                style={{ gap: 5, fontSize: 11, color: 'var(--dplex-text-muted)' }}
               >
-                {folderName(session.cwd)}
-              </div>
-            )}
-
-            {/* Row 3: metadata. Full chip row (branch, message count, tool
-                count) is the global Sessions tab's signature density.
-                `min-w-0` + an inner `truncate` on the branch chip stop
-                long branch names from overflowing the row at narrow panel
-                widths. */}
-            <div
-              className="flex items-center gap-2 mt-0.5 flex-wrap text-[10.5px] min-w-0"
-              style={{ color: 'var(--dplex-text-muted)' }}
-            >
-              <span className="flex-shrink-0">{providerLabel}</span>
-
-              {session.branch && (
-                <>
-                  <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
-                    ·
-                  </span>
-                  <span className="flex items-center gap-1 min-w-0 max-w-full">
+                {session.cwd && <span className="truncate min-w-0">{folderName(session.cwd)}</span>}
+                {session.cwd && session.branch && (
+                  <span style={{ color: 'var(--dplex-text-dim)' }}>·</span>
+                )}
+                {session.branch && (
+                  <span
+                    className="flex items-center gap-1 flex-shrink-0"
+                    style={{ minWidth: 0, maxWidth: '50%' }}
+                  >
                     <GitBranch size={9} className="flex-shrink-0" />
                     <span className="truncate">{session.branch}</span>
                   </span>
-                </>
-              )}
+                )}
+              </div>
+            )}
 
-              {(session.messageCount ?? 0) > 0 && (
-                <>
-                  <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
-                    ·
-                  </span>
-                  <span className="flex items-center gap-1 flex-shrink-0">
+            {/* Row 3 — metrics. Only renders when at least one counter is
+                non-zero, so quiet sessions stay 2-line and chatty ones
+                lift to 3. Muted to read clearly as secondary data. */}
+            {((session.messageCount ?? 0) > 0 || (session.toolCallCount ?? 0) > 0) && (
+              <div
+                className="flex items-center"
+                style={{
+                  gap: 8,
+                  marginTop: 3,
+                  fontSize: 10.5,
+                  color: 'var(--dplex-text-dim)'
+                }}
+              >
+                {(session.messageCount ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 tabular-nums">
                     <MessageSquare size={9} />
                     {session.messageCount}
                   </span>
-                </>
-              )}
-
-              {(session.toolCallCount ?? 0) > 0 && (
-                <>
-                  <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
-                    ·
-                  </span>
-                  <span className="flex items-center gap-1 flex-shrink-0">
+                )}
+                {(session.toolCallCount ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 tabular-nums">
                     <Wrench size={9} />
                     {session.toolCallCount}
                   </span>
-                </>
-              )}
-
-              <span className="flex-shrink-0" style={{ color: 'var(--dplex-text-dim)' }}>
-                ·
-              </span>
-              <span className="flex-shrink-0">{timeAgo(session.updatedAt)}</span>
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Three-dot menu button */}

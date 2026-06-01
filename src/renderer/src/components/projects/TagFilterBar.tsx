@@ -36,8 +36,8 @@ export function TagFilterBar({ value, onChange }: TagFilterBarProps): React.JSX.
 
   return (
     <div
-      className="flex flex-wrap gap-1.5 px-3 pt-1 pb-2.5"
-      style={{ borderBottom: '1px solid var(--dplex-border)' }}
+      className="flex flex-wrap gap-1.5 px-3 pt-1 pb-3"
+      style={{ borderBottom: '1px solid var(--dplex-border-subtle)' }}
       role="tablist"
       aria-label="Filter projects by tag"
     >
@@ -50,16 +50,18 @@ export function TagFilterBar({ value, onChange }: TagFilterBarProps): React.JSX.
         style={{
           fontSize: 11,
           padding: '2px 8px',
-          backgroundColor: value === null ? 'var(--dplex-accent-soft)' : 'var(--dplex-bg-input)',
-          color: value === null ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)',
+          backgroundColor: value === null ? 'var(--dplex-accent-soft)' : 'transparent',
+          color: value === null ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
           border:
-            value === null ? '1px solid var(--dplex-accent)' : '1px solid var(--dplex-border)',
+            value === null
+              ? '1px solid var(--dplex-accent-ring)'
+              : '1px solid var(--dplex-border-strong)',
           cursor: 'pointer',
           userSelect: 'none'
         }}
       >
         All
-        <span style={{ opacity: 0.7, fontSize: 10 }}>{totalCount}</span>
+        <span style={{ opacity: 0.6, fontSize: 10 }}>{totalCount}</span>
       </button>
       {tagCounts.map(({ tag, count }) => (
         <TagPill
@@ -67,6 +69,7 @@ export function TagFilterBar({ value, onChange }: TagFilterBarProps): React.JSX.
           tag={tag}
           count={count}
           active={value === tag}
+          variant="dot"
           onClick={() => onChange(value === tag ? null : tag)}
         />
       ))}

@@ -27,6 +27,16 @@ export function applyCssVarsSync(themeId: string): void {
   root.style.setProperty('--dplex-bg-alt', theme.ui.bgAlt)
   root.style.setProperty('--dplex-bg-panel', theme.ui.bgPanel ?? theme.ui.bgAlt)
   root.style.setProperty('--dplex-bg-elev', theme.ui.bgElev ?? theme.ui.bgAlt)
+  // v2 elevated tiers — fall back through the existing surface stack
+  // when a theme doesn't define them so older themes still render.
+  const elev2 = theme.ui.bgElev2 ?? theme.ui.bgElev ?? theme.ui.bgAlt
+  const elev3 = theme.ui.bgElev3 ?? elev2
+  root.style.setProperty('--dplex-bg-elev-2', elev2)
+  root.style.setProperty('--dplex-bg-elev-3', elev3)
+  // Alias names matching the v2 design-system docs.
+  root.style.setProperty('--dplex-elevated', theme.ui.bgElev ?? theme.ui.bgAlt)
+  root.style.setProperty('--dplex-elevated-2', elev2)
+  root.style.setProperty('--dplex-elevated-3', elev3)
   root.style.setProperty(
     '--dplex-bg-activity',
     theme.ui.bgActivity ?? theme.ui.bgPanel ?? theme.ui.bgAlt
@@ -43,14 +53,36 @@ export function applyCssVarsSync(themeId: string): void {
   root.style.setProperty('--dplex-bg-input', theme.ui.bgInput ?? theme.ui.bgAlt)
   root.style.setProperty('--dplex-border', theme.ui.border)
   root.style.setProperty('--dplex-border-strong', theme.ui.borderStrong ?? theme.ui.border)
+  root.style.setProperty('--dplex-border-subtle', theme.ui.borderSubtle ?? theme.ui.border)
   root.style.setProperty('--dplex-text', theme.ui.text)
+  root.style.setProperty('--dplex-text-2', theme.ui.text2 ?? theme.ui.text)
   root.style.setProperty('--dplex-text-muted', theme.ui.textMuted)
   root.style.setProperty('--dplex-text-dim', theme.ui.textDim ?? theme.ui.textMuted)
+  root.style.setProperty(
+    '--dplex-text-faint',
+    theme.ui.textFaint ?? theme.ui.textDim ?? theme.ui.textMuted
+  )
   root.style.setProperty('--dplex-accent', theme.ui.accent)
   root.style.setProperty('--dplex-accent-2', theme.ui.accent2 ?? theme.ui.accent)
-  root.style.setProperty('--dplex-accent-soft', hexToRgba(theme.ui.accent, 0.14))
-  root.style.setProperty('--dplex-accent-faint', hexToRgba(theme.ui.accent, 0.07))
+  root.style.setProperty(
+    '--dplex-accent-3',
+    theme.ui.accent3 ?? theme.ui.accent2 ?? theme.ui.accent
+  )
+  const accentAlt = theme.ui.accentAlt ?? theme.ui.accent2 ?? theme.ui.accent
+  root.style.setProperty('--dplex-accent-alt', accentAlt)
+  root.style.setProperty('--dplex-accent-soft', hexToRgba(theme.ui.accent, 0.12))
+  root.style.setProperty('--dplex-accent-softer', hexToRgba(theme.ui.accent, 0.06))
+  root.style.setProperty('--dplex-accent-faint', hexToRgba(theme.ui.accent, 0.04))
   root.style.setProperty('--dplex-accent-ring', hexToRgba(theme.ui.accent, 0.28))
+  root.style.setProperty('--dplex-accent-glow', hexToRgba(theme.ui.accent, 0.25))
+  root.style.setProperty(
+    '--dplex-gradient',
+    `linear-gradient(135deg, ${theme.ui.accent} 0%, ${accentAlt} 100%)`
+  )
+  root.style.setProperty(
+    '--dplex-gradient-soft',
+    `linear-gradient(135deg, ${hexToRgba(theme.ui.accent, 0.15)} 0%, ${hexToRgba(accentAlt, 0.15)} 100%)`
+  )
   root.style.setProperty('--dplex-hover', theme.ui.hover || 'rgba(255,255,255,0.04)')
   root.style.setProperty('--dplex-scrollbar', theme.ui.scrollbar || 'rgba(255,255,255,0.15)')
   root.style.setProperty(
@@ -61,17 +93,36 @@ export function applyCssVarsSync(themeId: string): void {
   // Status colors — adapted for contrast on light vs dark backgrounds.
   // Each token must remain visually distinct from every other token in
   // both variants. The dark hues match the soft-pill rules in main.css.
+  // v2 palette: violet (thinking), cyan (executing), amber (approval),
+  // orange (waiting), emerald (success/active), red (error).
   const isLight = theme.variant === 'light'
-  root.style.setProperty('--dplex-status-idle', isLight ? '#9ca3af' : '#8a8a99')
-  root.style.setProperty('--dplex-status-thinking', isLight ? '#2563eb' : '#60a5fa')
-  root.style.setProperty('--dplex-status-executing', isLight ? '#16a34a' : '#4ade80')
-  root.style.setProperty('--dplex-status-approval', isLight ? '#dc2626' : '#f87171')
-  root.style.setProperty('--dplex-status-waiting', isLight ? '#d97706' : '#f59e0b')
-  root.style.setProperty('--dplex-status-active', isLight ? '#16a34a' : '#4ade80')
+  root.style.setProperty('--dplex-status-idle', isLight ? '#A1A1AA' : '#52525B')
+  root.style.setProperty('--dplex-status-thinking', isLight ? '#7C3AED' : '#A78BFA')
+  root.style.setProperty('--dplex-status-executing', isLight ? '#0891B2' : '#22D3EE')
+  root.style.setProperty('--dplex-status-approval', isLight ? '#D97706' : '#F59E0B')
+  root.style.setProperty('--dplex-status-waiting', isLight ? '#EA580C' : '#FB923C')
+  root.style.setProperty('--dplex-status-active', isLight ? '#059669' : '#34D399')
   root.style.setProperty(
     '--dplex-status-active-bg',
-    isLight ? 'rgba(22,163,74,0.12)' : 'rgba(74,222,128,0.12)'
+    isLight ? 'rgba(5,150,105,0.12)' : 'rgba(52,211,153,0.12)'
   )
+  // Semantic status — new in v2. success ≈ active; error/warning/info
+  // are emitted explicitly so non-pill surfaces (notifications, modal
+  // headers, file badges) can use the same palette.
+  root.style.setProperty('--dplex-status-success', isLight ? '#059669' : '#34D399')
+  root.style.setProperty('--dplex-status-warning', isLight ? '#D97706' : '#F59E0B')
+  root.style.setProperty('--dplex-status-error', isLight ? '#DC2626' : '#F87171')
+  root.style.setProperty('--dplex-status-info', isLight ? '#2563EB' : '#60A5FA')
+  // Stronger error fill — used as a *background* for destructive solid
+  // buttons. The soft `--dplex-status-error` reads as a 2.7:1 contrast
+  // against white text and fails WCAG AA, so we emit a deeper red for
+  // fills paired with white labels.
+  root.style.setProperty('--dplex-status-error-strong', isLight ? '#B91C1C' : '#DC2626')
+  // Foreground for accent-filled badges/buttons. Pairing white text with
+  // the violet accent (#A78BFA) fails AA at small sizes; the dark canvas
+  // color reads at ~7:1 against violet. On light themes pure white still
+  // wins against the deeper violet shades.
+  root.style.setProperty('--dplex-accent-fg', isLight ? '#FFFFFF' : theme.ui.bg)
 
   document.body.style.backgroundColor = theme.ui.bg
   // Tell the browser to render native form controls (checkboxes, radios, ranges,

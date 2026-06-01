@@ -20,6 +20,14 @@ interface TagPillProps {
   /** Force a specific palette colour. When omitted, the user's saved override
    *  is used; if no override exists, falls back to a hash of the tag name. */
   colorOverride?: string | null
+  /**
+   * `chip` (default) — solid tag-colored background. Used inside project
+   * cards where the chip itself is the identity.
+   * `dot` — neutral background + leading colored dot. Used in the top
+   * filter bar so the row reads as a quiet control strip while still
+   * preserving per-tag color identity.
+   */
+  variant?: 'chip' | 'dot'
 }
 
 /**
@@ -35,7 +43,8 @@ export const TagPill = memo(function TagPill({
   onClick,
   title,
   compact,
-  colorOverride
+  colorOverride,
+  variant = 'chip'
 }: TagPillProps): React.JSX.Element {
   const savedOverride = useSettingsStore((s) => s.settings.tagColors?.[tag])
   const effectiveOverride = colorOverride !== undefined ? colorOverride : savedOverride
@@ -43,6 +52,57 @@ export const TagPill = memo(function TagPill({
   const fontSize = compact ? 9.5 : 11
   const padding = compact ? '1px 5px' : '2px 8px'
   const Cmp = (onClick ? 'button' : 'span') as 'button' | 'span'
+
+  if (variant === 'dot') {
+    // Neutral chip with a leading tag-color dot. Active state lifts the
+    // background to accent-soft + accent border so the active filter is
+    // unambiguous while inactive chips read as a calm row.
+    return (
+      <Cmp
+        onClick={onClick}
+        title={title ?? `#${tag}`}
+        className="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap transition-colors"
+        style={{
+          fontSize,
+          padding,
+          backgroundColor: active ? 'var(--dplex-accent-soft)' : 'transparent',
+          color: active ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+          border: `1px solid ${active ? 'var(--dplex-accent-ring)' : 'var(--dplex-border-strong)'}`,
+          cursor: onClick ? 'pointer' : 'default',
+          userSelect: 'none',
+          maxWidth: compact ? 90 : 140,
+          minWidth: 0,
+          flexShrink: 0
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            backgroundColor: fg,
+            flexShrink: 0
+          }}
+        />
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: 'inline-block',
+            maxWidth: '100%'
+          }}
+        >
+          {showHash ? '#' : ''}
+          {tag}
+        </span>
+        {typeof count === 'number' && (
+          <span style={{ opacity: 0.6, fontSize: fontSize - 1 }}>{count}</span>
+        )}
+      </Cmp>
+    )
+  }
+
   return (
     <Cmp
       onClick={onClick}

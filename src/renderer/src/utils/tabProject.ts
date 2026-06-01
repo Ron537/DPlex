@@ -47,7 +47,7 @@ export function findProjectForTab(
 export interface TabProjectIdentity {
   matched: Project
   colorProject: Project
-  color: { bg: string; fg: string }
+  color: { bg: string; fg: string; border: string }
   initials: string
 }
 

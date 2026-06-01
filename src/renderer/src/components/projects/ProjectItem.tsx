@@ -30,7 +30,7 @@ import { isMixedProviderList } from '../../utils/providerHelpers'
 import { aggregateVisual } from '../../utils/aggregateVisual'
 import { PromptsDialog } from '../sessions/PromptsDialog'
 import { ProjectSessionList, selectRecentSessions } from './ProjectSessionList'
-import { InlineTagList } from './InlineTagList'
+import { TagDots } from './TagDots'
 import { TagPickerPopover } from './TagPickerPopover'
 import { WorktreeSection } from './WorktreeSection'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
@@ -223,8 +223,7 @@ export function ProjectItem({
             ? 'var(--dplex-accent-soft)'
             : isExpanded
               ? 'var(--dplex-bg-alt)'
-              : undefined,
-          boxShadow: isActive ? 'inset 0 0 0 1px var(--dplex-accent-ring)' : undefined
+              : undefined
         }}
         onMouseEnter={(e) => {
           if (!isActive && !isExpanded) {
@@ -280,16 +279,42 @@ export function ProjectItem({
           setShowMenu(true)
         }}
       >
-        {/* Project avatar — deterministic color per project id. */}
+        {/* Active project gets a v2 left accent stripe — matches the
+            activity-bar / search-palette active treatment. Replaces the
+            previous full-ring + inset shadow, which read as a separate
+            UI element rather than a selection state. */}
+        {isActive && (
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 6,
+              bottom: 6,
+              width: 2,
+              borderRadius: '0 2px 2px 0',
+              backgroundColor: 'var(--dplex-accent)',
+              boxShadow: '0 0 8px var(--dplex-accent-glow)',
+              pointerEvents: 'none'
+            }}
+          />
+        )}
+        {/* Project avatar — deterministic color per project id. Anchored
+            to the top of the row (via self-start + a small top offset
+            that visually centers it against the two-line content) so it
+            doesn't drift downward when the hover-revealed tag row
+            expands the card. */}
         <span
           aria-hidden
           data-project-avatar={project.id}
-          className="flex-shrink-0 relative flex items-center justify-center rounded-md text-[10.5px] font-bold leading-none"
+          className="flex-shrink-0 self-start relative flex items-center justify-center rounded-md text-[10.5px] font-bold leading-none"
           style={{
             width: 26,
             height: 26,
+            marginTop: 3,
             backgroundColor: avatarColor.bg,
-            color: avatarColor.fg
+            color: avatarColor.fg,
+            border: `1px solid ${avatarColor.border}`
           }}
         >
           {avatarInitials}
@@ -350,10 +375,14 @@ export function ProjectItem({
             </span>
           </div>
 
-          {/* Line 2: metadata subline — branch · count · time. Compact format
-              matches the mockup: just a number for sessions (no "session(s)"
-              suffix that wraps + truncates ugly on long branch names) and a
-              suffix-free relative time on the right. */}
+          {/* Line 2: metadata subline — branch · time · tag dots. Compact
+              format matches the mockup: just a number for sessions (no
+              "session(s)" suffix that wraps + truncates ugly on long
+              branch names) and a suffix-free relative time on the right.
+              Tag dots (option A) sit at the end so a tagged project is
+              the same height as an untagged one — no row expansion on
+              hover. Full tag chips remain available in the tag-picker
+              popover for editing. */}
           <div
             className="flex items-center gap-1.5 min-w-0 text-[11px]"
             style={{ color: 'var(--dplex-text-muted)' }}
@@ -374,15 +403,8 @@ export function ProjectItem({
                   </>
                 )
               })()}
+            {project.tags && project.tags.length > 0 && <TagDots tags={project.tags} />}
           </div>
-          {/* Line 3 (tags) — rendered on its own row so the hover-revealed
-              action buttons (absolute, vertically-centered) only mask the
-              branch+time line and leave tags fully visible. `InlineTagList`
-              measures actual pill widths and surfaces overflow as a `+N`
-              chip whose tooltip lists the hidden tags. */}
-          {project.tags && project.tags.length > 0 && (
-            <InlineTagList tags={project.tags} />
-          )}
         </div>
 
         {/* Chevron — right-aligned, grey. Clicking always toggles expansion,

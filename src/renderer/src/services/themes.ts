@@ -16,16 +16,30 @@ export interface AppTheme {
     bgPanel?: string
     /** Optional elevated surface (popovers, segmented "active" pill). Falls back to bg shifted lighter. */
     bgElev?: string
+    /** Optional second elevated tier — slightly stronger than bgElev. Falls back to bgElev. */
+    bgElev2?: string
+    /** Optional third elevated tier — for hover-on-elev surfaces. Falls back to bgElev2. */
+    bgElev3?: string
     /** Optional activity-bar / collapsed-rail surface. Falls back to bgPanel. */
     bgActivity?: string
     /** Optional input/search field background. Falls back to bgAlt. */
     bgInput?: string
     /** Optional secondary accent used for gradient pairs (e.g. button gradient). Falls back to accent. */
     accent2?: string
+    /** Optional tertiary accent (deepest shade of the accent ramp). Falls back to accent2. */
+    accent3?: string
+    /** Optional secondary brand color used for the v2 gradient pair (defaults to a cyan). */
+    accentAlt?: string
     /** Optional stronger border for elevated surfaces. Falls back to border. */
     borderStrong?: string
+    /** Optional faintest border used on chrome dividers. Falls back to border. */
+    borderSubtle?: string
     /** Optional dimmer text level — between text-muted and bg. Falls back to a desaturated mix. */
     textDim?: string
+    /** Optional faintest text level — for low-contrast captions and section labels. */
+    textFaint?: string
+    /** Optional brighter text tier — between text and text-muted (used for headings/inline emphasis). */
+    text2?: string
     hover?: string
     scrollbar?: string
     scrollbarHover?: string
@@ -33,96 +47,117 @@ export interface AppTheme {
 }
 
 export const THEMES: Record<string, AppTheme> = {
+  // DPlex v2 — Modern Minimal · Royal Blue on near-black canvas.
+  // Linear / Raycast / Cursor inspired. Existing users on theme 'dplex'
+  // automatically get the redesign because we overwrite this slot.
   dplex: {
     id: 'dplex',
     name: 'DPlex',
     variant: 'dark',
     terminal: {
-      background: '#141925',
-      foreground: '#e8e8ee',
-      cursor: '#7ba2ff',
-      cursorAccent: '#141925',
-      selectionBackground: '#1f3360',
-      black: '#141925',
-      red: '#f87171',
-      green: '#4ade80',
-      yellow: '#facc15',
-      blue: '#7ba2ff',
-      magenta: '#c084fc',
-      cyan: '#67e8f9',
-      white: '#e8e8ee',
-      brightBlack: '#5d5d6e',
-      brightRed: '#fca5a5',
-      brightGreen: '#86efac',
-      brightYellow: '#fde68a',
-      brightBlue: '#a8c1ff',
-      brightMagenta: '#d8b4fe',
-      brightCyan: '#a5f3fc',
-      brightWhite: '#ffffff'
+      background: '#0A0A0C',
+      foreground: '#FAFAFA',
+      cursor: '#3B82F6',
+      cursorAccent: '#0A0A0C',
+      selectionBackground: 'rgba(59,130,246,0.25)',
+      black: '#0A0A0C',
+      red: '#F87171',
+      green: '#34D399',
+      yellow: '#F59E0B',
+      blue: '#60A5FA',
+      magenta: '#C084FC',
+      cyan: '#22D3EE',
+      white: '#D4D4D8',
+      brightBlack: '#52525B',
+      brightRed: '#FCA5A5',
+      brightGreen: '#6EE7B7',
+      brightYellow: '#FCD34D',
+      brightBlue: '#93C5FD',
+      brightMagenta: '#D8B4FE',
+      brightCyan: '#67E8F9',
+      brightWhite: '#FFFFFF'
     },
     ui: {
-      bg: '#141925',
-      bgAlt: '#0f131b',
-      bgPanel: '#0f131b',
-      bgElev: '#1c2333',
-      bgActivity: '#131318',
-      bgInput: '#0a0e14',
-      border: '#1f2536',
-      borderStrong: '#2a3148',
-      text: '#e8e8ee',
-      textMuted: '#8a8a99',
-      textDim: '#5d5d6e',
-      accent: '#7ba2ff',
-      accent2: '#5b87e8',
-      hover: 'rgba(255,255,255,0.04)',
-      scrollbar: 'rgba(255,255,255,0.12)',
-      scrollbarHover: 'rgba(255,255,255,0.22)'
+      bg: '#0A0A0C',
+      bgAlt: '#0F0F12',
+      bgPanel: '#0F0F12',
+      bgElev: '#16161B',
+      bgElev2: '#1C1C23',
+      bgElev3: '#232329',
+      bgActivity: '#0F0F12',
+      bgInput: '#16161B',
+      border: 'rgba(255,255,255,0.08)',
+      borderStrong: 'rgba(255,255,255,0.12)',
+      borderSubtle: 'rgba(255,255,255,0.05)',
+      text: '#FAFAFA',
+      text2: '#D4D4D8',
+      textMuted: '#A1A1AA',
+      textDim: '#71717A',
+      textFaint: '#52525B',
+      accent: '#3B82F6',
+      accent2: '#2563EB',
+      accent3: '#1D4ED8',
+      accentAlt: '#22D3EE',
+      hover: 'rgba(255,255,255,0.05)',
+      scrollbar: 'rgba(255,255,255,0.10)',
+      scrollbarHover: 'rgba(255,255,255,0.20)'
     }
   },
+  // DPlex Light v2 — soft daytime variant of the v2 system.
   'dplex-light': {
     id: 'dplex-light',
     name: 'DPlex Light',
     variant: 'light',
     terminal: {
-      background: '#f8f9fc',
-      foreground: '#1f1f1f',
-      cursor: '#3b82f6',
-      cursorAccent: '#f8f9fc',
-      selectionBackground: '#cfdcfb',
-      black: '#1f1f1f',
-      red: '#dc2626',
-      green: '#16a34a',
-      yellow: '#ca8a04',
-      blue: '#3b82f6',
-      magenta: '#9333ea',
-      cyan: '#0891b2',
-      white: '#1f1f1f',
-      brightBlack: '#6b7280',
-      brightRed: '#ef4444',
-      brightGreen: '#22c55e',
-      brightYellow: '#eab308',
-      brightBlue: '#60a5fa',
-      brightMagenta: '#a855f7',
-      brightCyan: '#06b6d4',
-      brightWhite: '#111111'
+      background: '#FBFBFD',
+      foreground: '#1F1F23',
+      cursor: '#1D4ED8',
+      cursorAccent: '#FBFBFD',
+      selectionBackground: 'rgba(37,99,235,0.18)',
+      black: '#1F1F23',
+      red: '#DC2626',
+      green: '#059669',
+      yellow: '#D97706',
+      blue: '#2563EB',
+      magenta: '#7C3AED',
+      cyan: '#0891B2',
+      white: '#52525B',
+      brightBlack: '#71717A',
+      brightRed: '#EF4444',
+      brightGreen: '#10B981',
+      brightYellow: '#F59E0B',
+      brightBlue: '#3B82F6',
+      brightMagenta: '#8B5CF6',
+      brightCyan: '#06B6D4',
+      brightWhite: '#18181B'
     },
     ui: {
-      bg: '#f8f9fc',
-      bgAlt: '#eef0f6',
-      bgPanel: '#eef0f6',
-      bgElev: '#ffffff',
-      bgActivity: '#e8ebf2',
-      bgInput: '#f5f7fc',
-      border: '#dfe3eb',
-      text: '#1f1f1f',
-      textMuted: '#6b7280',
-      accent: '#3b82f6',
-      hover: 'rgba(59,130,246,0.08)',
-      scrollbar: 'rgba(0,0,0,0.15)',
-      scrollbarHover: 'rgba(0,0,0,0.25)'
+      bg: '#FBFBFD',
+      bgAlt: '#F4F4F7',
+      bgPanel: '#F4F4F7',
+      bgElev: '#FFFFFF',
+      bgElev2: '#F4F4F7',
+      bgElev3: '#EEEEF2',
+      bgActivity: '#EEEEF2',
+      bgInput: '#FFFFFF',
+      border: 'rgba(15,15,18,0.08)',
+      borderStrong: 'rgba(15,15,18,0.14)',
+      borderSubtle: 'rgba(15,15,18,0.05)',
+      text: '#18181B',
+      text2: '#27272A',
+      textMuted: '#52525B',
+      textDim: '#71717A',
+      textFaint: '#A1A1AA',
+      accent: '#1D4ED8',
+      accent2: '#2563EB',
+      accent3: '#1E40AF',
+      accentAlt: '#0891B2',
+      hover: 'rgba(37,99,235,0.06)',
+      scrollbar: 'rgba(0,0,0,0.16)',
+      scrollbarHover: 'rgba(0,0,0,0.28)'
     }
   },
-  'dark': {
+  dark: {
     id: 'dark',
     name: 'Dark',
     variant: 'dark',

@@ -1,14 +1,112 @@
 @import 'tailwindcss';
 @import '@xterm/xterm/css/xterm.css';
 
+/* ============================================================
+   DPlex v2 — Design system root
+   - Token API stays backwards-compatible: every var name that
+     existed before still exists; new vars are added alongside.
+   - Real values are pushed at runtime by `applyCssVarsSync`
+     (settingsStore.ts) for the active theme. The `:root` block
+     below carries the v2 dark defaults so the app paints
+     correctly on the very first frame, before settings load.
+   - We deliberately avoid loading remote font files: the
+     Electron renderer's CSP doesn't permit it, and offline
+     usage must always work. The system font stack below picks
+     up Inter / SF Pro / Segoe UI when available and falls back
+     gracefully everywhere else.
+============================================================ */
+
 :root {
   color-scheme: dark;
-  --dplex-bg: #1a1a2e;
-  --dplex-bg-alt: #16162a;
-  --dplex-border: #2a2a4a;
-  --dplex-text: #e0e0e0;
-  --dplex-text-muted: #888;
-  --dplex-accent: #74c0fc;
+
+  /* Surfaces — v2 ramp */
+  --dplex-bg: #0a0a0c;
+  --dplex-bg-alt: #0f0f12;
+  --dplex-bg-panel: #0f0f12;
+  --dplex-bg-elev: #16161b;
+  --dplex-bg-elev-2: #1c1c23;
+  --dplex-bg-elev-3: #232329;
+  --dplex-bg-activity: #0f0f12;
+  --dplex-bg-input: #16161b;
+  --dplex-elevated: #16161b;
+  --dplex-elevated-2: #1c1c23;
+  --dplex-elevated-3: #232329;
+
+  /* Borders */
+  --dplex-border: rgba(255, 255, 255, 0.08);
+  --dplex-border-strong: rgba(255, 255, 255, 0.12);
+  --dplex-border-subtle: rgba(255, 255, 255, 0.05);
+
+  /* Text ramp */
+  --dplex-text: #fafafa;
+  --dplex-text-2: #d4d4d8;
+  --dplex-text-muted: #a1a1aa;
+  --dplex-text-dim: #71717a;
+  --dplex-text-faint: #52525b;
+
+  /* Royal Blue accent (v2) */
+  --dplex-accent: #3b82f6;
+  --dplex-accent-2: #2563eb;
+  --dplex-accent-3: #1d4ed8;
+  --dplex-accent-alt: #22d3ee;
+  --dplex-accent-soft: rgba(59, 130, 246, 0.14);
+  --dplex-accent-softer: rgba(59, 130, 246, 0.07);
+  --dplex-accent-faint: rgba(59, 130, 246, 0.05);
+  --dplex-accent-ring: rgba(59, 130, 246, 0.32);
+  --dplex-accent-glow: rgba(59, 130, 246, 0.3);
+  --dplex-gradient: linear-gradient(135deg, #3b82f6 0%, #22d3ee 100%);
+  --dplex-gradient-soft: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.15) 0%,
+    rgba(34, 211, 238, 0.15) 100%
+  );
+
+  /* Status palette — thinking stays violet so it's clearly distinct from
+     the blue accent; executing stays cyan; the rest unchanged. */
+  --dplex-status-idle: #52525b;
+  --dplex-status-thinking: #a78bfa;
+  --dplex-status-executing: #22d3ee;
+  --dplex-status-approval: #f59e0b;
+  --dplex-status-waiting: #fb923c;
+  --dplex-status-active: #34d399;
+  --dplex-status-active-bg: rgba(52, 211, 153, 0.12);
+  --dplex-status-success: #34d399;
+  --dplex-status-warning: #f59e0b;
+  --dplex-status-error: #f87171;
+  --dplex-status-info: #60a5fa;
+  --dplex-status-error-strong: #dc2626;
+  --dplex-accent-fg: #0a0a0c;
+
+  /* Hover / scrollbar */
+  --dplex-hover: rgba(255, 255, 255, 0.05);
+  --dplex-scrollbar: rgba(255, 255, 255, 0.1);
+  --dplex-scrollbar-hover: rgba(255, 255, 255, 0.2);
+
+  /* Typography stacks. We use system fonts so the app stays fully
+     offline-capable. Inter / SF Pro will be picked up automatically
+     when present (they're shipped with macOS, modern Windows, and
+     most Linux desktops); the rest are graceful fallbacks. */
+  --dplex-font-sans:
+    'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Segoe UI Variable',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --dplex-font-mono:
+    'JetBrains Mono', 'SF Mono', 'SFMono-Regular', ui-monospace, Menlo, Consolas, 'Liberation Mono',
+    monospace;
+
+  /* Radius scale */
+  --dplex-r-xs: 4px;
+  --dplex-r-sm: 6px;
+  --dplex-r-md: 8px;
+  --dplex-r-lg: 10px;
+  --dplex-r-xl: 12px;
+  --dplex-r-2xl: 14px;
+  --dplex-r-pill: 999px;
+
+  /* Shadows */
+  --dplex-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.1);
+  --dplex-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --dplex-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --dplex-shadow-xl: 0 32px 80px rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 input[type='checkbox'],
@@ -64,8 +162,14 @@ body {
   overflow: hidden;
   background-color: var(--dplex-bg);
   color: var(--dplex-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--dplex-font-sans);
+  font-size: 13px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
+  /* Enable Inter's stylistic alternates when present; harmless otherwise. */
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
 }
 
 #root {
@@ -106,7 +210,8 @@ body {
 
 .split-view-view .sash-container .sash:hover {
   background-color: var(--dplex-accent);
-  opacity: 0.5;
+  opacity: 0.6;
+  box-shadow: 0 0 8px var(--dplex-accent-glow);
 }
 
 /* Custom scrollbar styling */
@@ -158,6 +263,14 @@ body {
 .dplex-scroll-autohide:hover::-webkit-scrollbar-thumb:hover,
 .dplex-scroll-autohide:focus-within::-webkit-scrollbar-thumb:hover {
   background-color: var(--dplex-scrollbar-hover, rgba(255, 255, 255, 0.28)) !important;
+}
+
+/* Command palette input — placeholder color is browser-default by default,
+   which renders too dark on dark themes. Anchor it to a token so it
+   remains visible on every theme without losing contrast hierarchy. */
+.dplex-palette-input::placeholder {
+  color: var(--dplex-text-faint);
+  opacity: 1;
 }
 
 /* Theme-aware hover — works on both dark and light themes */
@@ -258,44 +371,44 @@ body {
   border-radius: 50%;
 }
 .dplex-pill.dplex-pill-idle {
-  background: rgba(138, 138, 153, 0.1);
+  background: rgba(161, 161, 170, 0.08);
   color: var(--dplex-text-muted);
-  border-color: rgba(138, 138, 153, 0.18);
+  border-color: rgba(161, 161, 170, 0.16);
 }
 .dplex-pill.dplex-pill-idle .dplex-pill-led {
   background: var(--dplex-status-idle);
 }
 .dplex-pill.dplex-pill-thinking {
-  background: rgba(123, 162, 255, 0.12);
-  color: #93c5fd;
-  border-color: rgba(123, 162, 255, 0.25);
+  background: rgba(167, 139, 250, 0.1);
+  color: var(--dplex-status-thinking);
+  border-color: rgba(167, 139, 250, 0.25);
 }
 .dplex-pill.dplex-pill-thinking .dplex-pill-led {
   background: var(--dplex-status-thinking);
   animation: pulse 1.4s ease-in-out infinite;
 }
 .dplex-pill.dplex-pill-running {
-  background: rgba(74, 222, 128, 0.1);
-  color: #86efac;
-  border-color: rgba(74, 222, 128, 0.22);
+  background: rgba(34, 211, 238, 0.1);
+  color: var(--dplex-status-executing);
+  border-color: rgba(34, 211, 238, 0.22);
 }
 .dplex-pill.dplex-pill-running .dplex-pill-led {
   background: var(--dplex-status-executing);
   animation: pulse 1.4s ease-in-out infinite;
 }
 .dplex-pill.dplex-pill-waiting {
-  background: rgba(245, 158, 11, 0.1);
-  color: #fbbf24;
-  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(251, 146, 60, 0.1);
+  color: var(--dplex-status-waiting);
+  border-color: rgba(251, 146, 60, 0.25);
 }
 .dplex-pill.dplex-pill-waiting .dplex-pill-led {
   background: var(--dplex-status-waiting);
   animation: pulse 1.4s ease-in-out infinite;
 }
 .dplex-pill.dplex-pill-attn {
-  background: rgba(248, 113, 113, 0.1);
-  color: #fca5a5;
-  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--dplex-status-approval);
+  border-color: rgba(245, 158, 11, 0.28);
 }
 .dplex-pill.dplex-pill-attn .dplex-pill-led {
   background: var(--dplex-status-approval);
@@ -326,24 +439,24 @@ body {
   display: block;
 }
 .dplex-sav.dplex-sav-thinking {
-  background: rgba(123, 162, 255, 0.1);
-  border-color: rgba(123, 162, 255, 0.3);
-  color: #93c5fd;
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.3);
+  color: var(--dplex-status-thinking);
 }
 .dplex-sav.dplex-sav-running {
-  background: rgba(74, 222, 128, 0.1);
-  border-color: rgba(74, 222, 128, 0.28);
-  color: #86efac;
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.28);
+  color: var(--dplex-status-executing);
 }
 .dplex-sav.dplex-sav-waiting {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #fbbf24;
+  background: rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.3);
+  color: var(--dplex-status-waiting);
 }
 .dplex-sav.dplex-sav-attn {
-  background: rgba(248, 113, 113, 0.1);
-  border-color: rgba(248, 113, 113, 0.3);
-  color: #fca5a5;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: var(--dplex-status-approval);
 }
 .dplex-sav .dplex-sav-corner {
   position: absolute;
@@ -379,7 +492,7 @@ body {
   background: transparent;
   border: 1px dashed var(--dplex-border-strong);
   color: var(--dplex-text-dim);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--dplex-font-mono);
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: -0.04em;
@@ -439,19 +552,19 @@ body {
   height: 13px;
 }
 .dplex-pg.dplex-pg-copilot {
-  color: #cbd5e1;
+  color: var(--dplex-accent);
 }
 .dplex-pg.dplex-pg-claude {
-  color: #f59e0b;
+  color: #ff8b58;
 }
 .dplex-pg.dplex-pg-gemini {
-  color: #60a5fa;
+  color: var(--dplex-status-success);
 }
 .dplex-pg.dplex-pg-codex {
-  color: #a78bfa;
+  color: var(--dplex-accent);
 }
 .dplex-pg.dplex-pg-gpt {
-  color: #10b981;
+  color: var(--dplex-status-executing);
 }
 
 /* Switch — themed toggle used in Settings.
@@ -526,7 +639,8 @@ body {
   font-weight: 500;
 }
 
-/* Flat tab — VS Code-style. 36 px tall, 2 px accent stripe on active. */
+/* Flat tab — VS Code-style. 36 px tall, 2 px accent stripe on active with
+   a soft glow that ties it into the v2 visual identity. */
 .dplex-tab {
   display: flex;
   align-items: center;
@@ -537,15 +651,15 @@ body {
   color: var(--dplex-text-muted);
   border-radius: 0;
   cursor: pointer;
-  border-right: 1px solid var(--dplex-border);
+  border-right: 1px solid var(--dplex-border-subtle);
   position: relative;
   flex: none;
   background: var(--dplex-bg-alt);
   font-family: inherit;
 }
 .dplex-tab:hover {
-  color: var(--dplex-text);
-  background: var(--dplex-hover);
+  color: var(--dplex-text-2);
+  background: var(--dplex-bg-elev);
 }
 .dplex-tab.dplex-tab-active {
   background: var(--dplex-bg);
@@ -559,6 +673,7 @@ body {
   right: 0;
   height: 2px;
   background: var(--dplex-accent);
+  box-shadow: 0 0 8px var(--dplex-accent-glow);
 }
 
 /* File-status badge used in the Git/Changes inspector. */
@@ -570,28 +685,36 @@ body {
   place-items: center;
   font-size: 10px;
   font-weight: 700;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--dplex-font-mono);
   flex: none;
 }
 .dplex-file-badge.dplex-file-M {
   background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  color: var(--dplex-status-warning);
+  border: 1px solid rgba(245, 158, 11, 0.32);
 }
 .dplex-file-badge.dplex-file-A {
-  background: rgba(74, 222, 128, 0.15);
-  color: #86efac;
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--dplex-status-success);
+  border: 1px solid rgba(52, 211, 153, 0.32);
 }
 .dplex-file-badge.dplex-file-D {
   background: rgba(248, 113, 113, 0.15);
-  color: #fca5a5;
+  color: var(--dplex-status-error);
+  border: 1px solid rgba(248, 113, 113, 0.32);
 }
 .dplex-file-badge.dplex-file-R {
-  background: rgba(123, 162, 255, 0.15);
-  color: #93c5fd;
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--dplex-status-info);
+  border: 1px solid rgba(96, 165, 250, 0.32);
 }
 .dplex-file-badge.dplex-file-U {
+  /* Unmerged — distinct violet so it doesn't collide with the blue
+     accent now used for the rename badge. Self-contained: bg + text +
+     border all in the same hue family. */
   background: rgba(167, 139, 250, 0.15);
   color: #c4b5fd;
+  border: 1px solid rgba(167, 139, 250, 0.32);
 }
 .dplex-file-badge.dplex-file-default {
   background: var(--dplex-bg-alt);
@@ -605,7 +728,9 @@ body {
    `:hover` (Tailwind v4 arbitrary opacity-hover combos are clunky). */
 .recent-session-row {
   opacity: 0.55;
-  transition: opacity 120ms ease, background-color 120ms ease;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease;
 }
 .recent-session-row:hover {
   opacity: 1;

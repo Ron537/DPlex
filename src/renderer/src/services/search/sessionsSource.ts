@@ -1,9 +1,12 @@
+import { createElement } from 'react'
 import type { SearchItem, SearchSource } from './types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useProvidersStore } from '../../stores/providersStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { focusSessionTab } from '../../utils/sessionTabs'
 import { pathBasename } from './pathUtils'
+import { ProviderGlyph } from '../../components/common/ProviderGlyph'
+import type { ProviderId } from '../../utils/providerHelpers'
 
 async function openSession(sessionId: string, providerId: string, cwd?: string): Promise<void> {
   // Surface the Sessions panel so the row context is visible.
@@ -20,7 +23,14 @@ async function openSession(sessionId: string, providerId: string, cwd?: string):
 
   useTerminalStore
     .getState()
-    .createTerminal(undefined, `↻ ${pathBasename(cwd) || sessionId}`, cmd, undefined, cwd, providerId)
+    .createTerminal(
+      undefined,
+      `↻ ${pathBasename(cwd) || sessionId}`,
+      cmd,
+      undefined,
+      cwd,
+      providerId
+    )
 }
 
 export const sessionsSource: SearchSource = {
@@ -36,6 +46,11 @@ export const sessionsSource: SearchSource = {
         label: s.displayName,
         description: desc,
         hint: providerLabel,
+        icon: createElement(ProviderGlyph, {
+          providerId: s.aiTool as ProviderId,
+          size: 'sm',
+          title: providerLabel
+        }),
         keywords: [
           providerLabel,
           s.aiTool,

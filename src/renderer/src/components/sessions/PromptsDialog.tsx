@@ -87,14 +87,15 @@ export function PromptsDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      style={{ backgroundColor: 'rgba(10,10,12,0.65)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
       <div
-        className="rounded-lg shadow-2xl flex flex-col overflow-hidden"
+        className="rounded-xl flex flex-col overflow-hidden"
         style={{
-          backgroundColor: 'var(--dplex-bg)',
-          border: '1px solid var(--dplex-border)',
+          backgroundColor: 'var(--dplex-bg-elev)',
+          border: '1px solid var(--dplex-border-strong)',
+          boxShadow: 'var(--dplex-shadow-xl)',
           width: '560px',
           maxHeight: '70vh'
         }}
@@ -104,7 +105,7 @@ export function PromptsDialog({
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: '1px solid var(--dplex-border)' }}
+          style={{ borderBottom: '1px solid var(--dplex-border-subtle)' }}
         >
           <div>
             <div className="text-sm font-medium" style={{ color: 'var(--dplex-text)' }}>

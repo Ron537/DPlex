@@ -35,10 +35,10 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
     <div
       className="flex items-center justify-between select-none flex-shrink-0"
       style={{
-        height: 26,
-        padding: '0 8px 0 4px',
+        height: 28,
+        padding: '0 10px 0 6px',
         backgroundColor: 'var(--dplex-bg-alt)',
-        borderTop: '1px solid var(--dplex-border)',
+        borderTop: '1px solid var(--dplex-border-subtle)',
         fontSize: 11,
         color: 'var(--dplex-text-muted)',
         whiteSpace: 'nowrap'
@@ -56,7 +56,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         <button
           onClick={() => useCommandPaletteStore.getState().toggle('all')}
           className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
-          style={{ height: 18, color: 'var(--dplex-text-muted)' }}
+          style={{ height: 20, color: 'var(--dplex-text-muted)' }}
           title="Search projects, sessions, settings (try #tag)"
           aria-label={`Open command palette (${MOD}P)`}
         >
@@ -66,12 +66,12 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
             className="font-medium"
             style={{
               fontSize: 10,
-              padding: '0 4px',
-              borderRadius: 3,
+              padding: '1px 5px',
+              borderRadius: 4,
               border: '1px solid var(--dplex-border)',
               color: 'var(--dplex-text-dim)',
-              backgroundColor: 'var(--dplex-bg-input)',
-              fontFamily: 'inherit'
+              backgroundColor: 'var(--dplex-bg-elev)',
+              fontFamily: 'var(--dplex-font-mono)'
             }}
           >
             {MOD}P
@@ -84,10 +84,10 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
             onClick={() => setFocusedProject(null)}
             className="inline-flex items-center gap-1.5 px-2 rounded-full transition-colors flex-shrink-0"
             style={{
-              height: 18,
-              border: '1px solid var(--dplex-accent)',
+              height: 20,
+              border: '1px solid var(--dplex-accent-ring)',
               color: 'var(--dplex-text)',
-              backgroundColor: 'var(--dplex-bg-input)'
+              backgroundColor: 'var(--dplex-accent-soft)'
             }}
             title={
               focusedProject
@@ -106,7 +106,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
             <button
               onClick={() => toggleFocusedProject(activeTabIdentity.colorProject.id)}
               className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
-              style={{ height: 18, color: 'var(--dplex-text-muted)' }}
+              style={{ height: 20, color: 'var(--dplex-text-muted)' }}
               title={`Focus only tabs from "${activeTabIdentity.colorProject.name}"`}
             >
               <Focus size={11} />
@@ -117,7 +117,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         {activeSessionCount > 0 && (
           <span
             className="inline-flex items-center gap-1.5 px-2 rounded-full flex-shrink-0"
-            style={{ height: 18, color: '#86efac' }}
+            style={{ height: 20, color: 'var(--dplex-status-success)' }}
             title={`${activeSessionCount} active AI session${activeSessionCount !== 1 ? 's' : ''}`}
           >
             <span
@@ -126,16 +126,18 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                backgroundColor: 'var(--dplex-status-active)'
+                backgroundColor: 'var(--dplex-status-active)',
+                boxShadow: '0 0 6px var(--dplex-status-active)'
               }}
             />
-            {activeSessionCount} active
+            <span style={{ fontFamily: 'var(--dplex-font-mono)' }}>{activeSessionCount}</span>{' '}
+            active
           </span>
         )}
         {activeTab && (
           <span
             className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] min-w-0"
-            style={{ height: 18 }}
+            style={{ height: 20 }}
             title={activeTab.title}
           >
             <Terminal size={11} className="flex-shrink-0" />
@@ -146,7 +148,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
         )}
         <span
           className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] flex-shrink-0"
-          style={{ height: 18 }}
+          style={{ height: 20, fontFamily: 'var(--dplex-font-mono)' }}
         >
           {totalTerminals} terminal{totalTerminals !== 1 ? 's' : ''} · {groups.length} group
           {groups.length !== 1 ? 's' : ''}

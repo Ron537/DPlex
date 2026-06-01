@@ -5,7 +5,7 @@ import { useTerminalStore } from '../../stores/terminalStore'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { ProjectItem } from './ProjectItem'
 import { ProjectAvatarButton } from './ProjectAvatarButton'
-import { FolderPlus, Pin } from 'lucide-react'
+import { FolderPlus } from 'lucide-react'
 import { buildProjectSessionIndex } from '../../hooks/useProjectSessions'
 import type { Project, ProviderInfo } from '../../types'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
@@ -247,19 +247,15 @@ export function ProjectList({
       {pinned.length > 0 && (
         <>
           <div
-            className="flex items-center gap-1 px-1 pt-1 pb-1 text-[9px] font-semibold uppercase tracking-[0.14em]"
-            style={{ color: 'var(--dplex-text-muted)' }}
+            className="px-2 pt-2 pb-1.5 text-[10px] font-semibold uppercase"
+            style={{
+              color: 'var(--dplex-text-faint)',
+              letterSpacing: '0.10em'
+            }}
           >
-            <Pin size={8} style={{ transform: 'rotate(45deg)' }} />
-            <span>Pinned</span>
+            Pinned
           </div>
           {pinned.map(renderEntry)}
-          {rest.length > 0 && (
-            <div
-              className="mx-1 my-1"
-              style={{ borderTop: '1px solid var(--dplex-border)', opacity: 0.7 }}
-            />
-          )}
         </>
       )}
 
@@ -268,8 +264,11 @@ export function ProjectList({
           projects are pinned, the list is flat and needs no header. */}
       {pinned.length > 0 && rest.length > 0 && (
         <div
-          className="px-1 pt-1 pb-1 text-[9px] font-semibold uppercase tracking-[0.14em]"
-          style={{ color: 'var(--dplex-text-muted)' }}
+          className="px-2 pt-3 pb-1.5 text-[10px] font-semibold uppercase"
+          style={{
+            color: 'var(--dplex-text-faint)',
+            letterSpacing: '0.10em'
+          }}
         >
           All projects
         </div>

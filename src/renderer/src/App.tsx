@@ -124,7 +124,9 @@ function App(): React.JSX.Element {
         const orderedGroups = orderedGroupIds
           .map((id) => state.groups.find((g) => g.id === id))
           .filter((g): g is NonNullable<typeof g> => Boolean(g))
-        const flatTabs = orderedGroups.flatMap((g) => g.tabs.map((t) => ({ groupId: g.id, tabId: t.id })))
+        const flatTabs = orderedGroups.flatMap((g) =>
+          g.tabs.map((t) => ({ groupId: g.id, tabId: t.id }))
+        )
         const idx = parseInt(e.key) - 1
         if (idx < flatTabs.length) {
           const target = flatTabs[idx]

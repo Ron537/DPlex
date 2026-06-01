@@ -190,7 +190,11 @@ export function WorktreeSection({
             {headerLabel}
           </span>
         </span>
-        {sessionCount > 0 && (
+        {sessionCount > 0 && !isExpanded && (
+          // When the section is collapsed the count pill is the only
+          // status signal visible, so it stays. When expanded, each
+          // session row below carries its own status dot / pill, so
+          // showing the aggregate count here is redundant noise.
           <StatusPill visual={visual} compact label={sessionCount} className="flex-shrink-0" />
         )}
       </button>

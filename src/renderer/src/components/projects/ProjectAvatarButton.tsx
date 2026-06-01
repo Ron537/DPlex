@@ -159,11 +159,13 @@ export const ProjectAvatarButton = memo(function ProjectAvatarButton({
           // Status ring: amber only when something needs input. Running
           // state is signalled by the bottom-right status dot (which now
           // covers all five status visuals) so the border stays quiet
-          // unless attention is required.
+          // unless attention is required. Defaults to the avatar's
+          // tinted border (same hue as bg) so the silhouette stays
+          // visible even on themes where the soft fill is invisible.
           border: `1.5px solid ${
             statusRevealed && attentionCount > 0
               ? 'var(--dplex-status-approval)'
-              : 'var(--dplex-border)'
+              : color.border
           }`,
           transition: 'border-color 280ms ease, opacity 280ms ease',
           // Dim avatars for projects that are not "live" so the rail clearly

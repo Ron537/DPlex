@@ -25,7 +25,10 @@ export function GroupLayout({ node }: GroupLayoutProps): React.JSX.Element {
     const group = groups.find((g) => g.id === node.groupId)
     if (!group) {
       return (
-        <div className="flex items-center justify-center h-full text-zinc-600 text-xs">
+        <div
+          className="flex items-center justify-center h-full text-xs"
+          style={{ color: 'var(--dplex-text-dim)' }}
+        >
           Empty group
         </div>
       )
@@ -47,5 +50,12 @@ export function GroupLayout({ node }: GroupLayoutProps): React.JSX.Element {
     )
   }
 
-  return <div className="flex items-center justify-center h-full text-zinc-600 text-xs">Empty</div>
+  return (
+    <div
+      className="flex items-center justify-center h-full text-xs"
+      style={{ color: 'var(--dplex-text-dim)' }}
+    >
+      Empty
+    </div>
+  )
 }

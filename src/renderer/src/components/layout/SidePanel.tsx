@@ -380,7 +380,7 @@ export function SidePanel(): React.JSX.Element | null {
       style={{
         width: `${sidebarWidth}px`,
         backgroundColor: 'var(--dplex-bg-panel)',
-        borderRight: '1px solid var(--dplex-border)'
+        borderRight: '1px solid var(--dplex-border-subtle)'
       }}
     >
       {activeTab === 'git' ? (
@@ -390,13 +390,13 @@ export function SidePanel(): React.JSX.Element | null {
       ) : (
         <>
           <div
-            className="flex flex-col gap-2 px-3 pt-2 pb-2.5"
-            style={{ borderBottom: '1px solid var(--dplex-border)' }}
+            className="flex flex-col gap-2 px-3 pt-3 pb-3"
+            style={{ borderBottom: '1px solid var(--dplex-border-subtle)' }}
           >
-            <div className="flex items-center" style={{ height: 28 }}>
+            <div className="flex items-center" style={{ height: 24 }}>
               <span
                 className="text-[11px] font-bold uppercase tracking-wider"
-                style={{ color: 'var(--dplex-text)', letterSpacing: '0.08em' }}
+                style={{ color: 'var(--dplex-text-2)', letterSpacing: '0.08em' }}
               >
                 {title}
               </span>
@@ -450,8 +450,12 @@ export function SidePanel(): React.JSX.Element | null {
                   right: 8,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'var(--dplex-text-dim)',
-                  fontFamily: 'inherit'
+                  color: 'var(--dplex-text-faint)',
+                  backgroundColor: 'var(--dplex-bg-elev-2)',
+                  border: '1px solid var(--dplex-border-subtle)',
+                  padding: '2px 5px',
+                  borderRadius: 4,
+                  fontFamily: 'var(--dplex-font-mono)'
                 }}
                 title={`Focus search (${MOD}F)`}
               >
