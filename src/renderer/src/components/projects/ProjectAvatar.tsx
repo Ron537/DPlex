@@ -32,6 +32,7 @@ export const ProjectAvatar = memo(function ProjectAvatar({
         height: size,
         backgroundColor: color.bg,
         color: color.fg,
+        border: `1px solid ${color.border}`,
         fontSize: Math.max(9, Math.round(size * 0.42)),
         flexShrink: 0
       }}

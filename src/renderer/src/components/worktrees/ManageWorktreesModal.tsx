@@ -75,12 +75,16 @@ export function ManageWorktreesModal({
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ backgroundColor: 'rgba(10,10,12,0.65)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
       <div
-        className="w-[640px] max-h-[85vh] flex flex-col rounded-lg shadow-2xl"
-        style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}
+        className="w-[640px] max-h-[85vh] flex flex-col rounded-xl"
+        style={{
+          backgroundColor: 'var(--dplex-bg-elev)',
+          border: '1px solid var(--dplex-border-strong)',
+          boxShadow: 'var(--dplex-shadow-xl)'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -222,7 +226,7 @@ export function ManageWorktreesModal({
           <button
             onClick={() => setCreating(true)}
             className="px-3 py-1 text-[11px] rounded flex items-center gap-1"
-            style={{ backgroundColor: 'var(--dplex-accent)', color: 'white' }}
+            style={{ backgroundColor: 'var(--dplex-accent)', color: 'var(--dplex-accent-fg)' }}
           >
             <Plus size={11} /> New worktree
           </button>

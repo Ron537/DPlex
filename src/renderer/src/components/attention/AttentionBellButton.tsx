@@ -2,8 +2,12 @@ import { useState, useRef, useEffect } from 'react'
 import { Bell, Check, Eye, X } from 'lucide-react'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useProjectStore } from '../../stores/projectStore'
+import { useSessionStore } from '../../stores/sessionStore'
 import { focusSessionTab } from '../../utils/sessionTabs'
+import { ProjectAvatar } from '../projects/ProjectAvatar'
 import { decideRowClickAction } from './rowClickAction'
+import { normalizePath } from '../../utils/normalizePath'
 import type { AttentionEvent, AttentionKind } from '../../../../preload/attentionTypes'
 
 const KIND_LABEL: Record<AttentionKind, string> = {
@@ -38,6 +42,8 @@ export function AttentionBellButton(): React.JSX.Element {
   const dismiss = useAttentionStore((s) => s.dismiss)
   const clickClearsWaiting = useSettingsStore((s) => s.settings.attentionClickClearsWaiting)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
+  const projects = useProjectStore((s) => s.projects)
+  const sessions = useSessionStore((s) => s.sessions)
 
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -61,6 +67,34 @@ export function AttentionBellButton(): React.JSX.Element {
   }
   for (const e of visible) grouped[e.kind].push(e)
 
+  /** Best-effort project resolution for an attention event. Looks at the
+   * matching session's cwd and finds the project whose path is a prefix
+   * of it. Returns the most specific match (worktree before parent).
+   *
+   * Path comparison goes through `normalizePath` so it works across
+   * platforms: backslashes are normalized to forward slashes, trailing
+   * slashes are trimmed, and case is folded on macOS / Windows. Without
+   * this, Windows users would never get a match (paths use backslashes
+   * on disk but the prefix check would only succeed for slashes), and
+   * the avatar would always fall back to the initial-letter placeholder.
+   * Mirrors the same approach used by `findProjectForTab`. */
+  const resolveProject = (event: AttentionEvent): { id: string; name: string } | undefined => {
+    const session = sessions.find((s) => s.id === event.sessionId && s.aiTool === event.providerId)
+    const cwd = session?.cwd
+    if (!cwd) return undefined
+    const normCwd = normalizePath(cwd)
+    let best: { id: string; name: string; len: number } | undefined
+    for (const p of projects) {
+      const normProject = normalizePath(p.path)
+      if (normCwd === normProject || normCwd.startsWith(normProject + '/')) {
+        if (!best || normProject.length > best.len) {
+          best = { id: p.id, name: p.name, len: normProject.length }
+        }
+      }
+    }
+    return best ? { id: best.id, name: best.name } : undefined
+  }
+
   const handleRowClick = (event: AttentionEvent): void => {
     focusSessionTab(event.sessionId, event.providerId)
     const action = decideRowClickAction(event.kind, clickClearsWaiting)
@@ -77,8 +111,19 @@ export function AttentionBellButton(): React.JSX.Element {
     <div ref={rootRef} className="relative no-drag">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--dplex-hover)] transition-colors"
-        style={{ color: 'var(--dplex-text-muted)' }}
+        className="relative w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+        style={{
+          color: open ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+          backgroundColor: open ? 'var(--dplex-bg-elev)' : 'transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!open) e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
+          e.currentTarget.style.color = 'var(--dplex-text)'
+        }}
+        onMouseLeave={(e) => {
+          if (!open) e.currentTarget.style.backgroundColor = 'transparent'
+          if (!open) e.currentTarget.style.color = 'var(--dplex-text-muted)'
+        }}
         title="Attention inbox"
       >
         <Bell size={14} />
@@ -87,7 +132,8 @@ export function AttentionBellButton(): React.JSX.Element {
             className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-semibold flex items-center justify-center"
             style={{
               backgroundColor: 'var(--dplex-status-approval)',
-              color: 'white'
+              color: '#fff',
+              boxShadow: '0 0 0 2px var(--dplex-bg-panel), 0 0 8px var(--dplex-status-approval)'
             }}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -97,27 +143,44 @@ export function AttentionBellButton(): React.JSX.Element {
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-1 w-[340px] max-h-[460px] overflow-y-auto rounded shadow-lg z-50"
+          className="absolute right-0 top-full mt-2 w-[360px] max-h-[480px] overflow-y-auto rounded-xl z-50 dplex-scroll-autohide"
           style={{
-            backgroundColor: 'var(--dplex-bg-alt)',
-            border: '1px solid var(--dplex-border)'
+            backgroundColor: 'var(--dplex-bg-elev)',
+            border: '1px solid var(--dplex-border-strong)',
+            boxShadow: 'var(--dplex-shadow-xl)'
           }}
         >
           <div
-            className="flex items-center gap-2 px-3 py-2"
-            style={{ borderBottom: '1px solid var(--dplex-border)' }}
+            className="flex items-center gap-2 px-3.5 py-2.5 sticky top-0 z-[1]"
+            style={{
+              borderBottom: '1px solid var(--dplex-border-subtle)',
+              backgroundColor: 'var(--dplex-bg-elev)'
+            }}
           >
-            <span className="text-[11px] font-semibold" style={{ color: 'var(--dplex-text)' }}>
+            <span className="text-[12px] font-semibold" style={{ color: 'var(--dplex-text)' }}>
               Attention
             </span>
+            {visible.length > 0 && (
+              <span
+                className="text-[10px] tabular-nums px-1.5 rounded-full"
+                style={{
+                  fontFamily: 'var(--dplex-font-mono)',
+                  color: 'var(--dplex-text-dim)',
+                  backgroundColor: 'var(--dplex-bg-elev-2)',
+                  padding: '1px 6px'
+                }}
+              >
+                {visible.length}
+              </span>
+            )}
             <button
               onClick={toggleClickMode}
-              className="text-[10px] flex items-center gap-1 px-2 py-[2px] rounded-full transition-colors hover:bg-[var(--dplex-hover)]"
+              className="text-[10px] flex items-center gap-1 px-2 py-[2px] rounded-full transition-colors hover:bg-[var(--dplex-hover)] ml-2"
               style={
                 clickClearsWaiting
                   ? {
                       color: 'var(--dplex-accent)',
-                      border: '1px solid var(--dplex-accent)',
+                      border: '1px solid var(--dplex-accent-ring)',
                       backgroundColor: 'var(--dplex-accent-soft)'
                     }
                   : {
@@ -141,7 +204,7 @@ export function AttentionBellButton(): React.JSX.Element {
             {grouped.finished.length > 0 && (
               <button
                 onClick={() => acknowledgeAll()}
-                className="text-[10px] flex items-center gap-1 hover:opacity-80"
+                className="text-[10px] flex items-center gap-1 px-2 py-[2px] rounded hover:bg-[var(--dplex-hover)] transition-colors"
                 style={{ color: 'var(--dplex-text-muted)' }}
                 title="Acknowledge all finished"
               >
@@ -151,11 +214,25 @@ export function AttentionBellButton(): React.JSX.Element {
           </div>
 
           {visible.length === 0 ? (
-            <div
-              className="px-3 py-6 text-center text-[11px]"
-              style={{ color: 'var(--dplex-text-muted)' }}
-            >
-              Nothing needs your attention.
+            <div className="px-3 py-12 text-center" style={{ color: 'var(--dplex-text-dim)' }}>
+              <div
+                aria-hidden
+                className="inline-flex items-center justify-center mb-3"
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: 'var(--dplex-bg-elev-2)',
+                  border: '1px solid var(--dplex-border)',
+                  color: 'var(--dplex-text-faint)'
+                }}
+              >
+                <Bell size={16} />
+              </div>
+              <div className="text-[12px]">Nothing needs your attention.</div>
+              <div className="text-[11px] mt-1" style={{ color: 'var(--dplex-text-faint)' }}>
+                Waiting and finished sessions will appear here.
+              </div>
             </div>
           ) : (
             KIND_ORDER.map((kind) => {
@@ -164,65 +241,132 @@ export function AttentionBellButton(): React.JSX.Element {
               return (
                 <div key={kind}>
                   <div
-                    className="px-3 py-1 text-[9px] uppercase tracking-wider"
-                    style={{
-                      color: 'var(--dplex-text-muted)',
-                      backgroundColor: 'var(--dplex-bg)'
-                    }}
+                    className="px-3.5 pt-3 pb-1.5 flex items-center gap-2"
+                    style={{ backgroundColor: 'var(--dplex-bg-elev)' }}
                   >
-                    {KIND_LABEL[kind]} · {items.length}
-                  </div>
-                  {items.map((e) => (
-                    <div
-                      key={e.compositeId + e.createdAt}
-                      className="group flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-[var(--dplex-hover)]"
-                      style={{ borderBottom: '1px solid var(--dplex-border)' }}
-                      onClick={() => handleRowClick(e)}
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: KIND_COLOR[kind] }}
+                    />
+                    <span
+                      className="text-[10px] uppercase tracking-wider font-semibold flex-1"
+                      style={{ color: 'var(--dplex-text-dim)', letterSpacing: '0.08em' }}
                     >
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: KIND_COLOR[e.kind] }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-[11px] truncate"
-                          style={{ color: 'var(--dplex-text)' }}
-                        >
-                          {e.displayName}
-                        </div>
-                        <div
-                          className="text-[10px] flex items-center gap-1.5"
-                          style={{ color: 'var(--dplex-text-muted)' }}
-                        >
-                          <span>{e.providerId}</span>
-                          <span>·</span>
-                          <span>{formatAge(e.createdAt)}</span>
-                          {e.escalated && (
+                      {KIND_LABEL[kind]}
+                    </span>
+                    <span
+                      className="text-[10px] tabular-nums"
+                      style={{
+                        fontFamily: 'var(--dplex-font-mono)',
+                        color: 'var(--dplex-text-faint)'
+                      }}
+                    >
+                      {items.length}
+                    </span>
+                  </div>
+                  {items.map((e) => {
+                    const project = resolveProject(e)
+                    return (
+                      <div
+                        key={e.compositeId + e.createdAt}
+                        className="group flex items-center gap-2.5 px-3.5 py-2 cursor-pointer transition-colors"
+                        onMouseEnter={(el) => {
+                          el.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev-2)'
+                        }}
+                        onMouseLeave={(el) => {
+                          el.currentTarget.style.backgroundColor = 'transparent'
+                        }}
+                        onClick={() => handleRowClick(e)}
+                      >
+                        {project ? (
+                          <ProjectAvatar projectId={project.id} name={project.name} size={28} />
+                        ) : (
+                          <span
+                            aria-hidden
+                            className="grid place-items-center flex-shrink-0"
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 8,
+                              backgroundColor: 'var(--dplex-bg-elev-2)',
+                              border: '1px solid var(--dplex-border)',
+                              color: 'var(--dplex-text-faint)',
+                              fontSize: 11,
+                              fontWeight: 700
+                            }}
+                          >
+                            {e.displayName.slice(0, 1).toUpperCase()}
+                          </span>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
                             <span
-                              className="px-1 rounded text-[9px] font-semibold"
+                              className="text-[12px] truncate flex-1"
+                              style={{ color: 'var(--dplex-text)', fontWeight: 500 }}
+                            >
+                              {e.displayName}
+                            </span>
+                            <span
+                              className="text-[10px] tabular-nums flex-shrink-0"
                               style={{
-                                backgroundColor: 'var(--dplex-status-approval)',
-                                color: 'white'
+                                fontFamily: 'var(--dplex-font-mono)',
+                                color: 'var(--dplex-text-dim)'
                               }}
                             >
-                              idle
+                              {formatAge(e.createdAt)}
                             </span>
-                          )}
+                          </div>
+                          <div
+                            className="text-[10.5px] flex items-center gap-1.5 mt-0.5"
+                            style={{ color: 'var(--dplex-text-muted)' }}
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: KIND_COLOR[e.kind] }}
+                            />
+                            <span className="truncate">{e.providerId}</span>
+                            {project && (
+                              <>
+                                <span style={{ color: 'var(--dplex-text-faint)' }}>·</span>
+                                <span className="truncate">{project.name}</span>
+                              </>
+                            )}
+                            {e.escalated && (
+                              <span
+                                className="px-1.5 rounded text-[9px] font-semibold uppercase tracking-wider ml-1"
+                                style={{
+                                  backgroundColor: 'rgba(245,158,11,0.15)',
+                                  color: 'var(--dplex-status-approval)',
+                                  letterSpacing: '0.05em'
+                                }}
+                              >
+                                idle
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            dismiss(e.compositeId)
+                          }}
+                          className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded transition-all flex-shrink-0"
+                          style={{ color: 'var(--dplex-text-dim)' }}
+                          onMouseEnter={(el) => {
+                            el.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev-3)'
+                            el.currentTarget.style.color = 'var(--dplex-text)'
+                          }}
+                          onMouseLeave={(el) => {
+                            el.currentTarget.style.backgroundColor = 'transparent'
+                            el.currentTarget.style.color = 'var(--dplex-text-dim)'
+                          }}
+                          title="Dismiss"
+                        >
+                          <X size={12} />
+                        </button>
                       </div>
-                      <button
-                        onClick={(ev) => {
-                          ev.stopPropagation()
-                          dismiss(e.compositeId)
-                        }}
-                        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--dplex-hover)]"
-                        style={{ color: 'var(--dplex-text-muted)' }}
-                        title="Dismiss"
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )
             })

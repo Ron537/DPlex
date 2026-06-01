@@ -113,7 +113,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
       style={{
         height: 36,
         backgroundColor: 'var(--dplex-bg-alt)',
-        borderBottom: '1px solid var(--dplex-border)'
+        borderBottom: '1px solid var(--dplex-border-subtle)'
       }}
       onDragOver={(e) => {
         e.preventDefault()
@@ -160,7 +160,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 // aligned) so it covers the bar's bottom border directly
                 // beneath itself — the tab visually merges with the
                 // editor content below, like VS Code / browser tabs.
-                borderRight: isActive ? 'none' : '1px solid var(--dplex-border)',
+                borderRight: isActive ? 'none' : '1px solid var(--dplex-border-subtle)',
                 marginBottom: isActive ? -1 : 0,
                 paddingBottom: isActive ? 1 : 0,
                 borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
@@ -184,7 +184,8 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               {/* Active tab gets a 2-px accent stripe along the top edge —
                   flat VS Code style. Project identity is now carried by
                   the avatar (below) and the pane's TabHeader, so the tab
-                  itself only needs the active indicator. */}
+                  itself only needs the active indicator. v2 adds a soft
+                  glow under the stripe to match the visual identity. */}
               {isActive && (
                 <span
                   aria-hidden
@@ -195,6 +196,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                     right: 0,
                     height: 2,
                     backgroundColor: 'var(--dplex-accent)',
+                    boxShadow: '0 0 8px var(--dplex-accent-glow)',
                     pointerEvents: 'none'
                   }}
                 />
@@ -208,6 +210,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                     height: 14,
                     backgroundColor: identity.color.bg,
                     color: identity.color.fg,
+                    border: `1px solid ${identity.color.border}`,
                     fontSize: 9
                   }}
                 >
@@ -270,8 +273,16 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   e.stopPropagation()
                   closeTerminal(tab.id)
                 }}
-                className="opacity-0 group-hover:opacity-100 hover:bg-[var(--dplex-hover)] rounded p-0.5 transition-opacity ml-0.5"
+                className="opacity-0 group-hover:opacity-100 rounded p-0.5 transition-all ml-0.5"
                 style={{ color: 'var(--dplex-text-dim)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev-2)'
+                  e.currentTarget.style.color = 'var(--dplex-text)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = 'var(--dplex-text-dim)'
+                }}
               >
                 <X size={11} />
               </button>
@@ -301,7 +312,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
       {/* Split controls — sticky on the right with a left separator. */}
       <div
         className="flex items-center gap-0.5 px-1.5 flex-shrink-0"
-        style={{ borderLeft: '1px solid var(--dplex-border)', height: 36 }}
+        style={{ borderLeft: '1px solid var(--dplex-border-subtle)', height: 36 }}
       >
         <button
           onClick={() => splitGroup(group.id, 'horizontal')}

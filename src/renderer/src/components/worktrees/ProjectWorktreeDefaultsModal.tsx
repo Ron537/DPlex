@@ -54,12 +54,16 @@ export function ProjectWorktreeDefaultsModal({
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ backgroundColor: 'rgba(10,10,12,0.65)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
       <div
-        className="w-[520px] max-h-[85vh] overflow-auto rounded-lg shadow-2xl"
-        style={{ backgroundColor: 'var(--dplex-bg)', border: '1px solid var(--dplex-border)' }}
+        className="w-[520px] max-h-[85vh] overflow-auto rounded-xl"
+        style={{
+          backgroundColor: 'var(--dplex-bg-elev)',
+          border: '1px solid var(--dplex-border-strong)',
+          boxShadow: 'var(--dplex-shadow-xl)'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -193,7 +197,7 @@ export function ProjectWorktreeDefaultsModal({
             <button
               onClick={save}
               className="px-3 py-1 text-[11px] rounded"
-              style={{ backgroundColor: 'var(--dplex-accent)', color: 'white' }}
+              style={{ backgroundColor: 'var(--dplex-accent)', color: 'var(--dplex-accent-fg)' }}
             >
               Save
             </button>

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-05-30
+
+### Features
+
+- Redesigned look and feel — a quieter, more modern dark palette with an electric-violet accent, refined chrome (activity bar, status bar, tabs, breadcrumb header), and a redesigned command palette.
+- Welcoming new empty state when no terminals are open — large gradient mark, two quick-start buttons (new terminal, search) with keyboard hints.
+- Attention inbox redesign — project avatars next to each event, sectioned by status, polished empty state.
+
+### Improvements
+
+- Tabs, panels and overlays use a calmer ramp of background tones so the active surface is always obvious without competing with content.
+- Soft accent glow on the active tab and the active activity-bar item makes it easier to find where you are at a glance.
+- Status pills (thinking / executing / waiting / approval) now use a cohesive palette that reads well on both dark and light themes.
+- Settings page now uses proper toggle switches instead of native checkboxes, with the switch aligned right and the label spanning the row.
+- Command palette results carry inline category icons (project avatar for projects, provider mark for sessions, gear for settings, chevron for commands) and a kbd-styled shortcut chip.
+- All dialog modals share the same blurred-canvas overlay and elevated panel chrome.
+
+### Bug Fixes
+
+- Light themes no longer have invisible hover states on a few rows that used a dark-only translucent white.
+- Destructive buttons in worktree dialogs now meet WCAG AA contrast against their label.
+- Accent-filled badges and primary buttons now use a contrast-aware foreground color so labels stay readable.
+
 ## [0.19.0] — 2026-05-25
 
 ### Improvements
@@ -530,7 +553,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/Ron537/DPlex/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/Ron537/DPlex/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/Ron537/DPlex/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/Ron537/DPlex/compare/v0.17.2...v0.18.0

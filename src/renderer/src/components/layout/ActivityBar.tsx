@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { FolderOpen, History, GitBranch, Settings, Search } from 'lucide-react'
+import { FolderOpen, Clock, GitBranch, Settings, Search } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useGitPanelStore } from '../../stores/gitPanelStore'
 import { useProjectStore } from '../../stores/projectStore'
@@ -17,12 +17,15 @@ interface ActivityItem {
 
 const ITEMS: ActivityItem[] = [
   { id: 'projects', label: 'Projects', Icon: FolderOpen },
-  { id: 'sessions', label: 'Sessions', Icon: History },
+  // Plain Clock matches the v2 mockup; reads as "recent / past sessions"
+  // and stays visually distinct from the GitBranch "history" association.
+  { id: 'sessions', label: 'Sessions', Icon: Clock },
   { id: 'git', label: 'Source Control', shortcut: `${MOD}${SHIFT}G`, Icon: GitBranch },
   { id: 'search', label: 'Search', shortcut: `${MOD}${SHIFT}F`, Icon: Search }
 ]
 
-const BAR_WIDTH = 48
+// v2 rail — wider footprint for the larger active-state stripe + glow.
+const BAR_WIDTH = 56
 
 interface ActivityBarProps {
   onOpenSettings: () => void
@@ -64,10 +67,10 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
       className="flex flex-col items-center flex-shrink-0"
       style={{
         width: BAR_WIDTH,
-        backgroundColor: 'var(--dplex-activity-bar-bg)',
-        borderRight: '1px solid var(--dplex-border)',
-        paddingTop: 6,
-        paddingBottom: 6
+        backgroundColor: 'var(--dplex-bg-activity)',
+        borderRight: '1px solid var(--dplex-border-subtle)',
+        paddingTop: 12,
+        paddingBottom: 12
       }}
     >
       {ITEMS.map(({ id, label, shortcut, Icon }) => {
@@ -90,20 +93,24 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
             style={{
               width: 40,
               height: 40,
-              margin: '2px 0',
-              borderRadius: 6,
-              color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
-              backgroundColor: 'transparent'
+              marginBottom: 4,
+              borderRadius: 10,
+              color: isActive ? 'var(--dplex-accent)' : 'var(--dplex-text-dim)',
+              backgroundColor: isActive ? 'var(--dplex-accent-soft)' : 'transparent'
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
-                e.currentTarget.style.backgroundColor = 'var(--dplex-hover)'
-                e.currentTarget.style.color = 'var(--dplex-text)'
+                e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
+                e.currentTarget.style.color = 'var(--dplex-text-2)'
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-              if (!isActive) e.currentTarget.style.color = 'var(--dplex-text-muted)'
+              e.currentTarget.style.backgroundColor = isActive
+                ? 'var(--dplex-accent-soft)'
+                : 'transparent'
+              e.currentTarget.style.color = isActive
+                ? 'var(--dplex-accent)'
+                : 'var(--dplex-text-dim)'
             }}
           >
             {isActive && (
@@ -111,16 +118,18 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
                 aria-hidden
                 className="absolute"
                 style={{
-                  left: -4,
-                  top: 6,
-                  bottom: 6,
-                  width: 2,
+                  left: -8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 3,
+                  height: 20,
                   borderRadius: '0 2px 2px 0',
-                  backgroundColor: 'var(--dplex-accent)'
+                  backgroundColor: 'var(--dplex-accent)',
+                  boxShadow: '0 0 12px var(--dplex-accent-glow)'
                 }}
               />
             )}
-            <Icon size={20} strokeWidth={1.8} />
+            <Icon size={18} strokeWidth={1.8} />
             {badge && (
               <span
                 data-testid={`activity-bar-${id}-badge`}
@@ -134,8 +143,15 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
                   lineHeight: '16px',
                   textAlign: 'center',
                   backgroundColor: 'var(--dplex-accent)',
-                  color: 'var(--dplex-bg)',
-                  boxShadow: '0 0 0 2px var(--dplex-activity-bar-bg)'
+                  color: 'var(--dplex-accent-fg)',
+                  // Outline via box-shadow rather than border so the 16 × 16
+                  // box stays purely for content; a 2 px border with
+                  // box-sizing: border-box (Tailwind preflight default)
+                  // would shrink the content area to 12 px and crop the
+                  // glyph baseline. Drop the accent glow — a counter pill
+                  // is informational, not status-y, and the active-tab
+                  // stripe already owns the accent-glow vocabulary.
+                  boxShadow: '0 0 0 2px var(--dplex-bg-activity)'
                 }}
               >
                 {badge}
@@ -144,15 +160,16 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
             {showAttn && !badge && (
               <span
                 aria-hidden
-                className="absolute"
+                className="absolute dplex-pulse-dot"
                 style={{
                   top: 5,
                   right: 5,
                   width: 7,
                   height: 7,
                   borderRadius: '50%',
-                  backgroundColor: 'var(--dplex-status-waiting)',
-                  boxShadow: '0 0 0 2px var(--dplex-activity-bar-bg)'
+                  backgroundColor: 'var(--dplex-status-approval)',
+                  boxShadow:
+                    '0 0 0 2px var(--dplex-bg-activity), 0 0 8px var(--dplex-status-approval)'
                 }}
               />
             )}
@@ -170,20 +187,20 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
         style={{
           width: 40,
           height: 40,
-          margin: '2px 0',
-          borderRadius: 6,
-          color: 'var(--dplex-text-muted)'
+          marginTop: 4,
+          borderRadius: 10,
+          color: 'var(--dplex-text-dim)'
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--dplex-hover)'
-          e.currentTarget.style.color = 'var(--dplex-text)'
+          e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
+          e.currentTarget.style.color = 'var(--dplex-text-2)'
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = 'transparent'
-          e.currentTarget.style.color = 'var(--dplex-text-muted)'
+          e.currentTarget.style.color = 'var(--dplex-text-dim)'
         }}
       >
-        <Settings size={20} strokeWidth={1.8} />
+        <Settings size={18} strokeWidth={1.8} />
       </button>
     </div>
   )

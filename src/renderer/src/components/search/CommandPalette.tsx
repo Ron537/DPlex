@@ -70,9 +70,7 @@ export function CommandPalette(): React.JSX.Element | null {
   }
 
   const placeholder =
-    mode === 'commands'
-      ? 'Type a command…'
-      : 'Search projects, sessions, settings… (try #tag)'
+    mode === 'commands' ? 'Type a command…' : 'Search projects, sessions, settings… (try #tag)'
 
   // Compute the active descendant id for the input.
   let active: string | undefined
@@ -92,26 +90,35 @@ export function CommandPalette(): React.JSX.Element | null {
         if (e.target === e.currentTarget) close()
       }}
       style={{
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        paddingTop: '12vh'
+        backgroundColor: 'rgba(10,10,12,0.65)',
+        backdropFilter: 'blur(8px)',
+        paddingTop: '14vh'
       }}
       data-testid="command-palette"
     >
       <div
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
-        className="w-full max-w-[680px] mx-4 rounded-lg shadow-2xl overflow-hidden flex flex-col"
+        className="w-full max-w-[680px] mx-4 rounded-xl overflow-hidden flex flex-col"
         style={{
           backgroundColor: 'var(--dplex-bg-elev)',
           border: '1px solid var(--dplex-border-strong)',
+          boxShadow: 'var(--dplex-shadow-xl)',
           maxHeight: '70vh'
         }}
       >
         <div
-          className="flex items-center gap-2 px-3 py-2"
-          style={{ borderBottom: '1px solid var(--dplex-border)' }}
+          className="flex items-center gap-3.5"
+          style={{
+            borderBottom: '1px solid var(--dplex-border)',
+            padding: '18px 20px'
+          }}
         >
-          <Search size={14} style={{ color: 'var(--dplex-text-dim)' }} />
+          <Search
+            size={18}
+            strokeWidth={2}
+            style={{ color: 'var(--dplex-text-muted)', flexShrink: 0 }}
+          />
           <input
             ref={inputRef}
             type="text"
@@ -123,16 +130,25 @@ export function CommandPalette(): React.JSX.Element | null {
             aria-controls={LIST_ID}
             aria-activedescendant={active}
             aria-autocomplete="list"
-            className="flex-1 bg-transparent outline-none text-[13px]"
-            style={{ color: 'var(--dplex-text)' }}
+            className="dplex-palette-input flex-1 bg-transparent outline-none"
+            style={{
+              color: 'var(--dplex-text)',
+              fontWeight: 400,
+              fontSize: 16,
+              lineHeight: 1.2,
+              fontFamily: 'var(--dplex-font-sans)'
+            }}
             data-testid="command-palette-input"
           />
           {mode === 'commands' && (
             <span
-              className="text-[10px] px-1.5 py-0.5 rounded"
+              className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider"
               style={{
                 color: 'var(--dplex-accent)',
-                backgroundColor: 'var(--dplex-accent-soft)'
+                backgroundColor: 'var(--dplex-accent-soft)',
+                border: '1px solid var(--dplex-accent-ring)',
+                fontFamily: 'var(--dplex-font-mono)',
+                letterSpacing: '0.06em'
               }}
             >
               Commands
@@ -159,22 +175,65 @@ export function CommandPalette(): React.JSX.Element | null {
           />
         </div>
         <div
-          className="flex items-center gap-3 px-3 py-1.5 text-[10.5px]"
+          className="flex items-center gap-4 px-5 text-[10.5px]"
           style={{
-            borderTop: '1px solid var(--dplex-border)',
-            color: 'var(--dplex-text-dim)'
+            borderTop: '1px solid var(--dplex-border-subtle)',
+            color: 'var(--dplex-text-dim)',
+            height: 34,
+            backgroundColor: 'var(--dplex-bg-elev-2)'
           }}
         >
-          <span className="flex items-center gap-1">
-            <ChevronUp size={11} />
-            <ChevronDown size={11} />
+          <span className="flex items-center gap-1.5">
+            <kbd
+              className="inline-flex items-center justify-center"
+              style={{
+                fontFamily: 'var(--dplex-font-mono)',
+                background: 'var(--dplex-bg-elev-3)',
+                border: '1px solid var(--dplex-border)',
+                borderRadius: 3,
+                padding: '1px 4px',
+                color: 'var(--dplex-text-2)',
+                fontSize: 9
+              }}
+            >
+              <ChevronUp size={9} />
+            </kbd>
+            <kbd
+              className="inline-flex items-center justify-center"
+              style={{
+                fontFamily: 'var(--dplex-font-mono)',
+                background: 'var(--dplex-bg-elev-3)',
+                border: '1px solid var(--dplex-border)',
+                borderRadius: 3,
+                padding: '1px 4px',
+                color: 'var(--dplex-text-2)',
+                fontSize: 9
+              }}
+            >
+              <ChevronDown size={9} />
+            </kbd>
             Navigate
           </span>
-          <span className="flex items-center gap-1">
-            <CornerDownLeft size={11} />
+          <span className="flex items-center gap-1.5">
+            <kbd
+              className="inline-flex items-center justify-center"
+              style={{
+                fontFamily: 'var(--dplex-font-mono)',
+                background: 'var(--dplex-bg-elev-3)',
+                border: '1px solid var(--dplex-border)',
+                borderRadius: 3,
+                padding: '1px 4px',
+                color: 'var(--dplex-text-2)',
+                fontSize: 9
+              }}
+            >
+              <CornerDownLeft size={9} />
+            </kbd>
             Open
           </span>
-          <span className="ml-auto">Esc to close</span>
+          <span className="ml-auto" style={{ fontFamily: 'var(--dplex-font-mono)' }}>
+            Esc to close
+          </span>
         </div>
       </div>
     </div>

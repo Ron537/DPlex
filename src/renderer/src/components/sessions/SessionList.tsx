@@ -213,22 +213,31 @@ export function SessionList({
 
   if (loading && active.length === 0 && idleGroups.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-zinc-500">
+      <div
+        className="flex items-center justify-center py-8"
+        style={{ color: 'var(--dplex-text-dim)' }}
+      >
         <Loader2 size={16} className="animate-spin" />
       </div>
     )
   }
 
   if (error) {
-    return <div className="px-3 py-4 text-xs text-red-400">Failed to load sessions</div>
+    return (
+      <div className="px-3 py-4 text-xs" style={{ color: 'var(--dplex-status-error)' }}>
+        Failed to load sessions
+      </div>
+    )
   }
 
   if (active.length === 0 && idleGroups.length === 0) {
     return (
-      <div className="px-3 py-8 text-xs text-zinc-500 text-center">
+      <div className="px-3 py-8 text-xs text-center" style={{ color: 'var(--dplex-text-dim)' }}>
         No sessions found.
         <br />
-        <span className="text-zinc-600">Sessions from your AI tool will appear here.</span>
+        <span style={{ color: 'var(--dplex-text-faint)' }}>
+          Sessions from your AI tool will appear here.
+        </span>
       </div>
     )
   }

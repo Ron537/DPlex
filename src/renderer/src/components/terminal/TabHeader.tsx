@@ -57,9 +57,9 @@ export function TabHeader({ tab }: TabHeaderProps): JSX.Element | null {
     <div
       className="flex items-center gap-2 px-3 select-none flex-shrink-0"
       style={{
-        height: 28,
+        height: 30,
         backgroundColor: 'var(--dplex-bg-alt)',
-        borderBottom: '1px solid var(--dplex-border)',
+        borderBottom: '1px solid var(--dplex-border-subtle)',
         fontSize: 12,
         color: 'var(--dplex-text-muted)'
       }}
@@ -113,10 +113,7 @@ export function TabHeader({ tab }: TabHeaderProps): JSX.Element | null {
       )}
 
       {branch && (
-        <span
-          className="inline-flex items-center gap-1 flex-shrink-0"
-          title={`Branch: ${branch}`}
-        >
+        <span className="inline-flex items-center gap-1 flex-shrink-0" title={`Branch: ${branch}`}>
           <GitBranch size={11} />
           {branch}
         </span>

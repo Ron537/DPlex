@@ -34,18 +34,20 @@ export function getRailBackground(status: ProjectStatus, isExpanded: boolean): s
 
 /**
  * Palette for rich-mode avatars. Picked to be legible on light + dark themes.
- * Each entry is a [background-rgba, foreground-hex] pair — background uses
- * alpha so it tints nicely against any panel color.
+ * Each entry is a [background-rgba, foreground-hex, border-rgba] triple —
+ * background uses alpha so it tints nicely against any panel color; the
+ * border uses the same hue at higher alpha to give the avatar a defined
+ * shape even on themes where the soft bg fade becomes invisible.
  */
-const AVATAR_PALETTE: Array<[string, string]> = [
-  ['rgba(124,156,255,0.18)', '#7c9cff'],
-  ['rgba(139,92,246,0.18)', '#a78bfa'],
-  ['rgba(60,207,145,0.18)', '#3ccf91'],
-  ['rgba(240,179,90,0.18)', '#f0b35a'],
-  ['rgba(239,106,106,0.18)', '#ef6a6a'],
-  ['rgba(93,209,206,0.18)', '#5dd1ce'],
-  ['rgba(236,112,176,0.18)', '#ec70b0'],
-  ['rgba(176,196,120,0.18)', '#b0c478']
+const AVATAR_PALETTE: Array<[string, string, string]> = [
+  ['rgba(124,156,255,0.11)', '#94a8d8', 'rgba(124,156,255,0.32)'],
+  ['rgba(139,92,246,0.11)', '#a394d4', 'rgba(139,92,246,0.32)'],
+  ['rgba(60,207,145,0.11)', '#6fb796', 'rgba(60,207,145,0.32)'],
+  ['rgba(240,179,90,0.11)', '#c9a474', 'rgba(240,179,90,0.32)'],
+  ['rgba(239,106,106,0.11)', '#c98a8a', 'rgba(239,106,106,0.32)'],
+  ['rgba(93,209,206,0.11)', '#7fb5b3', 'rgba(93,209,206,0.32)'],
+  ['rgba(236,112,176,0.11)', '#c990b0', 'rgba(236,112,176,0.32)'],
+  ['rgba(176,196,120,0.11)', '#a0ad8a', 'rgba(176,196,120,0.32)']
 ]
 
 function hashString(s: string): number {
@@ -60,10 +62,21 @@ function hashString(s: string): number {
  * Deterministic avatar color derived from a stable project identity.
  * Hashing the project id (not the name) keeps colors stable across renames
  * and prevents name collisions across unrelated repos.
+ *
+ * Returns:
+ *   - `bg`: low-alpha background tint
+ *   - `fg`: muted foreground for the initials
+ *   - `border`: medium-alpha border that uses the same hue as the bg, so
+ *     the avatar has a defined silhouette even when the panel background
+ *     absorbs the soft tint (notably on darker non-v2 themes).
  */
-export function getAvatarColor(projectId: string): { bg: string; fg: string } {
-  const [bg, fg] = AVATAR_PALETTE[hashString(projectId) % AVATAR_PALETTE.length]
-  return { bg, fg }
+export function getAvatarColor(projectId: string): {
+  bg: string
+  fg: string
+  border: string
+} {
+  const [bg, fg, border] = AVATAR_PALETTE[hashString(projectId) % AVATAR_PALETTE.length]
+  return { bg, fg, border }
 }
 
 /**
