@@ -86,8 +86,13 @@ function compareEntries(a: FsEntry, b: FsEntry): number {
 export async function readFile(root: string, relPath: unknown): Promise<ReadFileResult> {
   const fsPath = await resolveInsideRoot(root, relPath, { mustExist: true })
   if (fsPath === null) return readError('INVALID_INPUT')
+  // Open once and operate on the file handle so the stat and read share a
+  // single descriptor — avoids a time-of-check/time-of-use race where the path
+  // could be swapped between checking and reading.
+  let handle: fs.promises.FileHandle | null = null
   try {
-    const stat = await fs.promises.stat(fsPath)
+    handle = await fs.promises.open(fsPath, 'r')
+    const stat = await handle.stat()
     if (stat.isDirectory()) return readError('IS_A_DIRECTORY')
     const sizeBytes = stat.size
     if (sizeBytes > MAX_CONTENT_BYTES) {
@@ -101,7 +106,7 @@ export async function readFile(root: string, relPath: unknown): Promise<ReadFile
         truncated: true
       }
     }
-    const buf = await fs.promises.readFile(fsPath)
+    const buf = await handle.readFile()
     // Heuristic: a NUL byte in the first 8 KB means binary.
     const sample = buf.subarray(0, 8192)
     const isBinary = sample.includes(0)
@@ -129,8 +134,12 @@ export async function readFile(root: string, relPath: unknown): Promise<ReadFile
       truncated: false
     }
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException)?.code === 'ENOENT' ? 'NOT_FOUND' : 'IO_ERROR'
+    const errno = (err as NodeJS.ErrnoException)?.code
+    const code =
+      errno === 'ENOENT' ? 'NOT_FOUND' : errno === 'EISDIR' ? 'IS_A_DIRECTORY' : 'IO_ERROR'
     return readError(code, errMessage(err))
+  } finally {
+    await handle?.close().catch(() => {})
   }
 }
 
