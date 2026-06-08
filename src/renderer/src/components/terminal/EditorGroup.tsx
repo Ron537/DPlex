@@ -1,11 +1,12 @@
 import { useState, DragEvent } from 'react'
 import type { EditorGroup as EditorGroupType } from '../../types'
-import { isFileDiffTab } from '../../types'
+import { isFileDiffTab, isFileEditorTab } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { GroupTabBar } from './GroupTabBar'
 import { TabHeader } from './TabHeader'
 import { TerminalView } from './TerminalView'
 import { FileDiffTabView } from '../diff/FileDiffTabView'
+import { FileEditorTabView } from './FileEditorTabView'
 
 interface EditorGroupProps {
   group: EditorGroupType
@@ -107,6 +108,8 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
             >
               {isFileDiffTab(tab) ? (
                 <FileDiffTabView tab={tab} />
+              ) : isFileEditorTab(tab) ? (
+                <FileEditorTabView tab={tab} isActive={isActiveGroup && isActive} />
               ) : (
                 <TerminalView
                   terminalId={tab.id}

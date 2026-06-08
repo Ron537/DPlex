@@ -1,7 +1,7 @@
 import { type JSX } from 'react'
 import { GitBranch, Folder } from 'lucide-react'
 import type { EditorTab } from '../../types'
-import { isFileDiffTab, isTerminalTab } from '../../types'
+import { isFileDiffTab, isFileEditorTab, isTerminalTab } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProvidersStore } from '../../stores/providersStore'
@@ -38,15 +38,20 @@ export function TabHeader({ tab }: TabHeaderProps): JSX.Element | null {
   const identity = getTabIdentity(tab, projects)
   const isTerminal = isTerminalTab(tab)
   const isFileDiff = isFileDiffTab(tab)
+  const isFileEditor = isFileEditorTab(tab)
 
   const session =
     isTerminal && tab.sessionId && tab.providerId
       ? sessions.find((s) => s.id === tab.sessionId && s.aiTool === tab.providerId)
       : undefined
 
-  const displayPath = isFileDiff ? tab.repoRootFs : (tab.worktreePath ?? tab.cwd)
+  const displayPath = isFileDiff
+    ? tab.repoRootFs
+    : isFileEditor
+      ? tab.rootFs
+      : (tab.worktreePath ?? tab.cwd)
   const branch = (isTerminal ? tab.worktreeBranch : undefined) ?? session?.branch
-  const fileDiffPath = isFileDiff ? tab.file.gitPath : undefined
+  const fileDiffPath = isFileDiff ? tab.file.gitPath : isFileEditor ? tab.relPath : undefined
 
   if (!identity && !displayPath && !session) return null
 

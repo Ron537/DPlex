@@ -37,6 +37,10 @@ export function DeleteWorktreeModal({
       if (t.kind === 'fileDiff') {
         return normalizePath(t.repoRootFs) === normalizedWorktreePath
       }
+      if (t.kind === 'fileEditor') {
+        const root = normalizePath(t.rootFs)
+        return root === normalizedWorktreePath || root.startsWith(normalizedWorktreePath + '/')
+      }
       if (t.worktreePath && normalizePath(t.worktreePath) === normalizedWorktreePath) {
         return true
       }

@@ -9,6 +9,7 @@ import { ActivityBar } from './ActivityBar'
 import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
+import { CloseConfirmModal } from '../common/CloseConfirmModal'
 import { AttentionBellButton } from '../attention/AttentionBellButton'
 import { DPlexLogo } from '../common/DPlexLogo'
 import { useSessions } from '../../hooks/useSessions'
@@ -16,7 +17,16 @@ import { getTheme } from '../../services/themes'
 import { MOD } from '../../utils/shortcuts'
 import { focusSessionTab } from '../../utils/sessionTabs'
 import { wireGitPanelGlobals } from '../../stores/gitPanelStore'
-import type { TerminalTab, FileDiffTab, EditorTab, EditorGroup, LayoutNode } from '../../types'
+import { wireFileExplorerGlobals } from '../../stores/fileExplorerStore'
+import type {
+  TerminalTab,
+  FileDiffTab,
+  FileEditorTab,
+  EditorTab,
+  EditorGroup,
+  LayoutNode
+} from '../../types'
+import { isTerminalTab } from '../../types'
 
 // Prune layout tree to only include groups that exist in the restored set
 function pruneLayout(node: LayoutNode, validGroupIds: Set<string>): LayoutNode | null {
@@ -41,6 +51,7 @@ async function loadPersistedWorkspace(): Promise<{
     type PersistedTab =
       | (TerminalTab & { kind?: 'terminal' })
       | (FileDiffTab & { kind: 'fileDiff' })
+      | (FileEditorTab & { kind: 'fileEditor' })
       | { kind: 'diff' } // Legacy repo-level diff tab — quietly dropped on restore.
     const data = (await window.dplex.sessions.loadWorkspace()) as {
       groups: Array<{
@@ -63,6 +74,7 @@ async function loadPersistedWorkspace(): Promise<{
       const keepers = (g.tabs || []).filter((t) => {
         if (t.kind === 'diff') return false
         if (t.kind === 'fileDiff') return true
+        if (t.kind === 'fileEditor') return true
         return !!(t as TerminalTab).command
       })
       if (keepers.length === 0) continue
@@ -74,6 +86,12 @@ async function loadPersistedWorkspace(): Promise<{
             // Restored fileDiff tabs are always permanent — preview tabs
             // weren't persisted. Defensive scrub in case of future schema drift.
             return { ...ft, preview: false }
+          }
+          if (t.kind === 'fileEditor') {
+            const fe = t as FileEditorTab
+            // Permanent only; the editor lazy-loads content and renders a
+            // "file missing" state if the path no longer exists.
+            return { ...fe, preview: false, dirty: false }
           }
           const tt = t as TerminalTab
           if (!tt.sessionId) return { ...tt }
@@ -197,6 +215,13 @@ export function AppLayout(): React.JSX.Element {
     return () => off()
   }, [])
 
+  // Wire global file-explorer side-effects exactly once (active-project
+  // binding + the single per-root filesystem watcher).
+  useEffect(() => {
+    const off = wireFileExplorerGlobals()
+    return () => off()
+  }, [])
+
   // Cmd/Ctrl+Shift+G activates the Source Control activity-bar item.
   // If it's already active, collapses the side panel. Suppressed while
   // typing in an input/textarea/contenteditable and while Monaco's find
@@ -248,7 +273,7 @@ export function AppLayout(): React.JSX.Element {
       const activeGroup = state.groups.find((g) => g.id === state.activeGroupId)
       if (!activeGroup) return null
       const tab = activeGroup.tabs.find((t) => t.id === activeGroup.activeTabId)
-      if (!tab || tab.kind === 'fileDiff' || !tab.sessionId || !tab.providerId) return null
+      if (!tab || !isTerminalTab(tab) || !tab.sessionId || !tab.providerId) return null
       return `${tab.providerId}:${tab.sessionId}`
     }
 
@@ -505,6 +530,7 @@ export function AppLayout(): React.JSX.Element {
       </div>
 
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <CloseConfirmModal />
     </div>
   )
 }

@@ -19,6 +19,7 @@ import { TagFilterBar } from '../projects/TagFilterBar'
 import { ProjectPanelFooter } from '../projects/ProjectPanelFooter'
 import { SessionPanelFooter } from '../sessions/SessionPanelFooter'
 import { GitSidePanelView } from '../git/GitSidePanelView'
+import { ExplorerSidePanelView } from '../explorer/ExplorerSidePanelView'
 import { SearchSidePanelView } from '../search/SearchSidePanelView'
 
 export type SessionGroupMode = 'time' | 'workspace'
@@ -385,6 +386,8 @@ export function SidePanel(): React.JSX.Element | null {
     >
       {activeTab === 'git' ? (
         <GitSidePanelView />
+      ) : activeTab === 'explorer' ? (
+        <ExplorerSidePanelView />
       ) : activeTab === 'search' ? (
         <SearchSidePanelView />
       ) : (

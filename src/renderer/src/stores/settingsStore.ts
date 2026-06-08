@@ -209,6 +209,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     width: 300,
     sectionCollapse: { changes: false }
   },
+  editorAutoSave: 'manual',
   skippedUpdateVersion: null
 }
 

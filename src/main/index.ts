@@ -77,6 +77,22 @@ import {
   type ChangesSubscriptionToken
 } from './services/diff/changesWatcher'
 import type { DiffScope, FileDiffRequest, HunkMutationRequest } from './services/diff/types'
+import { safeProjectRoot } from './services/fsExplorer/pathSafety'
+import {
+  listDir as fsListDir,
+  readFile as fsReadFile,
+  writeFile as fsWriteFile,
+  createFile as fsCreateFile,
+  createDir as fsCreateDir,
+  rename as fsRename,
+  deletePath as fsDeletePath
+} from './services/fsExplorer/fsService'
+import {
+  subscribeTree,
+  unsubscribeTree,
+  noteSelfWrite,
+  type TreeSubscriptionToken
+} from './services/fsExplorer/treeWatcher'
 import type { CreateWorktreeOptions, DeleteWorktreeOptions } from './services/worktrees/types'
 
 // In dev mode, use a separate app identity so a running installed build
@@ -770,6 +786,10 @@ function registerIpcHandlers(): void {
 const diffSubsByWebContents = new Map<number, Set<ChangesSubscriptionToken>>()
 const diffTokensById = new Map<string, ChangesSubscriptionToken>()
 
+// File-explorer tree subscriptions (mirrors the diff subscription bookkeeping).
+const fileSubsByWebContents = new Map<number, Set<TreeSubscriptionToken>>()
+const fileTokensById = new Map<string, TreeSubscriptionToken>()
+
 function isPlainObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x)
 }
@@ -1074,6 +1094,123 @@ function registerDiffHandlers(): void {
     const set = diffSubsByWebContents.get(event.sender.id)
     set?.delete(token)
     unsubscribeDiffChanges(token, event.sender.id)
+  })
+
+  // ---- File explorer (project-bounded filesystem) ----
+
+  ipcMain.handle('files:listDir', async (_event, rootFs: unknown, relPath: unknown) => {
+    const root = await safeProjectRoot(rootFs)
+    if (!root) return { ok: false, entries: [], code: 'INVALID_INPUT' as const }
+    return fsListDir(root, relPath)
+  })
+
+  ipcMain.handle('files:readFile', async (_event, rootFs: unknown, relPath: unknown) => {
+    const root = await safeProjectRoot(rootFs)
+    if (!root) {
+      return {
+        ok: false,
+        content: '',
+        eol: '\n' as const,
+        mtimeMs: 0,
+        sizeBytes: 0,
+        isBinary: false,
+        truncated: false,
+        code: 'INVALID_INPUT' as const
+      }
+    }
+    return fsReadFile(root, relPath)
+  })
+
+  ipcMain.handle(
+    'files:writeFile',
+    async (
+      _event,
+      rootFs: unknown,
+      relPath: unknown,
+      content: unknown,
+      eol: unknown,
+      expectedMtimeMs: unknown
+    ) => {
+      const root = await safeProjectRoot(rootFs)
+      if (!root || typeof content !== 'string' || (eol !== '\n' && eol !== '\r\n')) {
+        return { ok: false, code: 'INVALID_INPUT' as const }
+      }
+      const expected = typeof expectedMtimeMs === 'number' ? expectedMtimeMs : undefined
+      const res = await fsWriteFile(root, relPath, content, eol, expected)
+      if (res.ok && typeof relPath === 'string') noteSelfWrite(root, relPath)
+      return res
+    }
+  )
+
+  ipcMain.handle('files:createFile', async (_event, rootFs: unknown, relPath: unknown) => {
+    const root = await safeProjectRoot(rootFs)
+    if (!root) return { ok: false, code: 'INVALID_INPUT' as const }
+    const res = await fsCreateFile(root, relPath)
+    if (res.ok && res.relPath) noteSelfWrite(root, res.relPath)
+    return res
+  })
+
+  ipcMain.handle('files:createDir', async (_event, rootFs: unknown, relPath: unknown) => {
+    const root = await safeProjectRoot(rootFs)
+    if (!root) return { ok: false, code: 'INVALID_INPUT' as const }
+    const res = await fsCreateDir(root, relPath)
+    if (res.ok && res.relPath) noteSelfWrite(root, res.relPath)
+    return res
+  })
+
+  ipcMain.handle(
+    'files:rename',
+    async (_event, rootFs: unknown, fromRelPath: unknown, toRelPath: unknown) => {
+      const root = await safeProjectRoot(rootFs)
+      if (!root) return { ok: false, code: 'INVALID_INPUT' as const }
+      const res = await fsRename(root, fromRelPath, toRelPath)
+      if (res.ok) {
+        if (typeof fromRelPath === 'string') noteSelfWrite(root, fromRelPath)
+        if (res.relPath) noteSelfWrite(root, res.relPath)
+      }
+      return res
+    }
+  )
+
+  ipcMain.handle('files:delete', async (_event, rootFs: unknown, relPath: unknown) => {
+    const root = await safeProjectRoot(rootFs)
+    if (!root) return { ok: false, code: 'INVALID_INPUT' as const }
+    const res = await fsDeletePath(root, relPath)
+    if (res.ok && typeof relPath === 'string') noteSelfWrite(root, relPath)
+    return res
+  })
+
+  ipcMain.handle('files:subscribe', async (event, rootFs: unknown) => {
+    const root = await safeProjectRoot(rootFs)
+    if (!root) return null
+    const sender = event.sender
+    const wcId = sender.id
+    let set = fileSubsByWebContents.get(wcId)
+    if (!set) {
+      set = new Set()
+      fileSubsByWebContents.set(wcId, set)
+      sender.once('destroyed', () => {
+        const tokens = fileSubsByWebContents.get(wcId)
+        fileSubsByWebContents.delete(wcId)
+        if (tokens) {
+          for (const t of tokens) fileTokensById.delete(String(t.id))
+        }
+      })
+    }
+    const token = subscribeTree(root, sender)
+    set.add(token)
+    fileTokensById.set(String(token.id), token)
+    return { token: String(token.id), rootFs: root }
+  })
+
+  ipcMain.on('files:unsubscribe', (event, tokenId: unknown) => {
+    if (typeof tokenId !== 'string') return
+    const token = fileTokensById.get(tokenId)
+    if (!token) return
+    fileTokensById.delete(tokenId)
+    const set = fileSubsByWebContents.get(event.sender.id)
+    set?.delete(token)
+    unsubscribeTree(token, event.sender.id)
   })
 }
 

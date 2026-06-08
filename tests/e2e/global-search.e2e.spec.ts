@@ -90,6 +90,24 @@ test.describe('DPlex global search', () => {
     await expect(palette).not.toBeVisible()
   })
 
+  test('Show Explorer command reveals the file explorer panel', async () => {
+    if (!window) throw new Error('Window not available')
+
+    await window.getByTestId('activity-bar-search').waitFor({ state: 'visible' })
+    await window.keyboard.press('ControlOrMeta+Shift+p')
+
+    const palette = window.getByTestId('command-palette')
+    await expect(palette).toBeVisible()
+
+    await window.getByTestId('command-palette-input').fill('show explorer')
+    const results = window.getByTestId('search-result')
+    await expect(results.first()).toContainText('Show Explorer')
+
+    await results.first().click()
+    await expect(palette).not.toBeVisible()
+    await expect(window.getByTestId('explorer-side-panel-view')).toBeVisible({ timeout: 5_000 })
+  })
+
   test('Search activity-bar tab reveals the global search side panel', async () => {
     if (!window) throw new Error('Window not available')
 

@@ -8,6 +8,9 @@ import { useTerminalStore } from './stores/terminalStore'
 import { useProvidersStore } from './stores/providersStore'
 import { useUpdateStore } from './stores/updateStore'
 import { useCommandPaletteStore } from './stores/commandPaletteStore'
+import { requestCloseTab } from './stores/closeConfirmStore'
+import { getFileEditorHandle } from './services/fileEditorRegistry'
+import { isFileEditorTab } from './types'
 import { dispatchOpenSettings } from './utils/openSettings'
 
 function App(): React.JSX.Element {
@@ -16,7 +19,6 @@ function App(): React.JSX.Element {
   const initUpdateStore = useUpdateStore((s) => s.init)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
-  const closeTerminal = useTerminalStore((s) => s.closeTerminal)
   const splitGroup = useTerminalStore((s) => s.splitGroup)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
@@ -51,7 +53,40 @@ function App(): React.JSX.Element {
 
       if (meta && e.key === 'w') {
         e.preventDefault()
-        if (activeGroup) closeTerminal(activeGroup.activeTabId)
+        if (activeGroup) requestCloseTab(activeGroup.activeTabId)
+      }
+
+      // Cmd/Ctrl+S → save the active file editor tab (no-op otherwise).
+      // Monaco registers its own Cmd/Ctrl+S command and consumes the event
+      // while focused, so this bubble-phase handler only runs when the editor
+      // is unfocused — avoiding a double save. We always preventDefault to
+      // stop Chromium's "save page" dialog in the packaged app.
+      if (meta && !e.shiftKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault()
+        // Don't save the (background) editor when focus is in an unrelated
+        // editable field — e.g. an inline rename input, the command palette,
+        // or a settings/modal field. Monaco already consumed the event above
+        // when it had focus, so any editable target here is not the editor.
+        const target = e.target as HTMLElement | null
+        const inEditableField =
+          !!target &&
+          (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+        if (!inEditableField && activeGroup) {
+          const tab = activeGroup.tabs.find((t) => t.id === activeGroup.activeTabId)
+          if (tab && isFileEditorTab(tab)) {
+            void getFileEditorHandle(tab.id)?.save()
+          }
+        }
+      }
+
+      // Cmd/Ctrl+Shift+E → reveal the Explorer side panel.
+      if (meta && e.shiftKey && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault()
+        useSettingsStore.getState().updateSettings({
+          sidebarActiveTab: 'explorer',
+          sidebarPanelCollapsed: false,
+          sidebarVisible: true
+        })
       }
 
       if (meta && e.key === 'b') {
@@ -137,7 +172,6 @@ function App(): React.JSX.Element {
     },
     [
       createTerminal,
-      closeTerminal,
       toggleSidebar,
       splitGroup,
       setActiveGroup,
