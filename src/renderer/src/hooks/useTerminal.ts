@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTerminalStore } from '../stores/terminalStore'
+import { isTerminalTab } from '../types'
 import {
   getOrCreateTerminal,
   updateTerminalFont,
@@ -48,7 +49,7 @@ async function resolveSessionIdForTab(
     .getState()
     .groups.flatMap((g) => g.tabs)
     .find((t) => t.id === terminalId)
-  if (currentTab && currentTab.kind !== 'fileDiff' && currentTab.sessionId) {
+  if (currentTab && isTerminalTab(currentTab) && currentTab.sessionId) {
     pendingOscTitles.delete(terminalId)
     return
   }
@@ -151,7 +152,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       // fileDiff tabs never spawn a PTY — they are rendered by FileDiffTabView
       // and have no shell/command. The hook short-circuits earlier in the call
       // site, but we still narrow defensively here to keep the union honest.
-      const terminalTab = tab && tab.kind !== 'fileDiff' ? tab : undefined
+      const terminalTab = tab && isTerminalTab(tab) ? tab : undefined
       const tabShell = terminalTab?.shell
       const tabCwd = terminalTab?.cwd
       const tabCommand = terminalTab?.command
@@ -238,7 +239,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
             const store = useTerminalStore.getState()
             store.renameTerminal(terminalId, title)
             const t = store.groups.flatMap((g) => g.tabs).find((tab) => tab.id === terminalId)
-            if (!t || t.kind === 'fileDiff' || !t.providerId) return
+            if (!t || !isTerminalTab(t) || !t.providerId) return
             if (t.sessionId) {
               useSessionStore.getState().setLiveTabTitle(t.providerId, t.sessionId, title)
               pendingOscTitles.delete(terminalId)

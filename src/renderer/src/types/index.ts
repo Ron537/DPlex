@@ -41,10 +41,36 @@ export interface FileDiffTab {
   sideBySide?: boolean
 }
 
-export type EditorTab = TerminalTab | FileDiffTab
+export type EditorTab = TerminalTab | FileDiffTab | FileEditorTab
+
+/**
+ * Editable file tab opened from the file explorer. Distinct from the
+ * read-only `FileDiffTab`: it targets an arbitrary project file (not a git
+ * change) and mounts an editable Monaco model. Preview tabs (single-click)
+ * are not persisted; permanent tabs are serialized to the workspace.
+ */
+export interface FileEditorTab {
+  id: string
+  title: string
+  kind: 'fileEditor'
+  /** Canonical, realpathed project root the file is bounded to. */
+  rootFs: string
+  /** Display name of the project (for the tab subtitle / picker parity). */
+  rootLabel: string
+  /** Project-root-relative POSIX path of the file. */
+  relPath: string
+  /** True in single-click preview mode (italic, single reusable slot). */
+  preview?: boolean
+  /** True when the editor has unsaved changes (drives the dirty dot). */
+  dirty?: boolean
+}
 
 export function isFileDiffTab(tab: EditorTab): tab is FileDiffTab {
   return tab.kind === 'fileDiff'
+}
+
+export function isFileEditorTab(tab: EditorTab): tab is FileEditorTab {
+  return tab.kind === 'fileEditor'
 }
 
 export function isTerminalTab(tab: EditorTab): tab is TerminalTab {
@@ -116,7 +142,7 @@ export interface AppSettings {
   sidebarWidth: number
   sidebarVisible: boolean
   /** Which sidebar view is active in the activity bar. */
-  sidebarActiveTab: 'projects' | 'sessions' | 'git' | 'search'
+  sidebarActiveTab: 'projects' | 'sessions' | 'git' | 'search' | 'explorer'
   /** When true, the panel portion of the sidebar is collapsed (activity bar still visible). */
   sidebarPanelCollapsed: boolean
   sessionPollIntervalMs: number
@@ -170,6 +196,12 @@ export interface AppSettings {
   tagColors?: Record<string, string>
   /** Right-side Git panel UI state. */
   gitPanel: GitPanelSettings
+  /**
+   * File-editor save behavior. `'manual'` (default) saves only on
+   * Cmd/Ctrl+S; `'onChange'` debounce-saves as you type (VSCode-style
+   * auto-save). Applies to editable file tabs from the explorer.
+   */
+  editorAutoSave: 'manual' | 'onChange'
   /**
    * Version the user explicitly chose to skip from the update banner.
    * Honored only for `manualDownload` flows (macOS, .deb) — auto-install

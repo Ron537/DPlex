@@ -3,6 +3,7 @@ import { X, AlertTriangle } from 'lucide-react'
 import type { Project } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { getFileEditorHandle } from '../../services/fileEditorRegistry'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { normalizePath } from '../../hooks/useProjectSessions'
 
@@ -39,6 +40,10 @@ export function RemoveWorktreeProjectModal({
     g.tabs.filter((t) => {
       if (t.kind === 'fileDiff') {
         return normalizePath(t.repoRootFs) === projectPath
+      }
+      if (t.kind === 'fileEditor') {
+        const root = normalizePath(t.rootFs)
+        return root === projectPath || root.startsWith(projectPath + '/')
       }
       if (t.worktreePath && normalizePath(t.worktreePath) === projectPath) return true
       if (!t.cwd) return false
@@ -81,7 +86,23 @@ export function RemoveWorktreeProjectModal({
         }
       }
       if (closeSessions) {
-        for (const tab of openTabs) closeTerminal(tab.id)
+        for (const tab of openTabs) {
+          // When the worktree files stay on disk (the project is only unlinked
+          // from DPlex, not deleted), flush unsaved editor edits first so
+          // closing the related tabs can't silently drop them. If we deleted
+          // the worktree above, the files are gone and saving is moot.
+          if (!deleteFromDisk && tab.kind === 'fileEditor') {
+            const handle = getFileEditorHandle(tab.id)
+            if (handle?.isDirty()) {
+              try {
+                await handle.save()
+              } catch {
+                /* fall through and close anyway */
+              }
+            }
+          }
+          closeTerminal(tab.id)
+        }
       }
       removeProject(project.id)
       onRemoved()

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-06-08
+
+### Features
+
+- New **Explorer** in the activity bar — browse the selected project's files and folders in a familiar tree, with a project picker just like the Source Control panel.
+- Single-click a file to peek at it in a preview tab, double-click (or start editing) to keep it open — the same preview behavior as diffs.
+- Edit and save files directly in DPlex, with a dirty indicator on unsaved tabs and a Save / Don't Save / Cancel prompt when you close one.
+- Create, rename, and delete files and folders from the Explorer's right-click menu.
+- New **Editor** setting to choose **Auto-save on change** or **Manual save** (⌘/Ctrl+S), plus a shortcut to reveal the Explorer (⌘/Ctrl+Shift+E).
+- Command palette can now jump to the Explorer, refresh its file tree, and collapse all folders.
+
 ## [0.20.0] — 2026-05-30
 
 ### Features
@@ -553,7 +564,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/Ron537/DPlex/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/Ron537/DPlex/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/Ron537/DPlex/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/Ron537/DPlex/compare/v0.18.0...v0.18.1

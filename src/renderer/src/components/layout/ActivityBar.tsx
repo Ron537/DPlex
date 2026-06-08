@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
-import { FolderOpen, Clock, GitBranch, Settings, Search } from 'lucide-react'
+import { FolderOpen, Clock, GitBranch, Settings, Search, Files } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useGitPanelStore } from '../../stores/gitPanelStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { MOD, SHIFT } from '../../utils/shortcuts'
 
-type ActivityId = 'search' | 'projects' | 'sessions' | 'git'
+type ActivityId = 'search' | 'projects' | 'sessions' | 'git' | 'explorer'
 
 interface ActivityItem {
   id: ActivityId
@@ -20,6 +20,7 @@ const ITEMS: ActivityItem[] = [
   // Plain Clock matches the v2 mockup; reads as "recent / past sessions"
   // and stays visually distinct from the GitBranch "history" association.
   { id: 'sessions', label: 'Sessions', Icon: Clock },
+  { id: 'explorer', label: 'Explorer', shortcut: `${MOD}${SHIFT}E`, Icon: Files },
   { id: 'git', label: 'Source Control', shortcut: `${MOD}${SHIFT}G`, Icon: GitBranch },
   { id: 'search', label: 'Search', shortcut: `${MOD}${SHIFT}F`, Icon: Search }
 ]

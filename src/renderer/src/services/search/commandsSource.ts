@@ -13,13 +13,17 @@ import {
   Search as SearchIcon,
   Settings as SettingsIcon,
   BellRing,
-  RefreshCw
+  RefreshCw,
+  Files,
+  ChevronsDownUp
 } from 'lucide-react'
 import type { SearchItem, SearchSource } from './types'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { requestCloseTab } from '../../stores/closeConfirmStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
+import { useFileExplorerStore } from '../../stores/fileExplorerStore'
 import { dispatchOpenSettings } from '../../utils/openSettings'
 import { MOD, SHIFT } from '../../utils/shortcuts'
 
@@ -70,7 +74,7 @@ const COMMANDS: readonly CommandEntry[] = [
     run: () => {
       const ts = useTerminalStore.getState()
       const group = ts.groups.find((g) => g.id === ts.activeGroupId)
-      if (group) ts.closeTerminal(group.activeTabId)
+      if (group) requestCloseTab(group.activeTabId)
     }
   },
   {
@@ -146,6 +150,21 @@ const COMMANDS: readonly CommandEntry[] = [
     }
   },
   {
+    id: 'show-explorer',
+    label: 'Show Explorer',
+    description: 'Reveal the file Explorer for the active project',
+    shortcut: `${MOD}${SHIFT}E`,
+    keywords: ['files', 'tree', 'folder', 'directory', 'view'],
+    Icon: Files,
+    run: () => {
+      useSettingsStore.getState().updateSettings({
+        sidebarActiveTab: 'explorer',
+        sidebarPanelCollapsed: false,
+        sidebarVisible: true
+      })
+    }
+  },
+  {
     id: 'show-search',
     label: 'Show Search',
     description: 'Reveal the global Search view in the sidebar',
@@ -194,6 +213,26 @@ const COMMANDS: readonly CommandEntry[] = [
     Icon: RefreshCw,
     run: () => {
       void useSessionStore.getState().refreshSessions()
+    }
+  },
+  {
+    id: 'refresh-explorer',
+    label: 'Refresh Explorer',
+    description: "Re-scan the active project's file tree from disk",
+    keywords: ['reload', 'rescan', 'files', 'tree'],
+    Icon: RefreshCw,
+    run: () => {
+      useFileExplorerStore.getState().refresh()
+    }
+  },
+  {
+    id: 'collapse-explorer',
+    label: 'Collapse Folders in Explorer',
+    description: 'Collapse all expanded folders in the file tree',
+    keywords: ['collapse', 'fold', 'files', 'tree'],
+    Icon: ChevronsDownUp,
+    run: () => {
+      useFileExplorerStore.getState().collapseAll()
     }
   }
 ]

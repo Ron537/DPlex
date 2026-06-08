@@ -5,6 +5,7 @@ import { useTerminalStore } from './terminalStore'
 import { useTabFocusStore } from './tabFocusStore'
 import { normalizePath } from '../hooks/useProjectSessions'
 import { normalizeTag, normalizeTags } from '../utils/projectTags'
+import { getTabProjectPath } from '../utils/tabProject'
 
 function generateId(): string {
   return `proj-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -494,8 +495,8 @@ function getActiveTabPath(): string | undefined {
   const group = ts.groups.find((g) => g.id === ts.activeGroupId)
   if (!group) return undefined
   const tab = group.tabs.find((t) => t.id === group.activeTabId)
-  if (!tab || tab.kind === 'fileDiff') return undefined
-  return tab.worktreePath ?? tab.cwd
+  if (!tab) return undefined
+  return getTabProjectPath(tab)
 }
 
 function syncActiveProjectFromTabPath(tabPath: string | undefined): void {

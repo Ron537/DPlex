@@ -7,6 +7,7 @@ import {
   SplitSquareVertical
 } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { requestCloseTab } from '../../stores/closeConfirmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useTabFocusStore } from '../../stores/tabFocusStore'
@@ -16,6 +17,7 @@ import { effectiveSessionVisual } from '../../utils/sessionPairing'
 import { getTabIdentity } from '../../utils/tabProject'
 import { ShellSelector } from './ShellSelector'
 import type { EditorGroup } from '../../types'
+import { isTerminalTab, isFileDiffTab, isFileEditorTab } from '../../types'
 
 interface GroupTabBarProps {
   group: EditorGroup
@@ -33,7 +35,6 @@ interface GroupTabBarProps {
 export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.JSX.Element {
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
-  const closeTerminal = useTerminalStore((s) => s.closeTerminal)
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const renameTerminal = useTerminalStore((s) => s.renameTerminal)
   const promotePreviewTab = useTerminalStore((s) => s.promotePreviewTab)
@@ -123,11 +124,15 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
     >
       <div className="flex items-center gap-0 overflow-x-auto no-scrollbar flex-1">
         {group.tabs.map((tab, index) => {
-          const isFileDiff = tab.kind === 'fileDiff'
-          const tabSessionId = isFileDiff ? undefined : tab.sessionId
-          const tabProviderId = isFileDiff ? undefined : tab.providerId
+          const isFileDiff = isFileDiffTab(tab)
+          const isFileEditor = isFileEditorTab(tab)
+          const isTerminal = isTerminalTab(tab)
+          const tabSessionId = isTerminal ? tab.sessionId : undefined
+          const tabProviderId = isTerminal ? tab.providerId : undefined
           const isActive = isActiveGroup && tab.id === group.activeTabId
-          const isPreview = isFileDiff && (tab as { preview?: boolean }).preview === true
+          const isPreview =
+            (isFileDiff || isFileEditor) && (tab as { preview?: boolean }).preview === true
+          const isDirty = isFileEditor && tab.dirty === true
           const identity = getTabIdentity(tab, projects)
           const focusActive = focusedProjectId !== null
           const isInFocus =
@@ -176,7 +181,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               onDoubleClick={() => {
                 if (isPreview) {
                   promotePreviewTab(tab.id)
-                } else if (!isFileDiff) {
+                } else if (isTerminal) {
                   handleDoubleClick(tab.id, tab.title)
                 }
               }}
@@ -271,10 +276,13 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  closeTerminal(tab.id)
+                  requestCloseTab(tab.id)
                 }}
-                className="opacity-0 group-hover:opacity-100 rounded p-0.5 transition-all ml-0.5"
+                className={`rounded p-0.5 transition-all ml-0.5 ${
+                  isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
                 style={{ color: 'var(--dplex-text-dim)' }}
+                title={isDirty ? 'Unsaved changes — close' : 'Close'}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev-2)'
                   e.currentTarget.style.color = 'var(--dplex-text)'
@@ -284,7 +292,20 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   e.currentTarget.style.color = 'var(--dplex-text-dim)'
                 }}
               >
-                <X size={11} />
+                {isDirty && (
+                  <span
+                    aria-hidden
+                    className="block group-hover:hidden"
+                    style={{
+                      width: 8,
+                      height: 8,
+                      margin: 1.5,
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--dplex-text-muted)'
+                    }}
+                  />
+                )}
+                <X size={11} className={isDirty ? 'hidden group-hover:block' : 'block'} />
               </button>
             </div>
           )

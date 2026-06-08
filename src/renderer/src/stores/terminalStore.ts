@@ -1,6 +1,13 @@
 import { create } from 'zustand'
-import type { TerminalTab, FileDiffTab, EditorTab, EditorGroup, LayoutNode } from '../types'
-import { isFileDiffTab, isTerminalTab } from '../types'
+import type {
+  TerminalTab,
+  FileDiffTab,
+  FileEditorTab,
+  EditorTab,
+  EditorGroup,
+  LayoutNode
+} from '../types'
+import { isFileDiffTab, isFileEditorTab, isTerminalTab } from '../types'
 import { destroyTerminal } from '../services/terminalRegistry'
 import { useSessionStore } from './sessionStore'
 
@@ -38,6 +45,22 @@ function makeTerminalTab(
 function makeFileDiffTitle(gitPath: string): string {
   const i = gitPath.lastIndexOf('/')
   return i >= 0 ? gitPath.slice(i + 1) : gitPath
+}
+
+/** Basename of a project-relative POSIX path (file editor tab title). */
+function makeFileTitle(relPath: string): string {
+  const i = relPath.lastIndexOf('/')
+  return i >= 0 ? relPath.slice(i + 1) : relPath
+}
+
+/**
+ * Clear the `preview` flag on a preview tab being moved between groups.
+ * Works for any previewable tab kind (fileDiff / fileEditor).
+ */
+function promoteOnMove(tab: EditorTab): EditorTab {
+  if (isFileDiffTab(tab)) return { ...tab, preview: false }
+  if (isFileEditorTab(tab)) return { ...tab, preview: false }
+  return tab
 }
 
 function removeGroupFromLayout(node: LayoutNode, groupId: string): LayoutNode | null {
@@ -135,6 +158,20 @@ interface TerminalState {
    */
   promotePreviewTab: (tabId: string) => void
   updateFileDiffTab: (tabId: string, patch: Partial<Omit<FileDiffTab, 'id' | 'kind'>>) => void
+  /**
+   * Open (or focus) an editable file tab from the explorer. Mirrors
+   * `openOrFocusDiffTab` preview/promote/focus semantics but for the
+   * `fileEditor` tab kind. Matching identity is (rootFs, relPath).
+   */
+  openOrFocusFileTab: (input: {
+    rootFs: string
+    rootLabel: string
+    relPath: string
+    title?: string
+    /** When true, opened as a preview tab (italic, single slot per group). */
+    preview?: boolean
+  }) => string
+  updateFileEditorTab: (tabId: string, patch: Partial<Omit<FileEditorTab, 'id' | 'kind'>>) => void
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -305,8 +342,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     // the source group's preview slot is cleared if the moved tab held it,
     // and the target group's preview slot is NOT inherited.
     const wasPreviewInSource = sourceGroup.previewTabId === terminalId
-    const movedTab =
-      wasPreviewInSource && isFileDiffTab(tab) ? ({ ...tab, preview: false } as EditorTab) : tab
+    const movedTab = wasPreviewInSource ? promoteOnMove(tab) : tab
 
     // Remove from source
     const newSourceTabs = sourceGroup.tabs.filter((t) => t.id !== terminalId)
@@ -361,8 +397,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
     // Promote out of preview when moving — see moveTerminalToGroup.
     const wasPreviewInSource = sourceGroup.previewTabId === terminalId
-    const movedTab =
-      wasPreviewInSource && isFileDiffTab(tab) ? ({ ...tab, preview: false } as EditorTab) : tab
+    const movedTab = wasPreviewInSource ? promoteOnMove(tab) : tab
 
     // Create new group with this tab
     const newGid = makeGroupId()
@@ -552,9 +587,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
           if (!t.preview) {
             set({
               activeGroupId: g.id,
-              groups: state.groups.map((gg) =>
-                gg.id === g.id ? { ...gg, activeTabId: t.id } : gg
-              )
+              groups: state.groups.map((gg) => (gg.id === g.id ? { ...gg, activeTabId: t.id } : gg))
             })
             return t.id
           }
@@ -629,7 +662,9 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
           ...g,
           previewTabId: undefined,
           tabs: g.tabs.map((t) =>
-            t.id === tabId && isFileDiffTab(t) ? { ...t, preview: false } : t
+            t.id === tabId && (isFileDiffTab(t) || isFileEditorTab(t))
+              ? { ...t, preview: false }
+              : t
           )
         }
       })
@@ -642,6 +677,153 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
         ...g,
         tabs: g.tabs.map((t) => (t.id === tabId && isFileDiffTab(t) ? { ...t, ...patch } : t))
       }))
+    }))
+  },
+
+  openOrFocusFileTab: (input): string => {
+    const state = get()
+
+    // Focus an existing tab for the same (rootFs, relPath) FIRST — before any
+    // preview-slot reuse — so single-clicking a file that's already open
+    // (anywhere, even as a permanent tab in another group) focuses it instead
+    // of duplicating it into the active group's preview slot. Promote a preview
+    // match to permanent when opened with preview=false (double-click).
+    for (const g of state.groups) {
+      for (const t of g.tabs) {
+        if (isFileEditorTab(t) && t.rootFs === input.rootFs && t.relPath === input.relPath) {
+          if (t.preview && input.preview === false) {
+            const promoted: FileEditorTab = { ...t, preview: false }
+            set({
+              activeGroupId: g.id,
+              groups: state.groups.map((gg) =>
+                gg.id === g.id
+                  ? {
+                      ...gg,
+                      tabs: gg.tabs.map((tt) => (tt.id === t.id ? promoted : tt)),
+                      activeTabId: t.id,
+                      previewTabId: gg.previewTabId === t.id ? undefined : gg.previewTabId
+                    }
+                  : gg
+              )
+            })
+            return t.id
+          }
+          set({
+            activeGroupId: g.id,
+            groups: state.groups.map((gg) => (gg.id === g.id ? { ...gg, activeTabId: t.id } : gg))
+          })
+          return t.id
+        }
+      }
+    }
+
+    // Preview-tab semantics: reuse the active group's preview slot in place,
+    // BUT never silently replace a dirty preview (would discard edits). When
+    // the current preview file editor is dirty, fall through to create/focus
+    // a separate tab instead.
+    if (input.preview === true) {
+      const targetGroup = state.groups.find((g) => g.id === state.activeGroupId)
+      if (targetGroup && targetGroup.previewTabId) {
+        const previewTab = targetGroup.tabs.find((t) => t.id === targetGroup.previewTabId)
+        if (previewTab && isFileEditorTab(previewTab) && previewTab.dirty !== true) {
+          const replacement: FileEditorTab = {
+            ...previewTab,
+            rootFs: input.rootFs,
+            rootLabel: input.rootLabel,
+            relPath: input.relPath,
+            title: input.title ?? makeFileTitle(input.relPath),
+            preview: true,
+            dirty: false
+          }
+          set({
+            activeGroupId: targetGroup.id,
+            groups: state.groups.map((g) =>
+              g.id === targetGroup.id
+                ? {
+                    ...g,
+                    tabs: g.tabs.map((t) => (t.id === replacement.id ? replacement : t)),
+                    activeTabId: replacement.id
+                  }
+                : g
+            )
+          })
+          return replacement.id
+        }
+      }
+    }
+
+    const tab: FileEditorTab = {
+      id: makeTerminalId(),
+      title: input.title ?? makeFileTitle(input.relPath),
+      kind: 'fileEditor',
+      rootFs: input.rootFs,
+      rootLabel: input.rootLabel,
+      relPath: input.relPath,
+      preview: input.preview === true
+    }
+    const targetGroupId = state.activeGroupId
+    if (state.groups.length === 0 || !targetGroupId) {
+      const newGroup: EditorGroup = {
+        id: 'group-0',
+        tabs: [tab],
+        activeTabId: tab.id,
+        previewTabId: tab.preview ? tab.id : undefined
+      }
+      set({
+        groups: [newGroup],
+        layout: { type: 'group', groupId: newGroup.id },
+        activeGroupId: newGroup.id
+      })
+      return tab.id
+    }
+    const targetGroup = state.groups.find((g) => g.id === targetGroupId)
+    if (!targetGroup) {
+      const gid = makeGroupId()
+      const newGroup: EditorGroup = {
+        id: gid,
+        tabs: [tab],
+        activeTabId: tab.id,
+        previewTabId: tab.preview ? tab.id : undefined
+      }
+      set({ groups: [...state.groups, newGroup], activeGroupId: gid })
+      return tab.id
+    }
+    set({
+      groups: state.groups.map((g) =>
+        g.id === targetGroupId
+          ? {
+              ...g,
+              tabs: [...g.tabs, tab],
+              activeTabId: tab.id,
+              previewTabId: tab.preview ? tab.id : g.previewTabId
+            }
+          : g
+      ),
+      activeGroupId: targetGroupId
+    })
+    return tab.id
+  },
+
+  updateFileEditorTab: (
+    tabId: string,
+    patch: Partial<Omit<FileEditorTab, 'id' | 'kind'>>
+  ): void => {
+    set((state) => ({
+      groups: state.groups.map((g) => {
+        let promotedOut = false
+        const tabs = g.tabs.map((t) => {
+          if (t.id !== tabId || !isFileEditorTab(t)) return t
+          const next = { ...t, ...patch }
+          // A preview tab that just became dirty is promoted to permanent so
+          // a subsequent single-click can't replace (and discard) it.
+          if (next.dirty === true && g.previewTabId === t.id) {
+            next.preview = false
+            promotedOut = true
+          }
+          return next
+        })
+        return promotedOut ? { ...g, tabs, previewTabId: undefined } : { ...g, tabs }
+      })
     }))
   }
 }))
@@ -666,10 +848,11 @@ function serializeWorkspace(): unknown {
       id: g.id,
       tabs: g.tabs
         // Persist AI session terminal tabs (have a `command`) and
-        // PERMANENT fileDiff tabs. Plain shell terminals and preview tabs
-        // are intentionally NOT persisted.
+        // PERMANENT fileDiff / fileEditor tabs. Plain shell terminals and
+        // preview tabs are intentionally NOT persisted.
         .filter((t) => {
           if (isFileDiffTab(t)) return t.preview !== true
+          if (isFileEditorTab(t)) return t.preview !== true
           return isTerminalTab(t) && !!t.command
         })
         .map((t) => {
@@ -683,6 +866,16 @@ function serializeWorkspace(): unknown {
               scope: t.scope,
               file: t.file,
               sideBySide: t.sideBySide
+            }
+          }
+          if (isFileEditorTab(t)) {
+            return {
+              kind: 'fileEditor' as const,
+              id: t.id,
+              title: t.title,
+              rootFs: t.rootFs,
+              rootLabel: t.rootLabel,
+              relPath: t.relPath
             }
           }
           return {

@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Palette, Terminal, Bot, Keyboard, BellRing, GitBranch, Info } from 'lucide-react'
+import {
+  X,
+  Palette,
+  Terminal,
+  Bot,
+  Keyboard,
+  BellRing,
+  GitBranch,
+  Info,
+  FileText
+} from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useUpdateStore } from '../../stores/updateStore'
@@ -18,6 +28,7 @@ interface SettingsModalProps {
 type SettingsTab =
   | 'appearance'
   | 'terminal'
+  | 'editor'
   | 'ai-tools'
   | 'notifications'
   | 'worktrees'
@@ -29,7 +40,9 @@ const SHORTCUTS: { category: string; items: { keys: string; description: string 
     category: 'General',
     items: [
       { keys: `${MOD}T`, description: 'New terminal' },
-      { keys: `${MOD}W`, description: 'Close terminal' },
+      { keys: `${MOD}W`, description: 'Close tab' },
+      { keys: `${MOD}S`, description: 'Save file (editor)' },
+      { keys: `${MOD}${SHIFT}E`, description: 'Open Explorer side panel' },
       { keys: `${MOD},`, description: 'Open settings' },
       { keys: `${MOD}B`, description: 'Toggle sidebar' },
       { keys: `${MOD}F`, description: 'Focus panel search' },
@@ -63,7 +76,8 @@ type SettingsTabGroup = { title: string; tabs: SettingsTab[] }
 const TAB_GROUPS: SettingsTabGroup[] = [
   { title: 'General', tabs: ['appearance', 'shortcuts', 'about'] },
   { title: 'AI Tools', tabs: ['ai-tools', 'worktrees', 'notifications'] },
-  { title: 'Terminal', tabs: ['terminal'] }
+  { title: 'Terminal', tabs: ['terminal'] },
+  { title: 'Editor', tabs: ['editor'] }
 ]
 
 const TAB_HEADINGS: Record<SettingsTab, { title: string; description: string }> = {
@@ -74,6 +88,10 @@ const TAB_HEADINGS: Record<SettingsTab, { title: string; description: string }> 
   terminal: {
     title: 'Terminal',
     description: 'Default shell and font for new terminals.'
+  },
+  editor: {
+    title: 'Editor',
+    description: 'How the file editor saves your changes.'
   },
   'ai-tools': {
     title: 'AI Tools',
@@ -100,6 +118,7 @@ const TAB_HEADINGS: Record<SettingsTab, { title: string; description: string }> 
 const TABS: { id: SettingsTab; label: string; icon: typeof Palette }[] = [
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'terminal', label: 'Terminal', icon: Terminal },
+  { id: 'editor', label: 'Editor', icon: FileText },
   { id: 'ai-tools', label: 'AI Tools', icon: Bot },
   { id: 'notifications', label: 'Notifications', icon: BellRing },
   { id: 'worktrees', label: 'Worktrees', icon: GitBranch },
@@ -219,7 +238,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
             node.scrollIntoView({ block: 'center', behavior: 'smooth' })
             node.classList.remove('dplex-setting-pulse')
             // Force reflow so re-adding the class restarts the animation.
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+
             void node.offsetWidth
             node.classList.add('dplex-setting-pulse')
             const onEnd = (): void => {
@@ -552,6 +571,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     </SettingItem>
                   )}
                 </>
+              )}
+
+              {activeTab === 'editor' && (
+                <SettingItem
+                  label="Auto Save"
+                  settingId="editor-auto-save"
+                  description="When editing files in the explorer, choose whether changes are saved automatically as you type, or only when you press the save shortcut."
+                >
+                  <select
+                    value={settings.editorAutoSave}
+                    onChange={(e) =>
+                      applyNow({ editorAutoSave: e.target.value as AppSettings['editorAutoSave'] })
+                    }
+                    className="w-full rounded px-3 py-1.5 text-xs outline-none"
+                    style={{
+                      backgroundColor: 'var(--dplex-bg-alt)',
+                      border: '1px solid var(--dplex-border)',
+                      color: 'var(--dplex-text)'
+                    }}
+                  >
+                    <option value="manual">Manual ({MOD}S to save)</option>
+                    <option value="onChange">On change (auto-save as you type)</option>
+                  </select>
+                </SettingItem>
               )}
 
               {activeTab === 'ai-tools' && (

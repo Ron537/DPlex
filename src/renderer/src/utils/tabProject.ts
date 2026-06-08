@@ -1,5 +1,5 @@
 import type { EditorTab, Project } from '../types'
-import { isFileDiffTab } from '../types'
+import { isFileDiffTab, isFileEditorTab } from '../types'
 import { normalizePath } from './normalizePath'
 import { getAvatarColor, getAvatarInitials } from './projectStatus'
 
@@ -7,10 +7,12 @@ import { getAvatarColor, getAvatarInitials } from './projectStatus'
  * Return the filesystem path that a tab should be associated with for the
  * purpose of project matching. Mirrors the precedence already used elsewhere
  * (`syncActiveProjectFromTabPath`, `focusFirstTabForPaths`):
- * worktree path → cwd for terminal tabs, repoRootFs for file-diff tabs.
+ * worktree path → cwd for terminal tabs, repoRootFs for file-diff tabs,
+ * rootFs for editable file tabs.
  */
 export function getTabProjectPath(tab: EditorTab): string | undefined {
   if (isFileDiffTab(tab)) return tab.repoRootFs
+  if (isFileEditorTab(tab)) return tab.rootFs
   return tab.worktreePath ?? tab.cwd
 }
 

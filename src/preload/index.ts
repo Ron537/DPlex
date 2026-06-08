@@ -20,6 +20,22 @@ import type {
   MutationResult,
   RepoStatus
 } from '../main/services/diff/types'
+import type {
+  ListDirResult,
+  ReadFileResult,
+  WriteFileResult,
+  FsMutationResult
+} from '../main/services/fsExplorer/types'
+
+export type {
+  FsEntry,
+  FsEntryType,
+  ListDirResult,
+  ReadFileResult,
+  WriteFileResult,
+  FsMutationResult,
+  FsErrorCode
+} from '../main/services/fsExplorer/types'
 
 export type {
   CreateWorktreeOptions,
@@ -224,6 +240,24 @@ export interface DplexAPI {
     unsubscribe: (token: string) => void
     onChangesChanged: (callback: (payload: { repoRootFs: string }) => void) => () => void
   }
+  files: {
+    listDir: (rootFs: string, relPath: string) => Promise<ListDirResult>
+    readFile: (rootFs: string, relPath: string) => Promise<ReadFileResult>
+    writeFile: (
+      rootFs: string,
+      relPath: string,
+      content: string,
+      eol: '\n' | '\r\n',
+      expectedMtimeMs?: number
+    ) => Promise<WriteFileResult>
+    createFile: (rootFs: string, relPath: string) => Promise<FsMutationResult>
+    createDir: (rootFs: string, relPath: string) => Promise<FsMutationResult>
+    rename: (rootFs: string, fromRelPath: string, toRelPath: string) => Promise<FsMutationResult>
+    delete: (rootFs: string, relPath: string) => Promise<FsMutationResult>
+    subscribe: (rootFs: string) => Promise<{ token: string; rootFs: string } | null>
+    unsubscribe: (token: string) => void
+    onTreeChanged: (callback: (payload: { rootFs: string; dirs: string[] }) => void) => () => void
+  }
 }
 
 const dplexAPI: DplexAPI = {
@@ -411,6 +445,27 @@ const dplexAPI: DplexAPI = {
         callback(payload)
       ipcRenderer.on('git:diff:changes-changed', handler)
       return () => ipcRenderer.removeListener('git:diff:changes-changed', handler)
+    }
+  },
+  files: {
+    listDir: (rootFs, relPath) => ipcRenderer.invoke('files:listDir', rootFs, relPath),
+    readFile: (rootFs, relPath) => ipcRenderer.invoke('files:readFile', rootFs, relPath),
+    writeFile: (rootFs, relPath, content, eol, expectedMtimeMs) =>
+      ipcRenderer.invoke('files:writeFile', rootFs, relPath, content, eol, expectedMtimeMs),
+    createFile: (rootFs, relPath) => ipcRenderer.invoke('files:createFile', rootFs, relPath),
+    createDir: (rootFs, relPath) => ipcRenderer.invoke('files:createDir', rootFs, relPath),
+    rename: (rootFs, fromRelPath, toRelPath) =>
+      ipcRenderer.invoke('files:rename', rootFs, fromRelPath, toRelPath),
+    delete: (rootFs, relPath) => ipcRenderer.invoke('files:delete', rootFs, relPath),
+    subscribe: (rootFs) => ipcRenderer.invoke('files:subscribe', rootFs),
+    unsubscribe: (token) => ipcRenderer.send('files:unsubscribe', token),
+    onTreeChanged: (callback) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        payload: { rootFs: string; dirs: string[] }
+      ): void => callback(payload)
+      ipcRenderer.on('files:tree-changed', handler)
+      return () => ipcRenderer.removeListener('files:tree-changed', handler)
     }
   }
 }
