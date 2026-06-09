@@ -12,14 +12,13 @@ import { requestCloseTab } from './stores/closeConfirmStore'
 import { getFileEditorHandle } from './services/fileEditorRegistry'
 import { isFileEditorTab } from './types'
 import { dispatchOpenSettings } from './utils/openSettings'
+import { openInheritedTerminal, openInheritedSplit } from './utils/inheritCwd'
 
 function App(): React.JSX.Element {
   const loadSettings = useSettingsStore((s) => s.loadSettings)
   const loadProviders = useProvidersStore((s) => s.load)
   const initUpdateStore = useUpdateStore((s) => s.init)
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
-  const splitGroup = useTerminalStore((s) => s.splitGroup)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
 
@@ -48,7 +47,7 @@ function App(): React.JSX.Element {
 
       if (meta && e.key === 't') {
         e.preventDefault()
-        createTerminal(state.activeGroupId ?? undefined)
+        void openInheritedTerminal(state.activeGroupId ?? undefined)
       }
 
       if (meta && e.key === 'w') {
@@ -134,12 +133,12 @@ function App(): React.JSX.Element {
 
       if (meta && !e.shiftKey && e.key === '\\') {
         e.preventDefault()
-        if (state.activeGroupId) splitGroup(state.activeGroupId, 'horizontal')
+        if (state.activeGroupId) void openInheritedSplit(state.activeGroupId, 'horizontal')
       }
 
       if (meta && e.shiftKey && e.key === '\\') {
         e.preventDefault()
-        if (state.activeGroupId) splitGroup(state.activeGroupId, 'vertical')
+        if (state.activeGroupId) void openInheritedSplit(state.activeGroupId, 'vertical')
       }
 
       if (meta && e.key >= '1' && e.key <= '9') {
@@ -170,14 +169,7 @@ function App(): React.JSX.Element {
         }
       }
     },
-    [
-      createTerminal,
-      toggleSidebar,
-      splitGroup,
-      setActiveGroup,
-      setActiveTerminalInGroup,
-      openSidebarSearch
-    ]
+    [toggleSidebar, setActiveGroup, setActiveTerminalInGroup, openSidebarSearch]
   )
 
   useEffect(() => {

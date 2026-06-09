@@ -68,6 +68,7 @@ export interface DplexAPI {
     destroy: (id: string) => void
     pause: (id: string) => void
     resume: (id: string) => void
+    getCwd: (id: string) => Promise<string | null>
     onData: (callback: (id: string, data: string) => void) => () => void
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }
@@ -268,6 +269,7 @@ const dplexAPI: DplexAPI = {
     destroy: (id) => ipcRenderer.send('pty:destroy', id),
     pause: (id) => ipcRenderer.send('pty:pause', id),
     resume: (id) => ipcRenderer.send('pty:resume', id),
+    getCwd: (id) => ipcRenderer.invoke('pty:getCwd', id),
     onData: (callback) => {
       const handler = (
         _event: Electron.IpcRendererEvent,
