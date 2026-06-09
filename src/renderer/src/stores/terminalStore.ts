@@ -118,7 +118,7 @@ interface TerminalState {
   setActiveGroup: (groupId: string) => void
   setActiveTerminalInGroup: (groupId: string, terminalId: string) => void
   renameTerminal: (terminalId: string, title: string) => void
-  splitGroup: (groupId: string, direction: 'horizontal' | 'vertical') => string
+  splitGroup: (groupId: string, direction: 'horizontal' | 'vertical', cwd?: string) => string
   moveTerminalToGroup: (terminalId: string, targetGroupId: string, insertIndex?: number) => void
   moveTerminalToNewSplit: (
     terminalId: string,
@@ -313,15 +313,30 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     }))
   },
 
-  splitGroup: (groupId, direction) => {
+  splitGroup: (groupId, direction, cwd) => {
     const state = get()
+
+    // cwd inheritance resolves asynchronously before splitGroup is called, so
+    // the target group may have been closed in the meantime. Splitting against
+    // a group that's no longer in the layout would append an orphan group that
+    // insertSplitInLayout can't attach, leaving it unreachable. Redirect to the
+    // active group, or open a standalone terminal if nothing valid remains.
+    const targetGroupId = state.groups.some((g) => g.id === groupId)
+      ? groupId
+      : state.activeGroupId && state.groups.some((g) => g.id === state.activeGroupId)
+        ? state.activeGroupId
+        : null
+    if (!targetGroupId) {
+      return get().createTerminal(undefined, undefined, undefined, undefined, cwd)
+    }
+
     const newGid = makeGroupId()
-    const tab = makeTerminalTab()
+    const tab = makeTerminalTab(undefined, undefined, undefined, cwd)
     const newGroup: EditorGroup = { id: newGid, tabs: [tab], activeTabId: tab.id }
 
     set({
       groups: [...state.groups, newGroup],
-      layout: insertSplitInLayout(state.layout, groupId, newGid, direction),
+      layout: insertSplitInLayout(state.layout, targetGroupId, newGid, direction),
       activeGroupId: newGid
     })
     return tab.id

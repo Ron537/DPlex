@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-06-09
+
+### Features
+
+- New terminals and splits now open in the working directory of the terminal you're currently in, instead of always starting at your home folder — so siblings stay in the same project. Falls back to the focused tab's project when the live directory can't be read (e.g. on Windows).
+
 ## [0.21.0] — 2026-06-08
 
 ### Features
@@ -564,7 +570,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/Ron537/DPlex/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/Ron537/DPlex/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/Ron537/DPlex/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/Ron537/DPlex/compare/v0.18.1...v0.19.0

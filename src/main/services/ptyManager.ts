@@ -3,6 +3,7 @@ import { BrowserWindow } from 'electron'
 import * as os from 'os'
 import * as fs from 'fs'
 import { DataBatcher } from './dataBatcher'
+import { getProcessCwd } from './pidCwd'
 
 interface PtyEntry {
   process: pty.IPty
@@ -275,6 +276,17 @@ export function resumePty(id: string): void {
   if (entry) {
     entry.process.resume()
   }
+}
+
+/**
+ * Resolve the live working directory of a PTY's process. Used to inherit the
+ * cwd of the focused terminal when opening a new one. Returns null when the
+ * PTY is unknown or the platform can't introspect the process cwd (Windows).
+ */
+export function getPtyCwd(id: string): Promise<string | null> {
+  const entry = ptys.get(id)
+  if (!entry) return Promise.resolve(null)
+  return getProcessCwd(entry.process.pid)
 }
 
 export function destroyAllPtys(): void {

@@ -20,6 +20,7 @@ import {
 import type { SearchItem, SearchSource } from './types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { requestCloseTab } from '../../stores/closeConfirmStore'
+import { openInheritedTerminal, openInheritedSplit } from '../../utils/inheritCwd'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
@@ -61,7 +62,7 @@ const COMMANDS: readonly CommandEntry[] = [
     Icon: PlusIcon,
     run: () => {
       const ts = useTerminalStore.getState()
-      ts.createTerminal(ts.activeGroupId ?? undefined)
+      void openInheritedTerminal(ts.activeGroupId ?? undefined)
     }
   },
   {
@@ -86,7 +87,7 @@ const COMMANDS: readonly CommandEntry[] = [
     Icon: SplitSquareHorizontal,
     run: () => {
       const ts = useTerminalStore.getState()
-      if (ts.activeGroupId) ts.splitGroup(ts.activeGroupId, 'horizontal')
+      if (ts.activeGroupId) void openInheritedSplit(ts.activeGroupId, 'horizontal')
     }
   },
   {
@@ -98,7 +99,7 @@ const COMMANDS: readonly CommandEntry[] = [
     Icon: SplitSquareVertical,
     run: () => {
       const ts = useTerminalStore.getState()
-      if (ts.activeGroupId) ts.splitGroup(ts.activeGroupId, 'vertical')
+      if (ts.activeGroupId) void openInheritedSplit(ts.activeGroupId, 'vertical')
     }
   },
   {

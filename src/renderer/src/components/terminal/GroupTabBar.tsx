@@ -15,6 +15,7 @@ import { StatusDot } from '../common/StatusDot'
 import { labelForVisual } from '../../utils/sessionStatusVisual'
 import { effectiveSessionVisual } from '../../utils/sessionPairing'
 import { getTabIdentity } from '../../utils/tabProject'
+import { openInheritedTerminal, openInheritedSplit } from '../../utils/inheritCwd'
 import { ShellSelector } from './ShellSelector'
 import type { EditorGroup } from '../../types'
 import { isTerminalTab, isFileDiffTab, isFileEditorTab } from '../../types'
@@ -35,10 +36,8 @@ interface GroupTabBarProps {
 export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.JSX.Element {
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
   const renameTerminal = useTerminalStore((s) => s.renameTerminal)
   const promotePreviewTab = useTerminalStore((s) => s.promotePreviewTab)
-  const splitGroup = useTerminalStore((s) => s.splitGroup)
   const moveTerminalToGroup = useTerminalStore((s) => s.moveTerminalToGroup)
   const reorderTab = useTerminalStore((s) => s.reorderTab)
 
@@ -314,7 +313,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
         <button
           onClick={() => {
             setActiveGroup(group.id)
-            createTerminal(group.id)
+            void openInheritedTerminal(group.id)
           }}
           className="flex items-center justify-center hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0"
           style={{ width: 32, height: 36, color: 'var(--dplex-text-muted)' }}
@@ -325,7 +324,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
         <ShellSelector
           onSelect={(shell) => {
             setActiveGroup(group.id)
-            createTerminal(group.id, undefined, undefined, shell)
+            void openInheritedTerminal(group.id, shell)
           }}
         />
       </div>
@@ -336,7 +335,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
         style={{ borderLeft: '1px solid var(--dplex-border-subtle)', height: 36 }}
       >
         <button
-          onClick={() => splitGroup(group.id, 'horizontal')}
+          onClick={() => void openInheritedSplit(group.id, 'horizontal')}
           className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
           style={{ color: 'var(--dplex-text-muted)' }}
           title="Split right"
@@ -344,7 +343,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
           <SplitSquareHorizontal size={13} />
         </button>
         <button
-          onClick={() => splitGroup(group.id, 'vertical')}
+          onClick={() => void openInheritedSplit(group.id, 'vertical')}
           className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
           style={{ color: 'var(--dplex-text-muted)' }}
           title="Split down"
