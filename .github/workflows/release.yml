@@ -36,7 +36,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        # Pin Windows to windows-2022 (Visual Studio 2022) rather than the
+        # rolling windows-latest. As of mid-2026 windows-latest ships VS2026
+        # ("windows-2025-vs2026"), which node-gyp 11.x cannot detect
+        # (it only recognizes VS 2017/2019/2022), so the native node-pty
+        # rebuild in electron-builder's install-app-deps fails with
+        # "Could not find any Visual Studio installation to use".
+        os: [macos-latest, windows-2022, ubuntu-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -67,7 +73,7 @@ jobs:
         run: npm run build:mac:ci -- --publish ${{ github.event_name == 'workflow_dispatch' && 'never' || 'always' }}
 
       - name: Build Windows
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
