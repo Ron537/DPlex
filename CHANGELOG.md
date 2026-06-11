@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-06-09
+
+### Features
+
+- New **Isolate** focus style: focusing a project can now hide every other project's tabs (and collapse empty split panes) so you see only what you're working on — switch projects and the view follows along. A prominent focus control in the title bar (or ⌘/Ctrl+Shift+O) toggles it on and off and lets you switch between **Dim** (de-emphasize) and **Isolate** (hide) styles. Your open tabs and running sessions are preserved in both views.
+
 ## [0.22.0] — 2026-06-09
 
 ### Features
@@ -570,7 +576,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/Ron537/DPlex/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/Ron537/DPlex/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/Ron537/DPlex/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/Ron537/DPlex/compare/v0.19.0...v0.20.0

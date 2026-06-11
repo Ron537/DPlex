@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Focus } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { persistWorkspaceNow } from '../../stores/terminalStore'
 import { useSettingsStore, applyCssVarsSync } from '../../stores/settingsStore'
@@ -11,6 +12,7 @@ import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
 import { CloseConfirmModal } from '../common/CloseConfirmModal'
 import { AttentionBellButton } from '../attention/AttentionBellButton'
+import { ProjectFocusControl } from './ProjectFocusControl'
 import { DPlexLogo } from '../common/DPlexLogo'
 import { useSessions } from '../../hooks/useSessions'
 import { getTheme } from '../../services/themes'
@@ -18,6 +20,9 @@ import { MOD } from '../../utils/shortcuts'
 import { focusSessionTab } from '../../utils/sessionTabs'
 import { wireGitPanelGlobals } from '../../stores/gitPanelStore'
 import { wireFileExplorerGlobals } from '../../stores/fileExplorerStore'
+import { wireFocusController, disableFocus } from '../../stores/tabFocusStore'
+import { useFocusFilter } from '../../hooks/useFocusFilter'
+import { pruneLayoutToGroups } from '../../utils/tabFocus'
 import type {
   TerminalTab,
   FileDiffTab,
@@ -27,20 +32,6 @@ import type {
   LayoutNode
 } from '../../types'
 import { isTerminalTab } from '../../types'
-
-// Prune layout tree to only include groups that exist in the restored set
-function pruneLayout(node: LayoutNode, validGroupIds: Set<string>): LayoutNode | null {
-  if (node.type === 'group') {
-    return node.groupId && validGroupIds.has(node.groupId) ? node : null
-  }
-  if (!node.children) return null
-  const filtered = node.children
-    .map((c) => pruneLayout(c, validGroupIds))
-    .filter(Boolean) as LayoutNode[]
-  if (filtered.length === 0) return null
-  if (filtered.length === 1) return filtered[0]
-  return { ...node, children: filtered }
-}
 
 async function loadPersistedWorkspace(): Promise<{
   groups: EditorGroup[]
@@ -125,7 +116,7 @@ async function loadPersistedWorkspace(): Promise<{
 
     // Prune layout to only include valid (non-empty) groups
     const validIds = new Set(restoredGroups.map((g) => g.id))
-    const prunedLayout = pruneLayout(data.layout, validIds)
+    const prunedLayout = pruneLayoutToGroups(data.layout, validIds)
     if (!prunedLayout) return null
 
     // Ensure activeGroupId references a valid group
@@ -149,6 +140,21 @@ export function AppLayout(): React.JSX.Element {
   const createTerminal = useTerminalStore((s) => s.createTerminal)
   const themeId = useSettingsStore((s) => s.settings.theme)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // Project focus filter: in isolate mode the rendered layout is pruned to the
+  // groups that still have matching tabs (empty groups collapse). The terminal
+  // store is never mutated — `effLayout` is a derived view only.
+  const { isolate, matches } = useFocusFilter()
+  const visibleGroupIds = useMemo(() => {
+    if (!isolate) return null
+    const ids = new Set<string>()
+    for (const g of groups) if (g.tabs.some(matches)) ids.add(g.id)
+    return ids
+  }, [isolate, groups, matches])
+  const effLayout = useMemo(
+    () => (visibleGroupIds ? pruneLayoutToGroups(layout, visibleGroupIds) : layout),
+    [visibleGroupIds, layout]
+  )
 
   useEffect(() => {
     const handler = (): void => setSettingsOpen(true)
@@ -219,6 +225,13 @@ export function AppLayout(): React.JSX.Element {
   // binding + the single per-root filesystem watcher).
   useEffect(() => {
     const off = wireFileExplorerGlobals()
+    return () => off()
+  }, [])
+
+  // Wire the project-focus controller exactly once (follow-active-project +
+  // per-project selection memory for isolate mode).
+  useEffect(() => {
+    const off = wireFocusController()
     return () => off()
   }, [])
 
@@ -319,7 +332,8 @@ export function AppLayout(): React.JSX.Element {
             DPlex
           </span>
         </div>
-        <div className="w-[76px] flex-shrink-0 flex items-center justify-end pr-2 no-drag">
+        <div className="flex-shrink-0 flex items-center justify-end gap-2 pl-3 pr-2 no-drag">
+          <ProjectFocusControl />
           <AttentionBellButton />
         </div>
       </div>
@@ -331,7 +345,38 @@ export function AppLayout(): React.JSX.Element {
         <div className="flex flex-col flex-1 min-w-0">
           <div className="flex-1 min-w-0 min-h-0">
             {groups.length > 0 ? (
-              <GroupLayout node={layout} />
+              effLayout ? (
+                <GroupLayout node={effLayout} />
+              ) : (
+                <div
+                  className="flex items-center justify-center h-full px-6 text-center"
+                  style={{ backgroundColor: 'var(--dplex-bg)' }}
+                >
+                  <div className="flex flex-col items-center gap-4 max-w-sm">
+                    <Focus size={28} style={{ color: 'var(--dplex-text-dim)' }} />
+                    <div className="flex flex-col gap-1">
+                      <p className="text-sm font-medium" style={{ color: 'var(--dplex-text)' }}>
+                        No tabs for this project
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--dplex-text-muted)' }}>
+                        Focus is isolating a project with no open tabs.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => disableFocus()}
+                      className="inline-flex items-center gap-1.5 px-3 rounded-full transition-colors"
+                      style={{
+                        height: 26,
+                        border: '1px solid var(--dplex-border)',
+                        color: 'var(--dplex-text)',
+                        backgroundColor: 'var(--dplex-bg-elev)'
+                      }}
+                    >
+                      Show all tabs
+                    </button>
+                  </div>
+                </div>
+              )
             ) : (
               <div
                 className="flex items-center justify-center h-full px-6"

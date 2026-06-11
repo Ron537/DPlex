@@ -210,6 +210,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     sectionCollapse: { changes: false }
   },
   editorAutoSave: 'manual',
+  focusFilterMode: 'dim',
   skippedUpdateVersion: null
 }
 

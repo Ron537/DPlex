@@ -5,6 +5,7 @@ import { UpdateBanner } from './components/common/UpdateBanner'
 import { CommandPalette } from './components/search/CommandPalette'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTerminalStore } from './stores/terminalStore'
+import { useProjectStore } from './stores/projectStore'
 import { useProvidersStore } from './stores/providersStore'
 import { useUpdateStore } from './stores/updateStore'
 import { useCommandPaletteStore } from './stores/commandPaletteStore'
@@ -13,6 +14,8 @@ import { getFileEditorHandle } from './services/fileEditorRegistry'
 import { isFileEditorTab } from './types'
 import { dispatchOpenSettings } from './utils/openSettings'
 import { openInheritedTerminal, openInheritedSplit } from './utils/inheritCwd'
+import { toggleFocus, useTabFocusStore } from './stores/tabFocusStore'
+import { tabMatchesFocus } from './utils/tabFocus'
 
 function App(): React.JSX.Element {
   const loadSettings = useSettingsStore((s) => s.loadSettings)
@@ -115,6 +118,13 @@ function App(): React.JSX.Element {
         dispatchOpenSettings()
       }
 
+      // Cmd/Ctrl+Shift+O → toggle project focus (isolate/dim the active project).
+      if (meta && e.shiftKey && (e.key === 'o' || e.key === 'O')) {
+        e.preventDefault()
+        toggleFocus()
+        return
+      }
+
       // Cmd/Ctrl+P → global search palette (all categories).
       // Cmd/Ctrl+Shift+P → command runner (commands category only).
       //
@@ -155,11 +165,21 @@ function App(): React.JSX.Element {
           }
         }
         walk(state.layout)
+        // In isolate focus mode the numeric shortcut must address only the
+        // tabs the user can actually see, otherwise it could activate a hidden
+        // tab and desync the visible view from the real active tab.
+        const focus = useTabFocusStore.getState()
+        const isolateActive =
+          focus.focusedProjectId !== null &&
+          useSettingsStore.getState().settings.focusFilterMode === 'isolate'
+        const projects = useProjectStore.getState().projects
+        const isVisible = (t: Parameters<typeof tabMatchesFocus>[0]): boolean =>
+          !isolateActive || tabMatchesFocus(t, projects, focus.focusedProjectId)
         const orderedGroups = orderedGroupIds
           .map((id) => state.groups.find((g) => g.id === id))
           .filter((g): g is NonNullable<typeof g> => Boolean(g))
         const flatTabs = orderedGroups.flatMap((g) =>
-          g.tabs.map((t) => ({ groupId: g.id, tabId: t.id }))
+          g.tabs.filter(isVisible).map((t) => ({ groupId: g.id, tabId: t.id }))
         )
         const idx = parseInt(e.key) - 1
         if (idx < flatTabs.length) {

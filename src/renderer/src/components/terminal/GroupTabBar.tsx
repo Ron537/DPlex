@@ -10,7 +10,7 @@ import { useTerminalStore } from '../../stores/terminalStore'
 import { requestCloseTab } from '../../stores/closeConfirmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
-import { useTabFocusStore } from '../../stores/tabFocusStore'
+import { useFocusFilter } from '../../hooks/useFocusFilter'
 import { StatusDot } from '../common/StatusDot'
 import { labelForVisual } from '../../utils/sessionStatusVisual'
 import { effectiveSessionVisual } from '../../utils/sessionPairing'
@@ -48,7 +48,15 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
 
   const sessions = useSessionStore((s) => s.sessions)
   const projects = useProjectStore((s) => s.projects)
-  const focusedProjectId = useTabFocusStore((s) => s.focusedProjectId)
+  const { isolate, dim, matches } = useFocusFilter()
+  // Mirror EditorGroup's effective-active-tab derivation: in isolate mode a
+  // group's stored activeTabId may point at a now-hidden tab, in which case the
+  // content pane falls back to the first visible tab. Compute the same id here
+  // so the tab strip's "active" styling matches what's actually rendered.
+  const visibleTabs = isolate ? group.tabs.filter(matches) : group.tabs
+  const effectiveActiveId = visibleTabs.some((t) => t.id === group.activeTabId)
+    ? group.activeTabId
+    : visibleTabs[0]?.id
 
   const handleDoubleClick = (tabId: string, currentTitle: string): void => {
     setEditingTabId(tabId)
@@ -128,18 +136,17 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
           const isTerminal = isTerminalTab(tab)
           const tabSessionId = isTerminal ? tab.sessionId : undefined
           const tabProviderId = isTerminal ? tab.providerId : undefined
-          const isActive = isActiveGroup && tab.id === group.activeTabId
+          const isActive = isActiveGroup && tab.id === effectiveActiveId
           const isPreview =
             (isFileDiff || isFileEditor) && (tab as { preview?: boolean }).preview === true
           const isDirty = isFileEditor && tab.dirty === true
           const identity = getTabIdentity(tab, projects)
-          const focusActive = focusedProjectId !== null
-          const isInFocus =
-            !focusActive ||
-            (identity !== undefined &&
-              (identity.colorProject.id === focusedProjectId ||
-                identity.matched.id === focusedProjectId))
-          const dimmed = focusActive && !isInFocus && !isActive
+          // Isolate mode hides non-matching tabs entirely; dim mode keeps them
+          // visible but de-emphasized. Iterate the real `group.tabs` (returning
+          // null for hidden tabs) so drag-reorder indices stay correct.
+          const inFocus = matches(tab)
+          if (isolate && !inFocus) return null
+          const dimmed = dim && !inFocus && !isActive
           const projectTitle = identity
             ? identity.matched.id === identity.colorProject.id
               ? identity.matched.name

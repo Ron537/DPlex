@@ -203,6 +203,15 @@ export interface AppSettings {
    */
   editorAutoSave: 'manual' | 'onChange'
   /**
+   * How the project focus toggle filters tabs. `'dim'` (default) keeps every
+   * tab visible but de-emphasizes tabs outside the focused project.
+   * `'isolate'` hides non-matching tabs entirely, showing only the active
+   * project's tabs and collapsing now-empty split groups. The on/off state of
+   * focus itself is ephemeral (never persisted); only this style preference is
+   * remembered.
+   */
+  focusFilterMode: 'dim' | 'isolate'
+  /**
    * Version the user explicitly chose to skip from the update banner.
    * Honored only for `manualDownload` flows (macOS, .deb) — auto-install
    * platforms surface the banner only after the bytes are already on

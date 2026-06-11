@@ -2,6 +2,7 @@ import { useState, DragEvent } from 'react'
 import type { EditorGroup as EditorGroupType } from '../../types'
 import { isFileDiffTab, isFileEditorTab } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { useFocusFilter } from '../../hooks/useFocusFilter'
 import { GroupTabBar } from './GroupTabBar'
 import { TabHeader } from './TabHeader'
 import { TerminalView } from './TerminalView'
@@ -17,10 +18,31 @@ type DropZone = 'left' | 'right' | 'top' | 'bottom' | null
 export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
   const activeGroupId = useTerminalStore((s) => s.activeGroupId)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
+  const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const moveTerminalToNewSplit = useTerminalStore((s) => s.moveTerminalToNewSplit)
   const isActiveGroup = group.id === activeGroupId
   const [dropZone, setDropZone] = useState<DropZone>(null)
-  const activeTab = group.tabs.find((t) => t.id === group.activeTabId)
+  // In isolate mode only the focused project's tabs render; the effective
+  // active tab falls back to the first visible tab when the stored active tab
+  // is hidden. The store is never mutated — this is a pure render view.
+  const { isolate, matches } = useFocusFilter()
+  const visibleTabs = isolate ? group.tabs.filter(matches) : group.tabs
+  const effectiveActiveId = visibleTabs.some((t) => t.id === group.activeTabId)
+    ? group.activeTabId
+    : visibleTabs[0]?.id
+  const activeTab = visibleTabs.find((t) => t.id === effectiveActiveId)
+
+  // Activate this group. When isolate focus has pushed the rendered (effective)
+  // active tab away from the stored `activeTabId` (the stored one is hidden),
+  // also commit the effective tab so the projectStore active-tab subscriber
+  // doesn't read the hidden tab and retarget focus to another project.
+  const activateGroup = (): void => {
+    if (effectiveActiveId && effectiveActiveId !== group.activeTabId) {
+      setActiveTerminalInGroup(group.id, effectiveActiveId)
+    } else {
+      setActiveGroup(group.id)
+    }
+  }
 
   const getDropZone = (e: DragEvent<HTMLDivElement>): DropZone => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -80,10 +102,7 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
   }
 
   return (
-    <div
-      className={`flex flex-col h-full ${isActiveGroup ? '' : ''}`}
-      onClick={() => setActiveGroup(group.id)}
-    >
+    <div className={`flex flex-col h-full ${isActiveGroup ? '' : ''}`} onClick={activateGroup}>
       <GroupTabBar group={group} isActiveGroup={isActiveGroup} />
       {activeTab && <TabHeader tab={activeTab} />}
 
@@ -95,8 +114,8 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
         onDragLeave={handleDragLeave}
       >
         {/* Render all tabs — active on top, inactive hidden but laid out */}
-        {group.tabs.map((tab) => {
-          const isActive = tab.id === group.activeTabId
+        {visibleTabs.map((tab) => {
+          const isActive = tab.id === effectiveActiveId
           return (
             <div
               key={tab.id}
@@ -114,7 +133,7 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
                 <TerminalView
                   terminalId={tab.id}
                   isActive={isActiveGroup && isActive}
-                  onFocus={() => setActiveGroup(group.id)}
+                  onFocus={activateGroup}
                 />
               )}
             </div>
