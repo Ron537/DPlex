@@ -63,6 +63,7 @@ import {
   listChanges as diffListChanges,
   resolveBranchBase
 } from './services/diff/diffService'
+import { getCommitFiles, getCommitGraph } from './services/diff/commitGraph'
 import {
   applyHunkPatch,
   deleteUntracked,
@@ -861,6 +862,12 @@ function safeScope(input: unknown): DiffScope | null {
       resolvedRef
     }
   }
+  if (input.kind === 'commit' && typeof input.sha === 'string') {
+    // SHAs are hex; enforce a strict charset so the value can never be
+    // interpreted as a git option or shell metacharacter.
+    if (!/^[0-9a-fA-F]{4,64}$/.test(input.sha)) return null
+    return { kind: 'commit', sha: input.sha }
+  }
   return null
 }
 
@@ -933,6 +940,26 @@ function registerDiffHandlers(): void {
     ])
     const resolvedDefaultRef = defaultBase ? await resolveBranchBase(root, defaultBase) : null
     return { local, remote, defaultBase, resolvedDefaultRef }
+  })
+
+  ipcMain.handle('diff:getCommitGraph', async (_event, repoRootFs: unknown, opts: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    if (!root) return { commits: [], hasMore: false }
+    const o = isPlainObject(opts) ? opts : {}
+    const limitRaw = typeof o.limit === 'number' ? o.limit : 100
+    const skipRaw = typeof o.skip === 'number' ? o.skip : 0
+    const limit = Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 100
+    const skip = Number.isFinite(skipRaw) ? Math.max(0, Math.floor(skipRaw)) : 0
+    return getCommitGraph(root, { limit, skip })
+  })
+
+  ipcMain.handle('diff:getCommitFiles', async (_event, repoRootFs: unknown, sha: unknown) => {
+    const root = await safeRepoRoot(repoRootFs)
+    // Strict hex charset — defends against option/shell injection via the SHA.
+    if (!root || typeof sha !== 'string' || !/^[0-9a-fA-F]{4,64}$/.test(sha)) {
+      return { files: [], truncated: false, totalCount: 0 }
+    }
+    return getCommitFiles(root, sha)
   })
 
   ipcMain.handle('diff:stageFile', async (_event, repoRootFs: unknown, gitPath: unknown) => {

@@ -128,4 +128,68 @@ test.describe('DPlex Git panel', () => {
       await fs.rm(tmp, { recursive: true, force: true })
     }
   })
+
+  test('graph section lists commits, expands files, and opens a commit diff', async () => {
+    if (!window || !repoPath) throw new Error('Window/repo not available')
+
+    await seedProjects(window, [{ id: 'p-graph-e2e', name: 'graph-repo', path: repoPath }])
+    await window.getByText('graph-repo').click()
+    await window.getByTestId('activity-bar-git').click()
+    await expect(window.getByTestId('git-side-panel-view')).toBeVisible({ timeout: 5_000 })
+
+    // The Graph section is collapsed by default — expand it.
+    const graphSection = window.getByTestId('git-panel-graph-section')
+    await expect(graphSection).toBeVisible()
+    await graphSection.getByRole('button').first().click()
+
+    // The init commit appears as a row in the graph.
+    const graph = window.getByTestId('commit-graph')
+    await expect(graph).toBeVisible({ timeout: 10_000 })
+    const commitRow = window.getByTestId('commit-row').first()
+    await expect(commitRow).toBeVisible({ timeout: 10_000 })
+
+    // Expanding the commit reveals its changed files (README.md, added).
+    await commitRow.click()
+    const fileInCommit = graph.locator('[data-git-path="README.md"]').first()
+    await expect(fileInCommit).toBeVisible({ timeout: 10_000 })
+
+    // Clicking the file opens a diff tab for that commit.
+    await fileInCommit.click()
+    const diffTab = window
+      .getByTestId('editor-tab-label')
+      .filter({ hasText: 'README.md' })
+      .first()
+    await expect(diffTab).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('shows a resizable sash when both Changes and Graph are expanded', async () => {
+    if (!window || !repoPath) throw new Error('Window/repo not available')
+
+    await seedProjects(window, [{ id: 'p-sash-e2e', name: 'sash-repo', path: repoPath }])
+    await window.getByText('sash-repo').click()
+    await window.getByTestId('activity-bar-git').click()
+    await expect(window.getByTestId('git-side-panel-view')).toBeVisible({ timeout: 5_000 })
+
+    // Changes is expanded by default; Graph is collapsed → no sash yet.
+    await expect(window.getByTestId('git-panel-sash')).toHaveCount(0)
+
+    // Expand Graph → both panes open → the resize sash appears.
+    const graphSection = window.getByTestId('git-panel-graph-section')
+    await graphSection.getByRole('button').first().click()
+    const sash = window.getByTestId('git-panel-sash')
+    await expect(sash).toBeVisible({ timeout: 5_000 })
+
+    // Drag the sash upward and confirm the Changes pane shrinks.
+    const changes = window.getByTestId('git-panel-changes-section')
+    const before = await changes.boundingBox()
+    const handle = await sash.boundingBox()
+    if (!before || !handle) throw new Error('Missing layout boxes')
+    await window.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
+    await window.mouse.down()
+    await window.mouse.move(handle.x + handle.width / 2, handle.y - 80, { steps: 8 })
+    await window.mouse.up()
+    const after = await changes.boundingBox()
+    if (!after) throw new Error('Missing changes box after drag')
+    expect(after.height).toBeLessThan(before.height)
+  })
 })

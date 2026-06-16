@@ -47,6 +47,19 @@ function makeFileDiffTitle(gitPath: string): string {
   return i >= 0 ? gitPath.slice(i + 1) : gitPath
 }
 
+/**
+ * Whether two diff scopes refer to the same comparison. Used to decide
+ * whether an open diff tab can be reused/focused. Beyond `kind`, commit and
+ * branch scopes must match their discriminant (SHA / base) so e.g. the same
+ * file viewed at two different commits opens two distinct tabs.
+ */
+function scopesMatch(a: FileDiffTab['scope'], b: FileDiffTab['scope']): boolean {
+  if (a.kind !== b.kind) return false
+  if (a.kind === 'commit' && b.kind === 'commit') return a.sha === b.sha
+  if (a.kind === 'branch' && b.kind === 'branch') return a.base === b.base
+  return true
+}
+
 /** Basename of a project-relative POSIX path (file editor tab title). */
 function makeFileTitle(relPath: string): string {
   const i = relPath.lastIndexOf('/')
@@ -579,7 +592,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
         if (
           isFileDiffTab(t) &&
           t.repoRootFs === input.repoRootFs &&
-          t.scope.kind === input.scope.kind &&
+          scopesMatch(t.scope, input.scope) &&
           t.file.gitPath === input.file.gitPath
         ) {
           if (t.preview && input.preview === false) {

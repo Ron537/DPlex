@@ -149,4 +149,29 @@ describe('parseNameStatusZ (branch scope)', () => {
     const out = parseNameStatusZ('M\tmy docs/file with spaces.md\0')
     expect(out[0].gitPath).toBe('my docs/file with spaces.md')
   })
+
+  // Modern git (>= ~2.x) emits ordinary entries as `status\0path\0` (status
+  // in its own NUL-separated chunk), not the legacy `status\tpath\0` form.
+  it('parses ordinary entries in the modern NUL-separated form', () => {
+    const out = parseNameStatusZ('M\0src/foo.ts\0A\0new.txt\0D\0gone.txt\0')
+    expect(out).toEqual([
+      { gitPath: 'src/foo.ts', headStatus: 'M', wtStatus: '.' },
+      { gitPath: 'new.txt', headStatus: 'A', wtStatus: '.' },
+      { gitPath: 'gone.txt', headStatus: 'D', wtStatus: '.' }
+    ])
+  })
+
+  it('mixes modern ordinary entries with renames', () => {
+    const out = parseNameStatusZ('M\0a.ts\0R100\0old.ts\0new.ts\0')
+    expect(out).toEqual([
+      { gitPath: 'a.ts', headStatus: 'M', wtStatus: '.' },
+      {
+        gitPath: 'new.ts',
+        oldGitPath: 'old.ts',
+        headStatus: 'R',
+        wtStatus: '.',
+        similarity: 100
+      }
+    ])
+  })
 })

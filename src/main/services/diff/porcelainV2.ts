@@ -131,10 +131,14 @@ function splitFields(rec: string, count: number): { fields: string[]; rest: stri
 }
 
 /**
- * Parser for `git diff --name-status -z --find-renames <base>...HEAD`.
+ * Parser for `git diff --name-status -z` and `git diff-tree --name-status -z`.
  *
- * Format with `-z`: status\tpath\0  OR  R<score>\0path\0newPath\0
- * (rename/copy span THREE NUL-separated chunks).
+ * Modern git (`-z`) emits each field as its own NUL-separated chunk:
+ *   ordinary:    `<status>\0<path>\0`
+ *   rename/copy: `R<score>\0<oldPath>\0<newPath>\0`
+ * Older git emitted ordinary entries as a single `<status>\t<path>\0` chunk
+ * (tab between status and path). We accept BOTH ordinary forms so the parser
+ * is robust across git versions.
  */
 export function parseNameStatusZ(stdout: string): ChangedFile[] {
   const files: ChangedFile[] = []
@@ -146,19 +150,18 @@ export function parseNameStatusZ(stdout: string): ChangedFile[] {
     i++
     if (!head) continue
 
-    // Status may have a tab after it for ordinary entries: "M\tpath".
-    // For rename/copy, head is just "R100" or "C75" (no tab) and the
-    // path/newPath live in the next two chunks.
+    // Legacy ordinary form: "M\tpath" — status and path share one chunk.
     const tabIdx = head.indexOf('\t')
     if (tabIdx !== -1) {
       const code = head.slice(0, tabIdx)
       const gitPath = head.slice(tabIdx + 1)
       if (!gitPath) continue
       const status = asStatus(code[0] ?? '.')
-      // For branch scope, all changes are HEAD↔base, so we encode them in
-      // headStatus and leave wtStatus '.'. Renderer flat list reads headStatus.
+      // For branch/commit scope, all changes are encoded in headStatus and
+      // wtStatus is left '.'. Renderer flat list reads headStatus.
       files.push({ gitPath, headStatus: status, wtStatus: '.' })
     } else if (head[0] === 'R' || head[0] === 'C') {
+      // Rename/copy: status chunk, then oldPath, then newPath.
       const oldGitPath = chunks[i] ?? ''
       i++
       const newGitPath = chunks[i] ?? ''
@@ -172,6 +175,12 @@ export function parseNameStatusZ(stdout: string): ChangedFile[] {
         wtStatus: '.',
         similarity: Number.isFinite(scoreNum) ? scoreNum : undefined
       })
+    } else if (head.length === 1 && STATUS_CHARS.has(head as GitStatusCode)) {
+      // Modern ordinary form: status chunk, path in the next chunk.
+      const gitPath = chunks[i] ?? ''
+      i++
+      if (!gitPath) continue
+      files.push({ gitPath, headStatus: asStatus(head), wtStatus: '.' })
     }
   }
   return files

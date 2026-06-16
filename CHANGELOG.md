@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-06-15
+
+### Features
+
+- New **Graph** section in the Source Control panel shows your repository's commit history as a VS Code–style colored branch graph, right below Changes. Expand any commit to see the files it changed, and click a file to open that commit's diff.
+- Changes and Graph are now independent panes you can resize by dragging the divider between them — give more room to whichever you're focused on, and the split is remembered.
+
+### Improvements
+
+- The Source Control panel no longer shows a redundant second "Changes" heading.
+
 ## [0.23.0] — 2026-06-09
 
 ### Features
@@ -576,7 +587,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/Ron537/DPlex/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/Ron537/DPlex/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/Ron537/DPlex/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/Ron537/DPlex/compare/v0.20.0...v0.21.0

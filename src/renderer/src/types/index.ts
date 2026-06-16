@@ -226,7 +226,10 @@ export interface GitPanelSettings {
   /** Expanded width in px. */
   width: number
   /** Per-section collapse map. Keys are section ids. */
-  sectionCollapse: { changes: boolean }
+  sectionCollapse: { changes: boolean; graph: boolean }
+  /** When both Changes and Graph are expanded, the fraction of vertical
+   *  space (0–1) given to the Changes pane. The Graph pane gets the rest. */
+  changesFraction: number
 }
 
 export interface WorktreeDefaults {

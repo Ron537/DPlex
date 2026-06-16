@@ -1,5 +1,6 @@
 import React from 'react'
 import type { ChangedFile } from '../../../../preload'
+import { rowStatusBadge } from '../../utils/fileStatusBadge'
 
 interface ChangesListProps {
   files: ChangedFile[]
@@ -11,29 +12,6 @@ interface ChangesListProps {
   error?: string
 }
 
-/**
- * Status code badge — single character. Combines head/wt for the row badge.
- *
- * Returns the letter + the matching `.dplex-file-*` class so the row
- * renders with the polished colored chip style (rounded square with
- * mono letter), matching the preview's git inspector.
- *
- * Priority: U (conflict) > A > D > M > R > C > T > !.
- * The renderer does NOT split into "Staged" / "Changes" sections in v1 —
- * we'll add that section split when we wire per-section actions.
- */
-function rowStatusBadge(file: ChangedFile): { letter: string; cls: string } {
-  const codes = [file.headStatus, file.wtStatus]
-  if (codes.includes('U') || file.isConflict) return { letter: 'U', cls: 'dplex-file-U' }
-  if (codes.includes('A') || codes.includes('?')) return { letter: 'A', cls: 'dplex-file-A' }
-  if (codes.includes('D')) return { letter: 'D', cls: 'dplex-file-D' }
-  if (codes.includes('R')) return { letter: 'R', cls: 'dplex-file-R' }
-  if (codes.includes('C')) return { letter: 'C', cls: 'dplex-file-R' }
-  if (codes.includes('M')) return { letter: 'M', cls: 'dplex-file-M' }
-  if (codes.includes('T')) return { letter: 'T', cls: 'dplex-file-default' }
-  return { letter: '!', cls: 'dplex-file-default' }
-}
-
 export function ChangesList({
   files,
   selectedPath,
@@ -43,30 +21,11 @@ export function ChangesList({
   loading,
   error
 }: ChangesListProps): React.JSX.Element {
-  // Only surface "Refreshing…" on the initial load (no files yet).
-  // Background refreshes triggered by the fs watcher stay silent — the
-  // list updates in place when the new data arrives.
-  const showRefreshing = loading && files.length === 0
   return (
     <div
       className="flex flex-col h-full overflow-y-auto"
       style={{ backgroundColor: 'var(--dplex-bg-alt)' }}
     >
-      <div
-        className="px-3 py-2 text-[11px] flex items-center justify-between sticky top-0 z-10"
-        style={{
-          backgroundColor: 'var(--dplex-bg-alt)',
-          borderBottom: '1px solid var(--dplex-border)',
-          color: 'var(--dplex-text-muted)'
-        }}
-      >
-        <span>
-          Changes{' '}
-          {totalCount > 0 && <span style={{ color: 'var(--dplex-text)' }}>({totalCount})</span>}
-        </span>
-        {showRefreshing && <span>Refreshing…</span>}
-      </div>
-
       {error && (
         <div
           className="px-3 py-2 text-[11px]"

@@ -207,7 +207,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   gitPanel: {
     open: false,
     width: 300,
-    sectionCollapse: { changes: false }
+    sectionCollapse: { changes: false, graph: true },
+    changesFraction: 0.5
   },
   editorAutoSave: 'manual',
   focusFilterMode: 'dim',

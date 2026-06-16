@@ -19,6 +19,7 @@ import { getTheme } from '../../services/themes'
 import { MOD } from '../../utils/shortcuts'
 import { focusSessionTab } from '../../utils/sessionTabs'
 import { wireGitPanelGlobals } from '../../stores/gitPanelStore'
+import { wireGitGraphGlobals } from '../../stores/gitGraphStore'
 import { wireFileExplorerGlobals } from '../../stores/fileExplorerStore'
 import { wireFocusController, disableFocus } from '../../stores/tabFocusStore'
 import { useFocusFilter } from '../../hooks/useFocusFilter'
@@ -218,6 +219,12 @@ export function AppLayout(): React.JSX.Element {
   // Wire global Git-panel side-effects exactly once.
   useEffect(() => {
     const off = wireGitPanelGlobals()
+    return () => off()
+  }, [])
+
+  // Wire global commit-graph refresh side-effects exactly once.
+  useEffect(() => {
+    const off = wireGitGraphGlobals()
     return () => off()
   }, [])
 

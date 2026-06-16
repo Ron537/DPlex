@@ -13,6 +13,8 @@ import type {
 } from '../main/services/worktrees/types'
 import type {
   ChangeListResult,
+  CommitGraphOptions,
+  CommitGraphResult,
   DiffScope,
   FileDiffContent,
   FileDiffRequest,
@@ -50,6 +52,10 @@ export type {
 export type {
   ChangedFile,
   ChangeListResult,
+  CommitGraphEntry,
+  CommitGraphOptions,
+  CommitGraphResult,
+  CommitRef,
   DiffScope,
   FileDiffContent,
   FileDiffRequest,
@@ -224,6 +230,8 @@ export interface DplexAPI {
       defaultBase: string | null
       resolvedDefaultRef: string | null
     }>
+    getCommitGraph: (repoRootFs: string, opts: CommitGraphOptions) => Promise<CommitGraphResult>
+    getCommitFiles: (repoRootFs: string, sha: string) => Promise<ChangeListResult>
     stageFile: (repoRootFs: string, gitPath: string) => Promise<MutationResult>
     unstageFile: (repoRootFs: string, gitPath: string) => Promise<MutationResult>
     discardFile: (repoRootFs: string, gitPath: string) => Promise<MutationResult>
@@ -422,6 +430,9 @@ const dplexAPI: DplexAPI = {
     getRepoStatus: (repoRootFs) => ipcRenderer.invoke('diff:getRepoStatus', repoRootFs),
     fileContent: (req) => ipcRenderer.invoke('diff:fileContent', req),
     listBranches: (repoRootFs) => ipcRenderer.invoke('diff:listBranches', repoRootFs),
+    getCommitGraph: (repoRootFs, opts) =>
+      ipcRenderer.invoke('diff:getCommitGraph', repoRootFs, opts),
+    getCommitFiles: (repoRootFs, sha) => ipcRenderer.invoke('diff:getCommitFiles', repoRootFs, sha),
     stageFile: (repoRootFs, gitPath) => ipcRenderer.invoke('diff:stageFile', repoRootFs, gitPath),
     unstageFile: (repoRootFs, gitPath) =>
       ipcRenderer.invoke('diff:unstageFile', repoRootFs, gitPath),

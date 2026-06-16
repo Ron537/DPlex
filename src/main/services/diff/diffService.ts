@@ -13,6 +13,7 @@
 import * as fsp from 'fs/promises'
 import * as path from 'path'
 import { execGitRaw } from '../gitService'
+import { getCommitFiles } from './commitGraph'
 import { parseNameStatusZ, parsePorcelainV2 } from './porcelainV2'
 import type {
   ChangedFile,
@@ -71,6 +72,11 @@ export async function listChanges(repoRootFs: string, scope: DiffScope): Promise
     }
     const all = parsePorcelainV2(r.stdout)
     return capList(all)
+  }
+
+  // commit
+  if (scope.kind === 'commit') {
+    return getCommitFiles(repoRootFs, scope.sha)
   }
 
   // branch
@@ -309,6 +315,59 @@ export async function fileDiffContent(req: FileDiffRequest): Promise<FileDiffCon
       rightGitPath = null
     } else {
       const right = await readBlob(repoRootFs, 'HEAD', gitPath)
+      if (right) {
+        rightText = right.text
+        if (right.isBinary) isBinary = true
+        if (right.size > MAX_CONTENT_BYTES) truncated = true
+      } else {
+        rightIsEmpty = true
+        rightGitPath = null
+      }
+    }
+    return {
+      leftRef,
+      rightRef,
+      leftGitPath,
+      rightGitPath,
+      leftText,
+      rightText,
+      leftIsEmpty,
+      rightIsEmpty,
+      isBinary,
+      truncated,
+      leftBlobOid,
+      eol
+    }
+  }
+
+  if (scope.kind === 'commit') {
+    const sha = scope.sha
+    const shortSha = sha.slice(0, 7)
+    // Compare the commit against its first parent (`sha^`). For a root commit
+    // `sha^` doesn't resolve, so readBlob returns null and the left side
+    // renders empty (the file shows as a pure addition).
+    leftRef = `${shortSha}^`
+    rightRef = shortSha
+    if (file.headStatus === 'A') {
+      leftIsEmpty = true
+      leftGitPath = null
+    } else {
+      const left = await readBlob(repoRootFs, `${sha}^`, oldGitPath)
+      if (left) {
+        leftText = left.text
+        leftBlobOid = left.oid ?? undefined
+        if (left.isBinary) isBinary = true
+        if (left.size > MAX_CONTENT_BYTES) truncated = true
+      } else {
+        leftIsEmpty = true
+        leftGitPath = null
+      }
+    }
+    if (file.headStatus === 'D') {
+      rightIsEmpty = true
+      rightGitPath = null
+    } else {
+      const right = await readBlob(repoRootFs, sha, gitPath)
       if (right) {
         rightText = right.text
         if (right.isBinary) isBinary = true

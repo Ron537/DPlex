@@ -53,11 +53,11 @@ export function GitPanelChangesSection({
   )
 
   return (
-    <div data-testid="git-panel-changes-section">
+    <div data-testid="git-panel-changes-section" className="flex flex-col min-h-0 h-full">
       <button
         type="button"
         onClick={onToggleCollapsed}
-        className="flex items-center gap-1 w-full px-2 h-6 hover:bg-[var(--dplex-hover)]"
+        className="flex items-center gap-1 w-full px-2 h-6 flex-shrink-0 hover:bg-[var(--dplex-hover)]"
         aria-expanded={!collapsed}
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
@@ -75,7 +75,7 @@ export function GitPanelChangesSection({
         </span>
       </button>
       {!collapsed && (
-        <div onDoubleClick={onWrapperDoubleClick}>
+        <div className="flex-1 min-h-0" onDoubleClick={onWrapperDoubleClick}>
           <ChangesList
             files={files}
             selectedPath={selectedGitPath}

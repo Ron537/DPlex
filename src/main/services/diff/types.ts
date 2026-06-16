@@ -48,11 +48,15 @@ export interface ChangedFile {
 /**
  * Working-tree-vs-HEAD scope returns BOTH "Staged" and "Changes" sections —
  * a file may appear in both with different statuses (partial stage). The
- * branch-vs-base scope returns a single flat list.
+ * branch-vs-base and commit scopes return a single flat list.
+ *
+ * `commit` scope diffs a single commit against its first parent (`sha^..sha`),
+ * or against the empty tree for a root commit. It is always read-only.
  */
 export type DiffScope =
   | { kind: 'workingTree' }
   | { kind: 'branch'; base: string; resolvedRef?: string }
+  | { kind: 'commit'; sha: string }
 
 export interface ChangeListResult {
   files: ChangedFile[]
@@ -166,4 +170,45 @@ export interface RepoStatus {
   operation?: 'merge' | 'rebase' | 'cherry-pick' | 'bisect'
   /** Human-readable detail (only populated for `error`). */
   message?: string
+}
+
+// ── Commit graph (history) ─────────────────────────────────────────
+
+/** A ref label decorating a commit (branch / remote branch / tag / HEAD). */
+export interface CommitRef {
+  /** Short, display-ready name (e.g. `main`, `origin/main`, `v1.2.0`). */
+  name: string
+  kind: 'head' | 'localBranch' | 'remoteBranch' | 'tag'
+}
+
+/** A single commit in the history graph. Topology is encoded via `parents`. */
+export interface CommitGraphEntry {
+  /** Full 40-char commit SHA. */
+  sha: string
+  /** Abbreviated SHA (git's default short form). */
+  shortSha: string
+  /** Parent SHAs in order. Empty for a root commit; >1 for a merge. */
+  parents: string[]
+  /** Commit subject (first line of the message). */
+  subject: string
+  authorName: string
+  authorEmail: string
+  /** Author date in epoch milliseconds. */
+  authorDate: number
+  /** Ref labels pointing at this commit (may be empty). */
+  refs: CommitRef[]
+}
+
+export interface CommitGraphResult {
+  commits: CommitGraphEntry[]
+  /** True when more commits exist beyond this page (caller can load more). */
+  hasMore: boolean
+}
+
+/** Options for paginating the commit graph. */
+export interface CommitGraphOptions {
+  /** Max commits to return (page size). */
+  limit: number
+  /** Number of commits to skip (for pagination). */
+  skip?: number
 }
