@@ -153,17 +153,15 @@ export class CopilotChronicle {
     for (const c of required) {
       if (!this.hasSessionsCols.has(c)) return
     }
-    const hostTypeCol = this.hasSessionsCols.has('host_type') ? 'host_type' : `NULL AS host_type`
     try {
       this.stmts.listSessions = this.db.prepare(
-        `SELECT id, cwd, repository, branch, summary, ${hostTypeCol}, created_at, updated_at
+        `SELECT id, cwd, repository, branch, summary, created_at, updated_at
          FROM sessions
          WHERE updated_at >= ?
-           AND (host_type IS NULL OR ? = 1)
          ORDER BY updated_at DESC`
       )
       this.stmts.byId = this.db.prepare(
-        `SELECT id, cwd, repository, branch, summary, ${hostTypeCol}, created_at, updated_at
+        `SELECT id, cwd, repository, branch, summary, created_at, updated_at
          FROM sessions WHERE id = ?`
       )
       if (this.hasTurnsCols.has('session_id')) {
@@ -188,17 +186,18 @@ export class CopilotChronicle {
   // ── Public read API ──────────────────────────────────────────────
 
   /**
-   * Return all sessions updated at or after `cutoffMs`. Filters out remote
-   * Copilot host types (github / ado) unless `includeRemoteHosts` is true.
+   * Return all sessions updated at or after `cutoffMs`, most-recent first.
+   *
+   * The local session store (`~/.copilot/session-store.db`) only ever holds
+   * local CLI sessions — each row's `cwd` is a path on this machine — so every
+   * row is a candidate for discovery regardless of which git host the working
+   * directory belongs to.
    */
-  listSessions(opts: { cutoffMs: number; includeRemoteHosts?: boolean }): ChronicleRow[] {
+  listSessions(opts: { cutoffMs: number }): ChronicleRow[] {
     if (!this.stmts.listSessions) return []
     try {
       const cutoffIso = new Date(opts.cutoffMs).toISOString()
-      const rows = this.stmts.listSessions.all(
-        cutoffIso,
-        opts.includeRemoteHosts ? 1 : 0
-      ) as unknown as RawSessionRow[]
+      const rows = this.stmts.listSessions.all(cutoffIso) as unknown as RawSessionRow[]
       return rows.map(toChronicleRow).filter((r): r is ChronicleRow => r !== null)
     } catch {
       return []
@@ -366,7 +365,6 @@ export interface ChronicleRow {
   repository: string | null
   branch: string | null
   summary: string | null
-  hostType: string | null
   createdAtMs: number
   updatedAtMs: number
 }
@@ -377,7 +375,6 @@ interface RawSessionRow {
   repository: string | null
   branch: string | null
   summary: string | null
-  host_type: string | null
   created_at: string
   updated_at: string
 }
@@ -393,7 +390,6 @@ function toChronicleRow(r: RawSessionRow): ChronicleRow | null {
     repository: nullish(r.repository),
     branch: nullish(r.branch),
     summary: nullish(r.summary),
-    hostType: nullish(r.host_type),
     createdAtMs,
     updatedAtMs
   }

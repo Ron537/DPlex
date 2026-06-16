@@ -79,25 +79,17 @@ describe.skipIf(!DatabaseSync)('CopilotChronicle', () => {
     expect(c.isOpen()).toBe(false)
   })
 
-  it('lists sessions newer than the cutoff and filters out remote host types by default', () => {
+  it('lists sessions newer than the cutoff, regardless of git host type', () => {
     seed(dbPath)
     const c = new CopilotChronicle(dbPath)
     expect(c.tryOpen()).toBe(true)
     const cutoff = new Date('2024-01-01T00:00:00Z').getTime()
     const rows = c.listSessions({ cutoffMs: cutoff })
     const ids = rows.map((r) => r.id).sort()
-    expect(ids).toEqual(['s1', 's2'])
-    expect(rows[0].updatedAtMs).toBeGreaterThan(rows[1].updatedAtMs) // ORDER BY desc
-    c.close()
-  })
-
-  it('includes remote host types when requested', () => {
-    seed(dbPath)
-    const c = new CopilotChronicle(dbPath)
-    c.tryOpen()
-    const cutoff = new Date('2024-01-01T00:00:00Z').getTime()
-    const rows = c.listSessions({ cutoffMs: cutoff, includeRemoteHosts: true })
-    expect(rows.map((r) => r.id).sort()).toEqual(['s1', 's2', 's3'])
+    // s3 (host_type 'github') is a local CLI session and must be included;
+    // only s-old falls outside the cutoff window.
+    expect(ids).toEqual(['s1', 's2', 's3'])
+    expect(rows[0].updatedAtMs).toBeGreaterThanOrEqual(rows[1].updatedAtMs) // ORDER BY desc
     c.close()
   })
 

@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.24.0] — 2026-06-15
+## [0.24.1] — 2026-06-16
+
+### Bug Fixes
+
+- Past sessions for projects hosted on GitHub or Azure DevOps no longer go missing from the Sessions sidebar and project list — every recent session now shows up again, not just the active ones.
 
 ### Features
 
@@ -587,7 +591,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/Ron537/DPlex/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/Ron537/DPlex/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/Ron537/DPlex/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/Ron537/DPlex/compare/v0.21.0...v0.22.0
