@@ -179,6 +179,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   fontSize: 14,
   fontFamily: 'Menlo, Monaco, "Courier New", monospace',
   macOptionIsMeta: true,
+  copyOnSelection: false,
   theme: cachedTheme,
   sidebarWidth: 260,
   sidebarVisible: true,

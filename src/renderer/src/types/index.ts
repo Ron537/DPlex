@@ -138,6 +138,12 @@ export interface AppSettings {
    * still available via ⌥+Arrow keys. Ignored on Windows and Linux.
    */
   macOptionIsMeta: boolean
+  /**
+   * When true, selecting text in a terminal with the mouse automatically
+   * copies it to the clipboard. Off by default, matching Windows Terminal,
+   * VS Code, and iTerm2.
+   */
+  copyOnSelection: boolean
   theme: string
   sidebarWidth: number
   sidebarVisible: boolean

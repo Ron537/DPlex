@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-06-18
+
+### Features
+
+- Copy and paste now work in the terminal: select text and press Ctrl+C (⌘C on macOS) to copy, or Ctrl+Shift+V (⌘V) to paste. With nothing selected, Ctrl+C still interrupts the running command as usual. Right-click anywhere copies your selection, or pastes when nothing is selected.
+- New **Copy on selection** terminal setting: when enabled, selecting text with the mouse copies it to the clipboard automatically.
+
 ## [0.24.1] — 2026-06-16
 
 ### Bug Fixes
@@ -591,7 +598,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/Ron537/DPlex/compare/v0.24.1...v0.25.0
 [0.24.1]: https://github.com/Ron537/DPlex/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/Ron537/DPlex/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/Ron537/DPlex/compare/v0.22.0...v0.23.0

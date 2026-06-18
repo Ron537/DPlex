@@ -570,6 +570,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                       />
                     </SettingItem>
                   )}
+
+                  <SettingItem
+                    label="Copy on selection"
+                    settingId="copy-on-selection"
+                    description={
+                      'Automatically copy text to the clipboard as soon as you select it ' +
+                      'with the mouse. Regardless of this setting you can always copy with ' +
+                      (isMac ? '⌘C' : 'Ctrl+C (with a selection) or Ctrl+Shift+C') +
+                      ', paste with ' +
+                      (isMac ? '⌘V' : 'Ctrl+Shift+V') +
+                      ', or right-click to copy the selection / paste when nothing is selected.'
+                    }
+                  >
+                    <ToggleRow
+                      label="Copy selected text to the clipboard automatically"
+                      checked={settings.copyOnSelection}
+                      onChange={(v) => applyNow({ copyOnSelection: v })}
+                    />
+                  </SettingItem>
                 </>
               )}
 

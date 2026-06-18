@@ -5,6 +5,8 @@ import { getTheme } from './themes'
 import { FlowController } from './flowControl'
 import { isMac } from '../utils/shortcuts'
 import { wordMotionSequence } from '../utils/terminalKeys'
+import { clipboardKeyAction, copyTerminalSelection, pasteIntoTerminal } from './terminalClipboard'
+import { useSettingsStore } from '../stores/settingsStore'
 import { TruecolorSgrNormalizer } from './truecolorSgrNormalizer'
 
 export interface TerminalEntry {
@@ -16,6 +18,8 @@ export interface TerminalEntry {
   ready: boolean
   creating: boolean
   cleanupIpc: (() => void) | null
+  /** Disposes the per-terminal clipboard wiring (key/selection/contextmenu). */
+  disposeExtras: (() => void) | null
 }
 
 // Global registry — lives outside React lifecycle
@@ -115,6 +119,11 @@ export function getOrCreateTerminal(
     cursorStyle: 'block',
     allowProposedApi: true,
     macOptionIsMeta,
+    // Don't let xterm reselect the word under the cursor on right-click
+    // (its default on macOS). We drive right-click copy/paste ourselves, and
+    // reselecting would replace the user's selection before our contextmenu
+    // handler runs — so right-click only copied when clicked on the selection.
+    rightClickSelectsWord: false,
     scrollback: 10000
   })
 
@@ -122,26 +131,67 @@ export function getOrCreateTerminal(
   term.loadAddon(fitAddon)
   term.loadAddon(new WebLinksAddon())
 
-  // macOS-only: when ⌥ Option is left to compose characters (macOptionIsMeta
-  // off), restore word-wise navigation by translating ⌥+Arrow / ⌥+Backspace
-  // to readline escape sequences. The Option-as-Meta conflict does not exist
-  // on Windows/Linux, where non-US layouts compose symbols via AltGr.
-  if (isMac) {
-    term.attachCustomKeyEventHandler((e) => {
-      if (term.options.macOptionIsMeta) return true
-      const seq = wordMotionSequence(e)
-      if (seq === null) return true
+  // Copy/paste + (macOS) word-motion key handling. xterm allows a single
+  // custom key handler, so both concerns share one. Returning false stops
+  // xterm from forwarding the key to the PTY.
+  term.attachCustomKeyEventHandler((e) => {
+    const action = clipboardKeyAction(e, { isMac, hasSelection: term.hasSelection() })
+    if (action === 'copy') {
       e.preventDefault()
-      term.input(seq)
+      copyTerminalSelection(term)
       return false
-    })
+    }
+    if (action === 'paste') {
+      e.preventDefault()
+      void pasteIntoTerminal(term)
+      return false
+    }
+    // macOS-only: when ⌥ Option is left to compose characters
+    // (macOptionIsMeta off), restore word-wise navigation by translating
+    // ⌥+Arrow / ⌥+Backspace to readline escape sequences. The Option-as-Meta
+    // conflict does not exist on Windows/Linux, where non-US layouts compose
+    // symbols via AltGr.
+    if (isMac && !term.options.macOptionIsMeta) {
+      const seq = wordMotionSequence(e)
+      if (seq !== null) {
+        e.preventDefault()
+        term.input(seq)
+        return false
+      }
+    }
+    return true
+  })
+
+  // Right-click: copy the selection (clearing it so a follow-up right-click
+  // pastes), or paste when nothing is selected — Windows Terminal's default.
+  const onContextMenu = (e: MouseEvent): void => {
+    e.preventDefault()
+    if (!copyTerminalSelection(term, true)) {
+      void pasteIntoTerminal(term)
+    }
   }
+
+  // Optional copy-on-selection. xterm's onSelectionChange fires repeatedly
+  // while a drag grows the selection, so we debounce: copy once the selection
+  // settles. No long-lived text dedup — re-selecting the same text always
+  // re-asserts it onto the clipboard (the clipboard may have changed in
+  // another app since).
+  let selectionCopyTimer: ReturnType<typeof setTimeout> | null = null
+  const selectionDisposable = term.onSelectionChange(() => {
+    if (!useSettingsStore.getState().settings.copyOnSelection) return
+    if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
+    selectionCopyTimer = setTimeout(() => {
+      selectionCopyTimer = null
+      if (term.hasSelection()) copyTerminalSelection(term)
+    }, 120)
+  })
 
   // Create a persistent wrapper element for the xterm DOM
   const wrapperEl = document.createElement('div')
   wrapperEl.style.width = '100%'
   wrapperEl.style.height = '100%'
   wrapperEl.style.backgroundColor = appTheme.terminal.background || '#000'
+  wrapperEl.addEventListener('contextmenu', onContextMenu)
 
   term.open(wrapperEl)
 
@@ -153,7 +203,12 @@ export function getOrCreateTerminal(
     truecolorNormalizer: new TruecolorSgrNormalizer(),
     ready: false,
     creating: false,
-    cleanupIpc: null
+    cleanupIpc: null,
+    disposeExtras: () => {
+      if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
+      selectionDisposable.dispose()
+      wrapperEl.removeEventListener('contextmenu', onContextMenu)
+    }
   }
 
   registry.set(terminalId, entry)
@@ -205,6 +260,7 @@ export function destroyTerminal(terminalId: string): void {
   }
 
   if (entry.cleanupIpc) entry.cleanupIpc()
+  if (entry.disposeExtras) entry.disposeExtras()
   if (entry.ptyId) window.dplex.pty.destroy(entry.ptyId)
   entry.term.dispose()
   entry.wrapperEl.remove()

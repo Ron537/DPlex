@@ -1,4 +1,13 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, nativeImage, globalShortcut } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  nativeImage,
+  globalShortcut,
+  clipboard
+} from 'electron'
 import { join } from 'path'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
@@ -424,6 +433,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle('pty:getCwd', (_event, id: string) => {
     return getPtyCwd(id)
   })
+
+  // Terminal clipboard — uses Electron's clipboard for reliable copy/paste
+  // across platforms (navigator.clipboard can reject on focus/permission
+  // edge cases inside the renderer).
+  ipcMain.on('clipboard:writeText', (_event, text: string) => {
+    if (typeof text === 'string') clipboard.writeText(text)
+  })
+  ipcMain.handle('clipboard:readText', () => clipboard.readText())
 
   // Session discovery — routes through provider registry
   ipcMain.handle('sessions:discover', (_event, providerId?: string) => {

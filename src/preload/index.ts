@@ -78,6 +78,10 @@ export interface DplexAPI {
     onData: (callback: (id: string, data: string) => void) => () => void
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }
+  clipboard: {
+    writeText: (text: string) => void
+    readText: () => Promise<string>
+  }
   sessions: {
     discover: (providerId?: string) => Promise<
       {
@@ -294,6 +298,10 @@ const dplexAPI: DplexAPI = {
       ipcRenderer.on('pty:exit', handler)
       return () => ipcRenderer.removeListener('pty:exit', handler)
     }
+  },
+  clipboard: {
+    writeText: (text) => ipcRenderer.send('clipboard:writeText', text),
+    readText: () => ipcRenderer.invoke('clipboard:readText')
   },
   sessions: {
     discover: (providerId?) => ipcRenderer.invoke('sessions:discover', providerId),
