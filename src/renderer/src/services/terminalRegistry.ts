@@ -4,7 +4,11 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { getTheme } from './themes'
 import { FlowController } from './flowControl'
 import { isMac } from '../utils/shortcuts'
-import { wordMotionSequence } from '../utils/terminalKeys'
+import {
+  wordMotionSequence,
+  shiftEnterSequence,
+  modifyOtherKeysActive
+} from '../utils/terminalKeys'
 import { clipboardKeyAction, copyTerminalSelection, pasteIntoTerminal } from './terminalClipboard'
 import { useSettingsStore } from '../stores/settingsStore'
 import { TruecolorSgrNormalizer } from './truecolorSgrNormalizer'
@@ -131,9 +135,25 @@ export function getOrCreateTerminal(
   term.loadAddon(fitAddon)
   term.loadAddon(new WebLinksAddon())
 
-  // Copy/paste + (macOS) word-motion key handling. xterm allows a single
-  // custom key handler, so both concerns share one. Returning false stops
-  // xterm from forwarding the key to the PTY.
+  // Track whether the foreground app has enabled xterm's modifyOtherKeys mode
+  // (CSI > 4 ; n m). Copilot/Claude CLIs enable it; plain shells do not. We use
+  // it to gate Shift+Enter translation so the encoded sequence only reaches
+  // apps that understand it. xterm.js does not implement modifyOtherKeys, so we
+  // observe the request and leave the rest of its handling untouched (the
+  // handler returns false so xterm keeps processing the sequence normally).
+  let modifyOtherKeys = false
+  const modifyOtherKeysDisposable = term.parser.registerCsiHandler(
+    { prefix: '>', final: 'm' },
+    (params) => {
+      const active = modifyOtherKeysActive(params)
+      if (active !== null) modifyOtherKeys = active
+      return false
+    }
+  )
+
+  // Copy/paste + (macOS) word-motion + Shift+Enter key handling. xterm allows a
+  // single custom key handler, so these concerns share one. Returning false
+  // stops xterm from forwarding the key to the PTY.
   term.attachCustomKeyEventHandler((e) => {
     const action = clipboardKeyAction(e, { isMac, hasSelection: term.hasSelection() })
     if (action === 'copy') {
@@ -144,6 +164,15 @@ export function getOrCreateTerminal(
     if (action === 'paste') {
       e.preventDefault()
       void pasteIntoTerminal(term)
+      return false
+    }
+    // Shift+Enter: when the foreground app enabled modifyOtherKeys (Copilot/
+    // Claude CLIs), send the modifyOtherKeys encoding so the prompt inserts a
+    // newline instead of submitting. xterm would otherwise send a bare CR.
+    const shiftEnter = shiftEnterSequence(e, modifyOtherKeys)
+    if (shiftEnter !== null) {
+      e.preventDefault()
+      term.input(shiftEnter)
       return false
     }
     // macOS-only: when ⌥ Option is left to compose characters
@@ -207,6 +236,7 @@ export function getOrCreateTerminal(
     disposeExtras: () => {
       if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
       selectionDisposable.dispose()
+      modifyOtherKeysDisposable.dispose()
       wrapperEl.removeEventListener('contextmenu', onContextMenu)
     }
   }

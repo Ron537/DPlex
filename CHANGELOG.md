@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-06-20
+
+### Features
+
+- Press Shift+Enter to add a new line in the prompt without sending it, so you can write multi-line prompts to AI CLIs just like you can when running them directly.
+
 ## [0.26.0] — 2026-06-20
 
 ### Features
@@ -608,7 +614,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/Ron537/DPlex/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/Ron537/DPlex/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/Ron537/DPlex/compare/v0.24.1...v0.25.0
 [0.24.1]: https://github.com/Ron537/DPlex/compare/v0.24.0...v0.24.1

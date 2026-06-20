@@ -42,3 +42,57 @@ export function wordMotionSequence(e: WordMotionKeyEvent): string | null {
       return null
   }
 }
+
+/**
+ * The bytes a Shift+Enter keystroke should send to the PTY when the foreground
+ * application has enabled xterm's modifyOtherKeys mode (CSI > 4 ; 2 m) — as the
+ * Copilot and Claude CLIs do. It is the modifyOtherKeys encoding of Enter
+ * (key 13) with the Shift modifier (2): CSI 27 ; 2 ; 13 ~. Those TUIs treat it
+ * as "insert a newline" rather than "submit", matching how Shift+Enter behaves
+ * under a fully compliant terminal. xterm.js does not implement modifyOtherKeys
+ * itself, so without this it sends a bare CR and the prompt is submitted.
+ */
+export const SHIFT_ENTER_SEQUENCE = '\x1b[27;2;13~'
+
+/**
+ * Returns {@link SHIFT_ENTER_SEQUENCE} for a Shift+Enter keydown when
+ * modifyOtherKeys is active, or `null` otherwise.
+ *
+ * The mode gate matters: a terminal that never enabled modifyOtherKeys (a plain
+ * shell, for instance) does not expect this sequence, and readline would leak it
+ * into the line as literal text. Returning `null` lets xterm handle the key
+ * normally — a bare CR that submits — preserving existing behaviour there.
+ */
+export function shiftEnterSequence(
+  e: WordMotionKeyEvent,
+  modifyOtherKeysActive: boolean
+): string | null {
+  if (!modifyOtherKeysActive) return null
+  if (e.type !== 'keydown' || !e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return null
+  if (e.key !== 'Enter') return null
+  return SHIFT_ENTER_SEQUENCE
+}
+
+/**
+ * Interprets the parameters of a `CSI > Pp ; Pv m` (XTMODKEYS set/reset)
+ * sequence, returning the resulting modifyOtherKeys state, or `null` when the
+ * sequence targets an unrelated key-modifier resource and the current state
+ * should be left unchanged.
+ *
+ * - resource 4 (modifyOtherKeys): enabled when its mode is ≥ 1, else disabled.
+ * - resource 0: the reset-all form `CSI > m` (which xterm represents as `[0]`)
+ *   resets every key-modifier resource — including modifyOtherKeys — to its
+ *   initial, disabled state. `CSI > 0 m` (modifyKeyboard) collapses to the same
+ *   `[0]` shape; treating it as disabled is the safe direction (Shift+Enter
+ *   falls back to a bare CR rather than leaking the sequence).
+ * - resources 1/2 (cursor/function keys): unrelated, state unchanged.
+ */
+export function modifyOtherKeysActive(params: (number | number[])[]): boolean | null {
+  const first = params[0]
+  const resource = Array.isArray(first) ? first[0] : first
+  if (resource === 0) return false
+  if (resource !== 4) return null
+  const second = params.length > 1 ? params[1] : 0
+  const mode = Array.isArray(second) ? second[0] : second
+  return (mode ?? 0) >= 1
+}
