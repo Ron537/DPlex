@@ -1,4 +1,4 @@
-import type { TerminalTab, EditorTab, EditorGroup } from '../types'
+import type { TerminalTab, EditorTab, EditorGroup, AISession } from '../types'
 import { isTerminalTab } from '../types'
 import { useTerminalStore } from '../stores/terminalStore'
 import { normalizePath } from './normalizePath'
@@ -101,6 +101,32 @@ export function closeOpenTabsForSession(
 export function hasOpenTab(sessionId: string, providerId: string): boolean {
   const { groups } = useTerminalStore.getState()
   return findTabsForSession(groups, sessionId, providerId).length > 0
+}
+
+/**
+ * Store-aware: resume an AI session. Focuses an existing tab backing the
+ * session if one is open; otherwise spawns a new terminal running the
+ * provider's resume command. No-op if the provider can't produce a resume
+ * command. Shared by every "click a session row to open it" surface
+ * (`SessionItem`, `RecentSessionRow`, `ExternalSessionRow`) so the
+ * focus-then-spawn behaviour stays identical across them.
+ */
+export async function resumeOrFocusSession(
+  session: Pick<AISession, 'id' | 'aiTool' | 'displayName' | 'cwd'>
+): Promise<void> {
+  const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
+  if (focusSessionTab(session.id, session.aiTool, cmd ?? undefined)) return
+  if (!cmd) return
+  useTerminalStore
+    .getState()
+    .createTerminal(
+      undefined,
+      `↻ ${session.displayName}`,
+      cmd,
+      undefined,
+      session.cwd,
+      session.aiTool
+    )
 }
 
 /**

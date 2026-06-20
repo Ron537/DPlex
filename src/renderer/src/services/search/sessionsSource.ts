@@ -1,36 +1,24 @@
 import { createElement } from 'react'
 import type { SearchItem, SearchSource } from './types'
-import { useTerminalStore } from '../../stores/terminalStore'
 import { useProvidersStore } from '../../stores/providersStore'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { focusSessionTab } from '../../utils/sessionTabs'
+import {
+  resumeSessionGuarded,
+  type GuardableSession
+} from '../../stores/externalResumeConfirmStore'
 import { pathBasename } from './pathUtils'
 import { ProviderGlyph } from '../../components/common/ProviderGlyph'
 import type { ProviderId } from '../../utils/providerHelpers'
 
-async function openSession(sessionId: string, providerId: string, cwd?: string): Promise<void> {
+function openSession(session: GuardableSession): void {
   // Surface the Sessions panel so the row context is visible.
   useSettingsStore
     .getState()
     .updateSettings({ sidebarActiveTab: 'sessions', sidebarPanelCollapsed: false })
 
-  // Reuse the existing helper — focus any open tab first.
-  if (focusSessionTab(sessionId, providerId)) return
-
-  const cmd = await window.dplex.sessions.getResumeCommand(providerId, sessionId)
-  if (focusSessionTab(sessionId, providerId, cmd ?? undefined)) return
-  if (!cmd) return
-
-  useTerminalStore
-    .getState()
-    .createTerminal(
-      undefined,
-      `↻ ${pathBasename(cwd) || sessionId}`,
-      cmd,
-      undefined,
-      cwd,
-      providerId
-    )
+  // Reuse the shared resume path — focuses an open tab if any, confirms
+  // first when the session is running outside DPlex, otherwise resumes.
+  resumeSessionGuarded(session)
 }
 
 export const sessionsSource: SearchSource = {
@@ -59,7 +47,7 @@ export const sessionsSource: SearchSource = {
           ...(s.summary ? [s.summary] : []),
           s.status === 'active' ? 'active' : 'idle'
         ],
-        run: () => openSession(s.id, s.aiTool, s.cwd)
+        run: () => openSession(s)
       }
       return item
     })

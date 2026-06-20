@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] — 2026-06-20
+
+### Features
+
+- The project list now keeps the AI sessions you started in DPlex front and center: sessions running in another terminal are grouped under a quiet "Running outside DPlex" divider and tagged with an **External** chip, so you can tell at a glance which sessions DPlex started and which are running elsewhere.
+
+### Improvements
+
+- DPlex now guards against accidentally disrupting a session running in another terminal: resuming one asks for confirmation first (so a stray click can't quietly open a second connection), and the close/delete actions are hidden for it.
+
 ## [0.25.0] — 2026-06-18
 
 ### Features
@@ -598,7 +608,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/Ron537/DPlex/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/Ron537/DPlex/compare/v0.24.1...v0.25.0
 [0.24.1]: https://github.com/Ron537/DPlex/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/Ron537/DPlex/compare/v0.23.0...v0.24.0

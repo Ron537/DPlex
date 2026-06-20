@@ -4,6 +4,7 @@ import { SessionItem } from '../sessions/SessionItem'
 import { PendingSessionItem } from '../sessions/PendingSessionItem'
 import { TerminalRow } from '../sessions/TerminalRow'
 import { RecentSessionRow } from '../sessions/RecentSessionRow'
+import { ExternalSessionsDivider } from '../sessions/ExternalSessionsDivider'
 import { pairTabsToSessions, type OpenTabWithGroup } from '../../utils/sessionPairing'
 import { useSettingsStore } from '../../stores/settingsStore'
 
@@ -25,9 +26,7 @@ export function selectRecentSessions(
     openTabs.some((t) => t.sessionId === s.id && (!t.providerId || t.providerId === s.aiTool))
   const idle = sessions.filter(
     (s) =>
-      s.status === 'idle' &&
-      !isCoveredByTab(s) &&
-      (!opts.hideEmpty || (s.messageCount ?? 0) > 0)
+      s.status === 'idle' && !isCoveredByTab(s) && (!opts.hideEmpty || (s.messageCount ?? 0) > 0)
   )
   idle.sort((a, b) => {
     const at = a.lastActivityTime ? new Date(a.lastActivityTime).getTime() : a.updatedAt.getTime()
@@ -119,7 +118,13 @@ export function ProjectSessionList({
   }
 
   const { pairs, unpaired } = pairTabsToSessions(sessions, openTabs)
-  const hasActiveRows = pairs.length > 0 || unpaired.length > 0
+  // `unpaired` actives are sessions running in this scope with no DPlex tab
+  // backing them — i.e. started outside DPlex. They render as normal rows
+  // under a quiet caption divider (and carry an "External" chip) so owned
+  // sessions stay front-and-center while externals keep all their
+  // affordances (resume, prompts, delete).
+  const external = unpaired
+  const hasRowsAbove = pairs.length > 0 || external.length > 0
 
   return (
     <>
@@ -151,19 +156,25 @@ export function ProjectSessionList({
           />
         )
       )}
-      {unpaired.map((session) => (
-        <SessionItem
-          key={session.id}
-          session={session}
-          onDelete={onDeleteSession}
-          onShowPrompts={onShowPrompts}
-          compact
-          showProviderBadge={showProviderBadge}
-        />
-      ))}
+      {external.length > 0 && (
+        <>
+          <ExternalSessionsDivider />
+          {external.map((session) => (
+            <SessionItem
+              key={`ext:${session.aiTool}:${session.id}`}
+              session={session}
+              onDelete={onDeleteSession}
+              onShowPrompts={onShowPrompts}
+              compact
+              external
+              showProviderBadge={showProviderBadge}
+            />
+          ))}
+        </>
+      )}
       {recentSessions.length > 0 && (
         <>
-          {hasActiveRows && (
+          {hasRowsAbove && (
             <div
               aria-hidden="true"
               style={{

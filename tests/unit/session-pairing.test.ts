@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveSessionVisual, pairTabsToSessions } from '../../src/renderer/src/utils/sessionPairing'
+import {
+  effectiveSessionVisual,
+  pairTabsToSessions
+} from '../../src/renderer/src/utils/sessionPairing'
 import type { AISession, SessionStatus, TerminalTab } from '../../src/renderer/src/types'
 
 const cwd = '/Users/me/repo'
@@ -59,10 +62,7 @@ describe('pairTabsToSessions', () => {
 
   it('mixed: 2 AI sessions + 1 plain terminal at same cwd → 3 visible rows, plain terminal not eaten', () => {
     const sessions = [s('a'), s('b')]
-    const tabs = [
-      term('t1', { providerId: 'copilot-cli', sessionId: 'a' }),
-      term('plainTerm')
-    ]
+    const tabs = [term('t1', { providerId: 'copilot-cli', sessionId: 'a' }), term('plainTerm')]
     const r = pairTabsToSessions(sessions, tabs)
     expect(r.pairs[0].match?.id).toBe('a')
     expect(r.pairs[1].match).toBeUndefined() // plainTerm not paired
@@ -111,10 +111,7 @@ describe('pairTabsToSessions', () => {
 })
 
 describe('effectiveSessionVisual', () => {
-  function mkSession(
-    status: 'active' | 'idle',
-    detailedStatus?: SessionStatus
-  ): AISession {
+  function mkSession(status: 'active' | 'idle', detailedStatus?: SessionStatus): AISession {
     return {
       id: 'x',
       aiTool: 'copilot-cli',

@@ -1,7 +1,6 @@
 import { useCallback, type JSX } from 'react'
 import type { AISession } from '../../types'
-import { useTerminalStore } from '../../stores/terminalStore'
-import { focusSessionTab } from '../../utils/sessionTabs'
+import { resumeSessionGuarded } from '../../stores/externalResumeConfirmStore'
 import { timeAgo } from '../../utils/timeAgo'
 
 interface RecentSessionRowProps {
@@ -24,22 +23,11 @@ interface RecentSessionRowProps {
  * with the provider's resume command.
  */
 export function RecentSessionRow({ session }: RecentSessionRowProps): JSX.Element {
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
   const lastTime = session.lastActivityTime ? new Date(session.lastActivityTime) : session.updatedAt
 
-  const handleResume = useCallback(async () => {
-    const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
-    if (focusSessionTab(session.id, session.aiTool, cmd ?? undefined)) return
-    if (!cmd) return
-    createTerminal(
-      undefined,
-      `↻ ${session.displayName}`,
-      cmd,
-      undefined,
-      session.cwd,
-      session.aiTool
-    )
-  }, [createTerminal, session])
+  const handleResume = useCallback(() => {
+    resumeSessionGuarded(session)
+  }, [session])
 
   return (
     <div

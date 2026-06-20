@@ -11,6 +11,7 @@ import { StatusBar } from './StatusBar'
 import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
 import { CloseConfirmModal } from '../common/CloseConfirmModal'
+import { ExternalResumeConfirmModal } from '../common/ExternalResumeConfirmModal'
 import { AttentionBellButton } from '../attention/AttentionBellButton'
 import { ProjectFocusControl } from './ProjectFocusControl'
 import { DPlexLogo } from '../common/DPlexLogo'
@@ -583,6 +584,7 @@ export function AppLayout(): React.JSX.Element {
 
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <CloseConfirmModal />
+      <ExternalResumeConfirmModal />
     </div>
   )
 }

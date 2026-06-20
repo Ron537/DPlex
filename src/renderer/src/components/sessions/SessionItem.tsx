@@ -22,7 +22,8 @@ import { StatusAvatar } from '../common/StatusAvatar'
 import { StatusDot } from '../common/StatusDot'
 import { ProviderGlyph } from '../common/ProviderGlyph'
 import { visualForStatus } from '../../utils/sessionStatusVisual'
-import { closeOpenTabsForSession, focusSessionTab, hasOpenTab } from '../../utils/sessionTabs'
+import { closeOpenTabsForSession, hasOpenTab } from '../../utils/sessionTabs'
+import { resumeSessionGuarded } from '../../stores/externalResumeConfirmStore'
 import { timeAgo } from '../../utils/timeAgo'
 
 interface SessionItemProps {
@@ -39,6 +40,11 @@ interface SessionItemProps {
    * the visual lands in the sessions phase that swaps the avatar style.
    */
   showProviderBadge?: boolean
+  /**
+   * When true, the row is an AI session running outside DPlex (no DPlex tab
+   * backs it). Renders a small muted "External" chip after the title.
+   */
+  external?: boolean
 }
 
 const STATUS_CONFIG: Record<SessionStatus, { color: string; label: string; pulse: boolean }> = {
@@ -61,15 +67,35 @@ function folderName(p?: string): string {
   return parts[parts.length - 1] || p
 }
 
+/**
+ * Small muted tag marking a session that runs outside DPlex. Paired with
+ * the `ExternalSessionsDivider` caption in the projects panel.
+ */
+function ExternalChip(): React.JSX.Element {
+  return (
+    <span
+      className="flex-shrink-0 text-[8.5px] font-semibold uppercase tracking-wide rounded px-1.5 leading-[15px]"
+      style={{
+        color: 'var(--dplex-text-muted)',
+        background: 'var(--dplex-bg-alt)',
+        border: '1px solid var(--dplex-border)'
+      }}
+      title="Started outside DPlex"
+    >
+      External
+    </span>
+  )
+}
+
 export function SessionItem({
   session,
   onDelete,
   onShowPrompts,
   compact,
   onClick,
-  showProviderBadge
+  showProviderBadge,
+  external
 }: SessionItemProps): React.JSX.Element {
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
   const closeSession = useSessionStore((s) => s.closeSession)
   const providerLabel = useProvidersStore((s) => s.getLabel(session.aiTool))
   const [showMenu, setShowMenu] = useState(false)
@@ -104,22 +130,12 @@ export function SessionItem({
     return tab.providerId === session.aiTool && tab.sessionId === session.id
   })
 
-  const handleResume = async (): Promise<void> => {
-    const cmd = await window.dplex.sessions.getResumeCommand(session.aiTool, session.id)
-    if (focusSessionTab(session.id, session.aiTool, cmd ?? undefined)) {
-      setShowMenu(false)
-      return
-    }
-    if (!cmd) return
-    createTerminal(
-      undefined,
-      `↻ ${session.displayName}`,
-      cmd,
-      undefined,
-      session.cwd,
-      session.aiTool
-    )
+  const handleResume = (): void => {
     setShowMenu(false)
+    // Resuming a session that's running outside DPlex opens a second
+    // connection to it — `resumeSessionGuarded` confirms first for those,
+    // and resumes owned/idle sessions directly.
+    resumeSessionGuarded(session)
   }
 
   const handleCopyCwd = (): void => {
@@ -187,6 +203,7 @@ export function SessionItem({
           >
             {session.displayName}
           </span>
+          {external && <ExternalChip />}
           <span
             className="text-[10.5px] flex-shrink-0 tabular-nums"
             style={{ color: 'var(--dplex-text-dim)' }}
@@ -237,6 +254,7 @@ export function SessionItem({
               >
                 {session.displayName}
               </span>
+              {external && <ExternalChip />}
               {isOpen && (
                 <span
                   aria-label="Open in a tab"
@@ -358,7 +376,7 @@ export function SessionItem({
         >
           <MessagesSquare size={11} /> Show Prompts
         </button>
-        {session.status === 'active' && (
+        {session.status === 'active' && !external && (
           <button
             onClick={async (e) => {
               e.stopPropagation()
@@ -429,23 +447,27 @@ export function SessionItem({
             <FolderPlus size={11} /> Pin as Project
           </button>
         )}
-        <div style={{ borderTop: '1px solid var(--dplex-border)' }} className="my-1" />
-        <button
-          onClick={async (e) => {
-            e.stopPropagation()
-            setShowMenu(false)
-            // Close the corresponding tab(s) — include legacy tabs matched
-            // by resume command. onDelete handles the on-disk teardown.
-            const cmd = await window.dplex.sessions
-              .getResumeCommand(session.aiTool, session.id)
-              .catch(() => null)
-            closeOpenTabsForSession(session.id, session.aiTool, cmd ?? undefined)
-            onDelete(session.id)
-          }}
-          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-[var(--dplex-hover)]"
-        >
-          <Trash2 size={11} /> Delete
-        </button>
+        {!external && (
+          <>
+            <div style={{ borderTop: '1px solid var(--dplex-border)' }} className="my-1" />
+            <button
+              onClick={async (e) => {
+                e.stopPropagation()
+                setShowMenu(false)
+                // Close the corresponding tab(s) — include legacy tabs matched
+                // by resume command. onDelete handles the on-disk teardown.
+                const cmd = await window.dplex.sessions
+                  .getResumeCommand(session.aiTool, session.id)
+                  .catch(() => null)
+                closeOpenTabsForSession(session.id, session.aiTool, cmd ?? undefined)
+                onDelete(session.id)
+              }}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-[var(--dplex-hover)]"
+            >
+              <Trash2 size={11} /> Delete
+            </button>
+          </>
+        )}
       </PopoverMenu>
     </div>
   )
