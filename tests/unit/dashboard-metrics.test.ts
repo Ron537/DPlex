@@ -82,7 +82,7 @@ describe('computeLiveKpis', () => {
   it('counts only sessions created today', () => {
     const old = session({ createdAt: new Date(Date.now() - 3 * 86_400_000) })
     const fresh = session({ createdAt: new Date() })
-    const kpis = computeLiveKpis([old, fresh], [])
+    const kpis = computeLiveKpis([old, fresh])
     expect(kpis.sessionsToday).toBe(1)
   })
 })
