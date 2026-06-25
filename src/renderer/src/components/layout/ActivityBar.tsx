@@ -126,22 +126,6 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
             : 'var(--dplex-text-dim)'
         }}
       >
-        {dashboardActive && (
-          <span
-            aria-hidden
-            className="absolute"
-            style={{
-              left: -8,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: 3,
-              height: 20,
-              borderRadius: '0 2px 2px 0',
-              backgroundColor: 'var(--dplex-accent)',
-              boxShadow: '0 0 12px var(--dplex-accent-glow)'
-            }}
-          />
-        )}
         <LayoutDashboard size={18} strokeWidth={1.8} />
       </button>
       <div
