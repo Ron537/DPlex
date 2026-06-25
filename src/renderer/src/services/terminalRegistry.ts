@@ -9,12 +9,7 @@ import {
   shiftEnterSequence,
   modifyOtherKeysActive
 } from '../utils/terminalKeys'
-import {
-  clipboardKeyAction,
-  copyTerminalSelection,
-  pasteIntoTerminal,
-  shouldSuppressPaste
-} from './terminalClipboard'
+import { clipboardKeyAction, pasteIntoTerminal, shouldSuppressPaste } from './terminalClipboard'
 import { useSettingsStore } from '../stores/settingsStore'
 import { TruecolorSgrNormalizer } from './truecolorSgrNormalizer'
 
@@ -173,13 +168,13 @@ export function getOrCreateTerminal(
   // Copy the current native selection. Returns true when something
   // non-whitespace was copied. The raw selection is written verbatim (internal
   // whitespace may be meaningful); only the accept/reject test trims.
-  const copySelection = (clearAfter = true): boolean => {
+  const copySelection = (clearAfter = true, armPasteGuard = true): boolean => {
     if (!term.hasSelection()) return false
     const text = term.getSelection()
     if (!text.trim()) return false
     window.dplex.clipboard.writeText(text)
     if (clearAfter) term.clearSelection()
-    lastCopyAt = Date.now()
+    if (armPasteGuard) lastCopyAt = Date.now()
     return true
   }
 
@@ -233,7 +228,6 @@ export function getOrCreateTerminal(
   // to the PTY, so there's no double-paste to guard against here.
   const onContextMenu = (e: MouseEvent): void => {
     e.preventDefault()
-    e.stopPropagation()
     // Any selection means the user is copying — copy it (a whitespace-only
     // selection is a no-op) and never fall through to paste their clipboard.
     if (term.hasSelection()) {
@@ -252,7 +246,7 @@ export function getOrCreateTerminal(
     if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
     selectionCopyTimer = setTimeout(() => {
       selectionCopyTimer = null
-      if (term.hasSelection()) copyTerminalSelection(term)
+      if (term.hasSelection()) copySelection(false, false)
     }, 120)
   })
 

@@ -32,9 +32,10 @@ function tabExists(terminalId: string): boolean {
 
 /**
  * Whether a tab is an AI-session pane (Copilot CLI, Claude Code, …). These run
- * a `command` and typically enable mouse tracking, which swallows xterm's
- * native selection — so the terminal clipboard wiring needs to reconstruct
- * selections from the buffer for them (issue #86).
+ * a `command` and typically enable mouse tracking, which would otherwise
+ * swallow xterm's native text selection. For these panes we enable xterm's
+ * `mouseEventsRequireAlt` so plain drag/double-click/triple-click keep selecting
+ * locally (Alt forwards the gesture to the app), fixing copy/paste (issue #86).
  */
 function isAiSessionTab(terminalId: string): boolean {
   const tab = useTerminalStore

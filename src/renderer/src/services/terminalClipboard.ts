@@ -65,21 +65,6 @@ export function clipboardKeyAction(
 }
 
 /**
- * Copy the terminal's current selection to the system clipboard.
- * Returns `true` when something was copied. When `clearAfter` is set the
- * selection is cleared so a subsequent right-click pastes instead of
- * re-copying the same text.
- */
-export function copyTerminalSelection(term: Terminal, clearAfter = false): boolean {
-  if (!term.hasSelection()) return false
-  const selection = term.getSelection()
-  if (!selection) return false
-  window.dplex.clipboard.writeText(selection)
-  if (clearAfter) term.clearSelection()
-  return true
-}
-
-/**
  * Paste clipboard text into the terminal. Routed through `term.paste` so
  * bracketed-paste mode is honored when the shell/app has enabled it.
  */
