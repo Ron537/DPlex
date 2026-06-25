@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] — 2026-06-23
+
+### Features
+
+- New **Dashboard** for an at-a-glance overview of your AI sessions: open it from the sidebar or the command palette to see what's running, what needs you, the repositories you work in most, when you tend to work, and your recent sessions. It also surfaces housekeeping at a glance — the oldest request waiting on you, sessions that have gone stale, your longest-running session, and uncommitted changes across your repos — plus activity trends, an active-day streak, and your Copilot/Claude mix. Click any card, repo, or session to jump straight to it.
+
 ## [0.27.1] — 2026-06-20
 
 ### Improvements
@@ -620,7 +626,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/Ron537/DPlex/compare/v0.27.1...v0.28.0
 [0.27.1]: https://github.com/Ron537/DPlex/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/Ron537/DPlex/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/Ron537/DPlex/compare/v0.25.0...v0.26.0

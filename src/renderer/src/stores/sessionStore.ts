@@ -17,8 +17,20 @@ interface SessionState {
    */
   liveTabTitles: Record<string, string>
 
+  /**
+   * A status filter (e.g. `['waiting']`) requested from elsewhere — currently
+   * the dashboard's drill-down KPIs. Held in the store (not a fire-and-forget
+   * DOM event) so it survives the Sessions panel not being mounted yet when
+   * the request is made. The panel consumes and clears it on its next render.
+   */
+  pendingStatusFilter: string[] | null
+
   refreshSessions: () => Promise<void>
   setSearchQuery: (query: string) => void
+  /** Request a Sessions-panel status filter (consumed + cleared by the panel). */
+  requestStatusFilter: (status: string[]) => void
+  /** Clear the pending status-filter request after the panel applies it. */
+  clearPendingStatusFilter: () => void
   closeSession: (sessionId: string) => Promise<void>
   deleteSession: (sessionId: string) => Promise<void>
   setSessionNameOverride: (sessionId: string, name: string) => void
@@ -79,6 +91,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
     watching: false,
     sessionNameOverrides: {},
     liveTabTitles: {},
+    pendingStatusFilter: null,
 
     refreshSessions: async () => {
       set({ loading: true, error: null })
@@ -104,6 +117,14 @@ export const useSessionStore = create<SessionState>((set, get) => {
 
     setSearchQuery: (query) => {
       set({ searchQuery: query })
+    },
+
+    requestStatusFilter: (status) => {
+      set({ pendingStatusFilter: status })
+    },
+
+    clearPendingStatusFilter: () => {
+      if (get().pendingStatusFilter !== null) set({ pendingStatusFilter: null })
     },
 
     closeSession: async (sessionId) => {
@@ -161,8 +182,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
         const liveTabTitles = { ...state.liveTabTitles, [key]: title }
         // Apply immediately to any matching session row, but never override
         // a user-set persistent name.
-        const persistent =
-          state.sessionNameOverrides[key] ?? state.sessionNameOverrides[sessionId]
+        const persistent = state.sessionNameOverrides[key] ?? state.sessionNameOverrides[sessionId]
         if (persistent) return { liveTabTitles }
         return {
           liveTabTitles,

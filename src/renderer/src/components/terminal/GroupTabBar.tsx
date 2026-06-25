@@ -3,6 +3,7 @@ import {
   Plus,
   X,
   Terminal as TerminalIcon,
+  LayoutDashboard,
   SplitSquareHorizontal,
   SplitSquareVertical
 } from 'lucide-react'
@@ -18,7 +19,7 @@ import { getTabIdentity } from '../../utils/tabProject'
 import { openInheritedTerminal, openInheritedSplit } from '../../utils/inheritCwd'
 import { ShellSelector } from './ShellSelector'
 import type { EditorGroup } from '../../types'
-import { isTerminalTab, isFileDiffTab, isFileEditorTab } from '../../types'
+import { isTerminalTab, isFileDiffTab, isFileEditorTab, isDashboardTab } from '../../types'
 
 interface GroupTabBarProps {
   group: EditorGroup
@@ -227,6 +228,12 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 >
                   {identity.initials}
                 </span>
+              ) : isDashboardTab(tab) ? (
+                <LayoutDashboard
+                  size={13}
+                  className="flex-shrink-0"
+                  style={{ color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)' }}
+                />
               ) : (
                 <TerminalIcon
                   size={13}

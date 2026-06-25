@@ -8,6 +8,7 @@ import type {
   SessionPrompt,
   WatcherCallbacks
 } from './types'
+import type { HistoricalSession } from '../dashboard/types'
 import { BaseSessionProvider, normalizePathForCompare, type SessionEntry } from './baseProvider'
 import {
   parseCopilotEvents,
@@ -144,10 +145,7 @@ export class CopilotProvider extends BaseSessionProvider {
     // user-deleted ids the Chronicle still remembers, and rows whose
     // on-disk dir has been removed since.
     const rows = allRows.filter(
-      (r) =>
-        this.validateSessionId(r.id) &&
-        !this.deletedIds.has(r.id) &&
-        existingDirs.has(r.id)
+      (r) => this.validateSessionId(r.id) && !this.deletedIds.has(r.id) && existingDirs.has(r.id)
     )
     if (rows.length === 0) {
       // DB exists but empty (very fresh install). Fall back so the user
@@ -208,7 +206,41 @@ export class CopilotProvider extends BaseSessionProvider {
     )
   }
 
-  /** Fast cwd → active session lookup using the Chronicle's indexed `cwd` column. */
+  /**
+   * Chronicle-backed history for the dashboard. The Chronicle indexes every
+   * session with repository/branch/timestamps and exact turn (message) counts,
+   * so this is both rich and cheap (two prepared queries, no event parsing).
+   * Falls back to the filesystem-only base implementation when the Chronicle
+   * isn't available (older CLI / fresh install / locked DB).
+   */
+  async getSessionHistory(cutoffMs: number): Promise<HistoricalSession[]> {
+    if (!this.chronicle.tryOpen()) {
+      return super.getSessionHistory(cutoffMs)
+    }
+    const rows = this.chronicle.listSessions({ cutoffMs })
+    // Gate on on-disk existence — same guard discoverSessions uses — so rows
+    // for sessions deleted from disk in a previous run (the Chronicle is
+    // read-only to us and outlives the dir) don't resurrect in dashboard
+    // totals after a restart, when the in-memory deletedIds set is empty.
+    const existingDirs = await this.listExistingSessionDirs()
+    const kept = rows.filter(
+      (r) => this.validateSessionId(r.id) && !this.deletedIds.has(r.id) && existingDirs.has(r.id)
+    )
+    // Count turns only for the windowed sessions — cost scales with the
+    // dashboard window, not the entire Chronicle history.
+    const messageCounts = this.chronicle.getMessageCounts(kept.map((r) => r.id))
+    return kept.map((r) => ({
+      id: r.id,
+      providerId: this.id,
+      cwd: r.cwd,
+      repository: r.repository,
+      branch: r.branch,
+      createdAtMs: r.createdAtMs,
+      updatedAtMs: r.updatedAtMs,
+      messageCount: messageCounts.get(r.id) ?? 0,
+      toolCallCount: 0
+    }))
+  }
   async resolveSessionByCwd(cwd: string): Promise<ResolvedSession | null> {
     if (!this.chronicle.tryOpen()) return super.resolveSessionByCwd(cwd)
 

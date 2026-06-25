@@ -1,5 +1,5 @@
 import type { EditorTab, Project } from '../types'
-import { isFileDiffTab, isFileEditorTab } from '../types'
+import { isFileDiffTab, isFileEditorTab, isDashboardTab } from '../types'
 import { normalizePath } from './normalizePath'
 import { getAvatarColor, getAvatarInitials } from './projectStatus'
 
@@ -13,6 +13,7 @@ import { getAvatarColor, getAvatarInitials } from './projectStatus'
 export function getTabProjectPath(tab: EditorTab): string | undefined {
   if (isFileDiffTab(tab)) return tab.repoRootFs
   if (isFileEditorTab(tab)) return tab.rootFs
+  if (isDashboardTab(tab)) return undefined
   return tab.worktreePath ?? tab.cwd
 }
 

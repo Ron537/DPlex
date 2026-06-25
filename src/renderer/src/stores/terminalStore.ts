@@ -3,11 +3,12 @@ import type {
   TerminalTab,
   FileDiffTab,
   FileEditorTab,
+  DashboardTab,
   EditorTab,
   EditorGroup,
   LayoutNode
 } from '../types'
-import { isFileDiffTab, isFileEditorTab, isTerminalTab } from '../types'
+import { isFileDiffTab, isFileEditorTab, isTerminalTab, isDashboardTab } from '../types'
 import { destroyTerminal } from '../services/terminalRegistry'
 import { useSessionStore } from './sessionStore'
 
@@ -185,6 +186,11 @@ interface TerminalState {
     preview?: boolean
   }) => string
   updateFileEditorTab: (tabId: string, patch: Partial<Omit<FileEditorTab, 'id' | 'kind'>>) => void
+  /**
+   * Open the singleton Overview Dashboard tab, or focus it if already open.
+   * Returns the dashboard tab id.
+   */
+  openOrFocusDashboardTab: () => string
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -853,6 +859,62 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
         return promotedOut ? { ...g, tabs, previewTabId: undefined } : { ...g, tabs }
       })
     }))
+  },
+
+  openOrFocusDashboardTab: (): string => {
+    const state = get()
+
+    // Focus an existing dashboard tab anywhere (singleton).
+    for (const g of state.groups) {
+      const existing = g.tabs.find((t) => isDashboardTab(t))
+      if (existing) {
+        set({
+          activeGroupId: g.id,
+          groups: state.groups.map((gg) =>
+            gg.id === g.id ? { ...gg, activeTabId: existing.id } : gg
+          )
+        })
+        return existing.id
+      }
+    }
+
+    const tab: DashboardTab = {
+      id: makeTerminalId(),
+      title: 'Dashboard',
+      kind: 'dashboard'
+    }
+
+    // No groups yet — create the first group.
+    const targetGroupId = state.activeGroupId
+    if (state.groups.length === 0 || !targetGroupId) {
+      const newGroup: EditorGroup = {
+        id: 'group-0',
+        tabs: [tab],
+        activeTabId: tab.id
+      }
+      set({
+        groups: [newGroup],
+        layout: { type: 'group', groupId: newGroup.id },
+        activeGroupId: newGroup.id
+      })
+      return tab.id
+    }
+
+    const targetGroup = state.groups.find((g) => g.id === targetGroupId)
+    if (!targetGroup) {
+      const gid = makeGroupId()
+      const newGroup: EditorGroup = { id: gid, tabs: [tab], activeTabId: tab.id }
+      set({ groups: [...state.groups, newGroup], activeGroupId: gid })
+      return tab.id
+    }
+
+    set({
+      groups: state.groups.map((g) =>
+        g.id === targetGroupId ? { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id } : g
+      ),
+      activeGroupId: targetGroupId
+    })
+    return tab.id
   }
 }))
 
@@ -881,9 +943,13 @@ function serializeWorkspace(): unknown {
         .filter((t) => {
           if (isFileDiffTab(t)) return t.preview !== true
           if (isFileEditorTab(t)) return t.preview !== true
+          if (isDashboardTab(t)) return true
           return isTerminalTab(t) && !!t.command
         })
         .map((t) => {
+          if (isDashboardTab(t)) {
+            return { kind: 'dashboard' as const, id: t.id, title: t.title }
+          }
           if (isFileDiffTab(t)) {
             return {
               kind: 'fileDiff' as const,

@@ -1,4 +1,5 @@
 import type { EditorTab, LayoutNode, Project } from '../types'
+import { isDashboardTab } from '../types'
 import { getTabIdentity } from './tabProject'
 
 /**
@@ -9,7 +10,10 @@ import { getTabIdentity } from './tabProject'
  * visual grouping in {@link getTabIdentity}.
  *
  * Tabs with no project identity (plain shell terminals, file/diff tabs outside
- * any registered project) never match — in isolate mode they are hidden.
+ * any registered project) never match — in isolate mode they are hidden. The
+ * Dashboard is the exception: it's a global, project-agnostic view, so it
+ * stays visible under isolate mode (otherwise opening it while focused would
+ * render nothing).
  */
 export function tabMatchesFocus(
   tab: EditorTab,
@@ -17,6 +21,7 @@ export function tabMatchesFocus(
   targetProjectId: string | null
 ): boolean {
   if (!targetProjectId) return true
+  if (isDashboardTab(tab)) return true
   const identity = getTabIdentity(tab, projects)
   if (!identity) return false
   return identity.colorProject.id === targetProjectId || identity.matched.id === targetProjectId

@@ -28,6 +28,16 @@ import type {
   WriteFileResult,
   FsMutationResult
 } from '../main/services/fsExplorer/types'
+import type { DashboardMetrics } from '../main/services/dashboard/types'
+
+export type {
+  DashboardMetrics,
+  HistoricalSession,
+  RepoUsage,
+  TimeBucket,
+  HeatCell,
+  ProviderSplit
+} from '../main/services/dashboard/types'
 
 export type {
   FsEntry,
@@ -271,6 +281,10 @@ export interface DplexAPI {
     unsubscribe: (token: string) => void
     onTreeChanged: (callback: (payload: { rootFs: string; dirs: string[] }) => void) => () => void
   }
+  dashboard: {
+    /** Compute the historical metrics snapshot over the given window (days). */
+    getMetrics: (windowDays?: number) => Promise<DashboardMetrics>
+  }
 }
 
 const dplexAPI: DplexAPI = {
@@ -488,6 +502,9 @@ const dplexAPI: DplexAPI = {
       ipcRenderer.on('files:tree-changed', handler)
       return () => ipcRenderer.removeListener('files:tree-changed', handler)
     }
+  },
+  dashboard: {
+    getMetrics: (windowDays) => ipcRenderer.invoke('dashboard:getMetrics', windowDays)
   }
 }
 
