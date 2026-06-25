@@ -186,13 +186,13 @@ export function getOrCreateTerminal(
   // Handle for the deferred AI-pane selection paint, tracked so disposal can
   // cancel a paint scheduled in the same tick as a teardown.
   let deferredSelectTimer: ReturnType<typeof setTimeout> | null = null
-  const debugClipboard = ((): boolean => {
-    try {
-      return localStorage.getItem('dplex:debugClipboard') === '1'
-    } catch {
-      return false
-    }
-  })()
+  // TEMP (#86 triage): dev-only clipboard diagnostics. Always on in `npm run
+  // dev`, compiled out of production. Remove once the Windows path is verified.
+  const dlog = import.meta.env.DEV
+    ? (event: string, data: Record<string, unknown>): void => {
+        console.debug(`[dplex:clipboard] ${event}`, data)
+      }
+    : (): void => {}
 
   const clearPendingCopy = (): void => {
     pendingCopyText = null
@@ -320,6 +320,11 @@ export function getOrCreateTerminal(
     e.stopPropagation()
     e.stopImmediatePropagation()
     rightClickInFlight = false
+    dlog('rightclick', {
+      isAiPane,
+      nativeSelection: term.hasSelection(),
+      pendingLen: pendingCopyText ? pendingCopyText.length : 0
+    })
     if (copyResolved()) return
     if (shouldSuppressPaste(lastCopyAt, Date.now())) return
     void pasteIntoTerminal(term)
@@ -388,17 +393,14 @@ export function getOrCreateTerminal(
     if (!isDrag(e.clientX - start.x, e.clientY - start.y)) return
     const startCell = pixelToCell(start.x, start.y)
     const endCell = pixelToCell(e.clientX, e.clientY)
-    if (debugClipboard) {
-      // Opt-in, no-PII diagnostic (enable via
-      // `localStorage['dplex:debugClipboard'] = '1'`) to pin down which branch
-      // no-ops when "copy doesn't work" is reported. Logs only flags/lengths.
-      console.debug('[dplex:clipboard] drag', {
-        isAiPane,
-        nativeSelection: term.hasSelection(),
-        gotCells: !!startCell && !!endCell,
-        len: startCell && endCell ? selectionLength(startCell, endCell, term.cols) : null
-      })
-    }
+    dlog('drag', {
+      isAiPane,
+      nativeSelection: term.hasSelection(),
+      gotCells: !!startCell && !!endCell,
+      len: startCell && endCell ? selectionLength(startCell, endCell, term.cols) : null,
+      cols: term.cols,
+      rows: term.rows
+    })
     // Only take over in AI panes; real TUIs (vim/htop) keep their mouse, and
     // plain shells select natively. A native xterm selection always wins.
     if (!isAiPane || term.hasSelection()) return
@@ -454,6 +456,7 @@ export function getOrCreateTerminal(
   wrapperEl.addEventListener('mouseup', handleLeftUp, true)
   wrapperEl.addEventListener('contextmenu', onContextMenu, true)
   wrapperEl.addEventListener('focusout', onFocusOut)
+  dlog('create', { terminalId, isAiPane })
 
   const entry: TerminalEntry = {
     term,
