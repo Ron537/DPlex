@@ -190,7 +190,7 @@ export function getOrCreateTerminal(
   // dev`, compiled out of production. Remove once the Windows path is verified.
   const dlog = import.meta.env.DEV
     ? (event: string, data: Record<string, unknown>): void => {
-        console.debug(`[dplex:clipboard] ${event}`, data)
+        console.log(`[dplex:clipboard] ${event}`, data)
       }
     : (): void => {}
 
