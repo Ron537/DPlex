@@ -31,6 +31,7 @@ import {
 } from './services/ptyManager'
 import { createDefaultRegistry } from './services/providers'
 import { BaseSessionProvider } from './services/providers/baseProvider'
+import { computeDashboardMetrics } from './services/dashboard/dashboardAggregator'
 import { ClaudePidfileRegistry } from './services/providers/claudePidfileRegistry'
 import {
   loadWorkspace,
@@ -475,6 +476,17 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('sessions:getProviders', () => {
     return providerRegistry.getProviderInfoList()
+  })
+
+  // Overview Dashboard — long-window historical aggregation. Computed on
+  // demand (tab open / debounced invalidation / manual refresh); no polling.
+  ipcMain.handle('dashboard:getMetrics', async (_event, windowDays?: number) => {
+    const days = Number.isFinite(windowDays) && windowDays! >= 1 ? Math.floor(windowDays!) : 30
+    // Fetch two windows of history so the aggregator can compute
+    // period-over-period deltas (current vs the immediately preceding window).
+    const cutoffMs = Date.now() - 2 * days * 86_400_000
+    const history = await providerRegistry.getSessionHistory(cutoffMs)
+    return computeDashboardMetrics(history, { windowDays: days, nowMs: Date.now() })
   })
 
   // Session watching — start/stop watchers, push events to renderer

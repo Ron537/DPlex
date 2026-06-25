@@ -9,6 +9,7 @@ import type {
   SessionStatus,
   WatcherCallbacks
 } from './types'
+import type { HistoricalSession } from '../dashboard/types'
 import { BaseSessionProvider, type SessionEntry } from './baseProvider'
 import {
   parseClaudeEvents,
@@ -181,6 +182,36 @@ export class ClaudeCodeProvider extends BaseSessionProvider {
 
   protected parseEventsIncremental(filePath: string): Promise<ParsedSessionData> {
     return parseClaudeEvents(filePath)
+  }
+
+  /**
+   * Cheap history for the dashboard: one row per `.jsonl` session file created
+   * at/after the cutoff. The cwd is decoded from the project-folder slug (or
+   * the cached JSONL `cwd` when available) and the repo label is its basename.
+   * Counts are left at 0 — deriving them would require parsing every JSONL,
+   * which is too expensive for a 30-day window.
+   */
+  async getSessionHistory(cutoffMs: number): Promise<HistoricalSession[]> {
+    const entries = await this.listSessionEntries()
+    const out: HistoricalSession[] = []
+    for (const entry of entries) {
+      if (!this.validateSessionId(entry.id)) continue
+      if (entry.birthtimeMs < cutoffMs) continue
+      const extras = getCachedExtras(entry.path)
+      const cwd = extras.cwd ?? decodeCwdFromSlug(path.basename(path.dirname(entry.path))) ?? null
+      out.push({
+        id: entry.id,
+        providerId: this.id,
+        cwd,
+        repository: cwd ? path.basename(cwd) : null,
+        branch: extras.gitBranch ?? null,
+        createdAtMs: entry.birthtimeMs,
+        updatedAtMs: entry.mtimeMs,
+        messageCount: 0,
+        toolCallCount: 0
+      })
+    }
+    return out
   }
 
   protected extractPromptsFromEvents(entryPath: string, limit: number): Promise<SessionPrompt[]> {

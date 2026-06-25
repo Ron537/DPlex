@@ -9,6 +9,7 @@ import type {
   SessionPrompt,
   ParsedSessionData
 } from './types'
+import type { HistoricalSession } from '../dashboard/types'
 import { killProcess, isProcessAlive, waitForProcessesToExit } from './processUtils'
 
 // Filesystems on macOS and Windows are case-insensitive by default; Linux is case-sensitive.
@@ -317,6 +318,33 @@ export abstract class BaseSessionProvider implements SessionProvider {
     return sessions.sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
+  }
+
+  /**
+   * Cheap, default history: one row per on-disk entry created at/after the
+   * cutoff. Uses only filesystem timestamps — no per-session event parsing —
+   * so cwd/repository/branch are unknown and counts are 0. Providers with a
+   * richer store (e.g. Copilot's Chronicle) should override this.
+   */
+  async getSessionHistory(cutoffMs: number): Promise<HistoricalSession[]> {
+    const entries = await this.listSessionEntries()
+    const out: HistoricalSession[] = []
+    for (const entry of entries) {
+      if (!this.validateSessionId(entry.id)) continue
+      if (entry.birthtimeMs < cutoffMs) continue
+      out.push({
+        id: entry.id,
+        providerId: this.id,
+        cwd: null,
+        repository: null,
+        branch: null,
+        createdAtMs: entry.birthtimeMs,
+        updatedAtMs: entry.mtimeMs,
+        messageCount: 0,
+        toolCallCount: 0
+      })
+    }
+    return out
   }
 
   // ── Session Lifecycle ────────────────────────────────────────────

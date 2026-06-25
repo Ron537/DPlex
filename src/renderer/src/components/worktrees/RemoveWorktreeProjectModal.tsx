@@ -45,6 +45,7 @@ export function RemoveWorktreeProjectModal({
         const root = normalizePath(t.rootFs)
         return root === projectPath || root.startsWith(projectPath + '/')
       }
+      if (t.kind === 'dashboard') return false
       if (t.worktreePath && normalizePath(t.worktreePath) === projectPath) return true
       if (!t.cwd) return false
       const cwd = normalizePath(t.cwd)

@@ -1,9 +1,19 @@
 import { useMemo } from 'react'
-import { FolderOpen, Clock, GitBranch, Settings, Search, Files } from 'lucide-react'
+import {
+  FolderOpen,
+  Clock,
+  GitBranch,
+  Settings,
+  Search,
+  Files,
+  LayoutDashboard
+} from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useGitPanelStore } from '../../stores/gitPanelStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useAttentionStore } from '../../stores/attentionStore'
+import { useTerminalStore } from '../../stores/terminalStore'
+import { isDashboardTab } from '../../types'
 import { MOD, SHIFT } from '../../utils/shortcuts'
 
 type ActivityId = 'search' | 'projects' | 'sessions' | 'git' | 'explorer'
@@ -52,6 +62,15 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
   // Sessions attention dot — show whenever the inbox has any active events.
   const attentionCount = useAttentionStore((s) => s.active.length)
 
+  // Whether the focused editor tab is the Overview Dashboard.
+  const dashboardActive = useTerminalStore((s) => {
+    const group = s.groups.find((g) => g.id === s.activeGroupId)
+    if (!group) return false
+    const tab = group.tabs.find((t) => t.id === group.activeTabId)
+    return !!tab && isDashboardTab(tab)
+  })
+  const openDashboard = useTerminalStore((s) => s.openOrFocusDashboardTab)
+
   const select = (id: ActivityId): void => {
     if (id === activeTab && !panelCollapsed) {
       // Click active item again → collapse the panel (VSCode behavior).
@@ -74,6 +93,50 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
         paddingBottom: 12
       }}
     >
+      {/* Dashboard — an action (opens/focuses the dashboard tab), not a
+          side-panel view. Sits above the view switches with its own divider. */}
+      <button
+        type="button"
+        aria-label="Dashboard"
+        aria-selected={dashboardActive}
+        title="Dashboard"
+        onClick={() => openDashboard()}
+        data-testid="activity-bar-dashboard"
+        className="relative grid place-items-center transition-colors"
+        style={{
+          width: 40,
+          height: 40,
+          marginBottom: 8,
+          borderRadius: 10,
+          color: dashboardActive ? 'var(--dplex-accent)' : 'var(--dplex-text-dim)',
+          backgroundColor: dashboardActive ? 'var(--dplex-accent-soft)' : 'transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!dashboardActive) {
+            e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
+            e.currentTarget.style.color = 'var(--dplex-text-2)'
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = dashboardActive
+            ? 'var(--dplex-accent-soft)'
+            : 'transparent'
+          e.currentTarget.style.color = dashboardActive
+            ? 'var(--dplex-accent)'
+            : 'var(--dplex-text-dim)'
+        }}
+      >
+        <LayoutDashboard size={18} strokeWidth={1.8} />
+      </button>
+      <div
+        aria-hidden
+        style={{
+          width: 24,
+          height: 1,
+          marginBottom: 8,
+          backgroundColor: 'var(--dplex-border-subtle)'
+        }}
+      />
       {ITEMS.map(({ id, label, shortcut, Icon }) => {
         const isActive = activeTab === id && !panelCollapsed
         const badge =

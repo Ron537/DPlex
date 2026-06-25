@@ -1,4 +1,5 @@
 import type { SessionProvider, DiscoveredSession, ResolvedSession, ProviderInfo } from './types'
+import type { HistoricalSession } from '../dashboard/types'
 
 /**
  * Central registry of AI tool providers.
@@ -42,6 +43,24 @@ export class ProviderRegistry {
       results.push(...sessions)
     }
     return results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  }
+
+  /**
+   * Collect lightweight historical rows from every provider for sessions
+   * created at/after `cutoffMs`. Used by the Overview Dashboard aggregator.
+   * Provider failures are isolated so one bad provider can't blank the board.
+   */
+  async getSessionHistory(cutoffMs: number): Promise<HistoricalSession[]> {
+    const results: HistoricalSession[] = []
+    for (const provider of this.providers.values()) {
+      try {
+        const rows = await provider.getSessionHistory(cutoffMs)
+        results.push(...rows)
+      } catch {
+        // Skip a failing provider rather than failing the whole snapshot.
+      }
+    }
+    return results
   }
 
   /** Close a session — tries the specified provider, or searches all. */

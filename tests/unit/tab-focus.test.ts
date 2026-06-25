@@ -44,6 +44,12 @@ describe('tabMatchesFocus', () => {
     expect(tabMatchesFocus(term('t', '/tmp/scratch'), projects, 'alpha')).toBe(false)
     expect(tabMatchesFocus(term('t', undefined), projects, 'alpha')).toBe(false)
   })
+
+  it('always matches the project-agnostic dashboard tab, even under isolate', () => {
+    const dashboard = { id: 'd', title: 'Dashboard', kind: 'dashboard' as const }
+    expect(tabMatchesFocus(dashboard, projects, 'alpha')).toBe(true)
+    expect(tabMatchesFocus(dashboard, projects, null)).toBe(true)
+  })
 })
 
 describe('pruneLayoutToGroups', () => {

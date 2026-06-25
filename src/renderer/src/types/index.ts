@@ -41,7 +41,18 @@ export interface FileDiffTab {
   sideBySide?: boolean
 }
 
-export type EditorTab = TerminalTab | FileDiffTab | FileEditorTab
+export type EditorTab = TerminalTab | FileDiffTab | FileEditorTab | DashboardTab
+
+/**
+ * The Overview Dashboard tab. A singleton (only one exists at a time) opened
+ * from the activity bar / command palette. Carries no payload — all data is
+ * pulled live from stores and the dashboard aggregation IPC.
+ */
+export interface DashboardTab {
+  id: string
+  title: string
+  kind: 'dashboard'
+}
 
 /**
  * Editable file tab opened from the file explorer. Distinct from the
@@ -71,6 +82,10 @@ export function isFileDiffTab(tab: EditorTab): tab is FileDiffTab {
 
 export function isFileEditorTab(tab: EditorTab): tab is FileEditorTab {
   return tab.kind === 'fileEditor'
+}
+
+export function isDashboardTab(tab: EditorTab): tab is DashboardTab {
+  return tab.kind === 'dashboard'
 }
 
 export function isTerminalTab(tab: EditorTab): tab is TerminalTab {

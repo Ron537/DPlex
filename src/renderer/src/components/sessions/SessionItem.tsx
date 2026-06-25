@@ -111,7 +111,8 @@ export function SessionItem({
   const backingTabId = useTerminalStore((s) => {
     for (const group of s.groups) {
       for (const tab of group.tabs) {
-        if (tab.kind === 'fileDiff' || tab.kind === 'fileEditor') continue
+        if (tab.kind === 'fileDiff' || tab.kind === 'fileEditor' || tab.kind === 'dashboard')
+          continue
         if (tab.providerId === session.aiTool && tab.sessionId === session.id) {
           return tab.id
         }
@@ -126,7 +127,8 @@ export function SessionItem({
     const group = s.groups.find((g) => g.id === s.activeGroupId)
     if (!group) return false
     const tab = group.tabs.find((t) => t.id === group.activeTabId)
-    if (!tab || tab.kind === 'fileDiff' || tab.kind === 'fileEditor') return false
+    if (!tab || tab.kind === 'fileDiff' || tab.kind === 'fileEditor' || tab.kind === 'dashboard')
+      return false
     return tab.providerId === session.aiTool && tab.sessionId === session.id
   })
 

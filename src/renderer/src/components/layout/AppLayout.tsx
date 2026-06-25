@@ -29,6 +29,7 @@ import type {
   TerminalTab,
   FileDiffTab,
   FileEditorTab,
+  DashboardTab,
   EditorTab,
   EditorGroup,
   LayoutNode
@@ -45,6 +46,7 @@ async function loadPersistedWorkspace(): Promise<{
       | (TerminalTab & { kind?: 'terminal' })
       | (FileDiffTab & { kind: 'fileDiff' })
       | (FileEditorTab & { kind: 'fileEditor' })
+      | (DashboardTab & { kind: 'dashboard' })
       | { kind: 'diff' } // Legacy repo-level diff tab — quietly dropped on restore.
     const data = (await window.dplex.sessions.loadWorkspace()) as {
       groups: Array<{
@@ -68,12 +70,16 @@ async function loadPersistedWorkspace(): Promise<{
         if (t.kind === 'diff') return false
         if (t.kind === 'fileDiff') return true
         if (t.kind === 'fileEditor') return true
+        if (t.kind === 'dashboard') return true
         return !!(t as TerminalTab).command
       })
       if (keepers.length === 0) continue
 
       const preparedTabs: EditorTab[] = await Promise.all(
         keepers.map(async (t): Promise<EditorTab> => {
+          if (t.kind === 'dashboard') {
+            return { ...(t as DashboardTab) }
+          }
           if (t.kind === 'fileDiff') {
             const ft = t as FileDiffTab
             // Restored fileDiff tabs are always permanent — preview tabs

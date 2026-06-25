@@ -49,7 +49,9 @@ export function TabHeader({ tab }: TabHeaderProps): JSX.Element | null {
     ? tab.repoRootFs
     : isFileEditor
       ? tab.rootFs
-      : (tab.worktreePath ?? tab.cwd)
+      : isTerminal
+        ? (tab.worktreePath ?? tab.cwd)
+        : undefined
   const branch = (isTerminal ? tab.worktreeBranch : undefined) ?? session?.branch
   const fileDiffPath = isFileDiff ? tab.file.gitPath : isFileEditor ? tab.relPath : undefined
 

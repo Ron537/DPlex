@@ -41,6 +41,7 @@ export function DeleteWorktreeModal({
         const root = normalizePath(t.rootFs)
         return root === normalizedWorktreePath || root.startsWith(normalizedWorktreePath + '/')
       }
+      if (t.kind === 'dashboard') return false
       if (t.worktreePath && normalizePath(t.worktreePath) === normalizedWorktreePath) {
         return true
       }
