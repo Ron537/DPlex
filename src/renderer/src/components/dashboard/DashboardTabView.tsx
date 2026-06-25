@@ -100,7 +100,6 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
   const avgPrompts = m ? average(m.totals.messages, m.totals.sessions) : 0
 
   // Reveal the Sessions sidebar, optionally pre-filtered by status and/or a
-  // Reveal the Sessions sidebar, optionally pre-filtered by status and/or a
   // search term. The status request goes through the session store (consumed
   // by the panel on its next render) so it survives the panel not being
   // mounted at click time.
@@ -112,6 +111,15 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
     })
     setSearchQuery(opts.search ?? '')
     requestStatusFilter(opts.status ?? ['all'])
+  }
+
+  // Focus a single, specific session in the panel by searching its (unique)
+  // session id and clearing any status filter so it can't be filtered out.
+  // Used by the single-session housekeeping cards (oldest-waiting / longest-
+  // active). No-op when the id is unknown.
+  const focusSession = (sessionId: string | null): void => {
+    if (!sessionId) return
+    revealSessions({ search: sessionId, status: ['all'] })
   }
 
   const selectRepo = (repo: DashboardMetrics['topRepos'][number]): void => {
@@ -258,7 +266,11 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
                 ? 'var(--dplex-status-approval)'
                 : 'var(--dplex-text)'
             }
-            onClick={() => revealSessions({ status: ['waiting'] })}
+            onClick={
+              housekeeping.oldestWaitingSessionId
+                ? () => focusSession(housekeeping.oldestWaitingSessionId)
+                : undefined
+            }
             sub={housekeeping.oldestWaitingLabel ?? 'Nothing waiting'}
           />
           <KpiCard
@@ -285,7 +297,11 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
             }
             Icon={Timer}
             accent="var(--dplex-status-success)"
-            onClick={() => revealSessions({ status: ['active'] })}
+            onClick={
+              housekeeping.longestActiveSessionId
+                ? () => focusSession(housekeeping.longestActiveSessionId)
+                : undefined
+            }
             sub={housekeeping.longestActiveName ?? 'No active sessions'}
           />
           <KpiCard

@@ -127,11 +127,15 @@ export interface Housekeeping {
   /** Age (ms) of the longest-waiting attention item, or null when none. */
   oldestWaitingMs: number | null
   oldestWaitingLabel: string | null
-  /** Idle sessions inactive longer than the idle-too-long threshold. */
+  /** Session id of the oldest-waiting item (for focusing it in the panel). */
+  oldestWaitingSessionId: string | null
+  /** Active sessions that have gone quiet beyond the idle-too-long threshold. */
   staleCount: number
   /** Elapsed (ms) of the longest-running active session, or null. */
   longestActiveMs: number | null
   longestActiveName: string | null
+  /** Session id of the longest-running active session. */
+  longestActiveSessionId: string | null
 }
 
 /**
@@ -145,8 +149,11 @@ export function computeHousekeeping(
   nowMs: number = Date.now()
 ): Housekeeping {
   // Oldest item that needs the user (approval / input), ignoring dismissed.
+  // "Oldest" = the largest age = the smallest createdAt; we keep the running
+  // maximum age, so an event waiting longer always wins over a newer one.
   let oldestWaitingMs: number | null = null
   let oldestWaitingLabel: string | null = null
+  let oldestWaitingSessionId: string | null = null
   for (const e of attention) {
     if (e.suppressed) continue
     if (e.kind !== 'waitingForApproval' && e.kind !== 'waitingForInput') continue
@@ -156,6 +163,7 @@ export function computeHousekeeping(
       oldestWaitingLabel = `${e.displayName} · ${
         e.kind === 'waitingForApproval' ? 'approval' : 'input'
       }`
+      oldestWaitingSessionId = e.sessionId
     }
   }
 
@@ -168,12 +176,14 @@ export function computeHousekeeping(
   let staleCount = 0
   let longestActiveMs: number | null = null
   let longestActiveName: string | null = null
+  let longestActiveSessionId: string | null = null
   for (const s of sessions) {
     if (s.status !== 'active') continue
     const elapsed = nowMs - s.createdAt.getTime()
     if (longestActiveMs === null || elapsed > longestActiveMs) {
       longestActiveMs = elapsed
       longestActiveName = s.displayName
+      longestActiveSessionId = s.id
     }
     const last = s.lastActivityTime ?? s.updatedAt.getTime()
     if (nowMs - last > thresholdMs) staleCount += 1
@@ -182,9 +192,11 @@ export function computeHousekeeping(
   return {
     oldestWaitingMs,
     oldestWaitingLabel,
+    oldestWaitingSessionId,
     staleCount,
     longestActiveMs,
-    longestActiveName
+    longestActiveName,
+    longestActiveSessionId
   }
 }
 

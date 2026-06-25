@@ -136,18 +136,42 @@ describe('formatDuration', () => {
 
 describe('computeHousekeeping', () => {
   const NOW = Date.now()
-  it('finds the oldest waiting attention item', () => {
+  it('finds the OLDEST waiting attention item, not the newest', () => {
     const hk = computeHousekeeping(
       [],
       [
-        event('waitingForApproval', { createdAt: NOW - 10 * 60_000, displayName: 'recent' }),
-        event('waitingForInput', { createdAt: NOW - 30 * 60_000, displayName: 'old' })
+        event('waitingForApproval', {
+          createdAt: NOW - 10 * 60_000,
+          displayName: 'recent',
+          sessionId: 'recent-id'
+        }),
+        event('waitingForInput', {
+          createdAt: NOW - 30 * 60_000,
+          displayName: 'old',
+          sessionId: 'old-id'
+        })
       ],
       30,
       NOW
     )
+    // 30m-old event must win over the 10m-old one.
     expect(Math.round((hk.oldestWaitingMs ?? 0) / 60_000)).toBe(30)
     expect(hk.oldestWaitingLabel).toContain('old')
+    expect(hk.oldestWaitingSessionId).toBe('old-id')
+  })
+
+  it('picks the oldest regardless of input ordering (oldest listed first)', () => {
+    const hk = computeHousekeeping(
+      [],
+      [
+        event('waitingForApproval', { createdAt: NOW - 50 * 60_000, sessionId: 'oldest' }),
+        event('waitingForInput', { createdAt: NOW - 5 * 60_000, sessionId: 'newest' })
+      ],
+      30,
+      NOW
+    )
+    expect(hk.oldestWaitingSessionId).toBe('oldest')
+    expect(Math.round((hk.oldestWaitingMs ?? 0) / 60_000)).toBe(50)
   })
 
   it('ignores suppressed and finished events for oldest-waiting', () => {
@@ -192,19 +216,22 @@ describe('computeHousekeeping', () => {
     expect(hk.staleCount).toBe(1)
   })
 
-  it('reports the longest-running active session', () => {
+  it('reports the longest-running active session and its id', () => {
     const a = session({
+      id: 'short-id',
       status: 'active',
       createdAt: new Date(NOW - 30 * 60_000),
       displayName: 'short'
     })
     const b = session({
+      id: 'long-id',
       status: 'active',
       createdAt: new Date(NOW - 2 * 3_600_000),
       displayName: 'long'
     })
     const hk = computeHousekeeping([a, b], [], 30, NOW)
     expect(hk.longestActiveName).toBe('long')
+    expect(hk.longestActiveSessionId).toBe('long-id')
     expect(Math.round((hk.longestActiveMs ?? 0) / 3_600_000)).toBe(2)
   })
 })
