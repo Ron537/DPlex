@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-- Copy and paste now work reliably while an AI CLI (like Copilot CLI or Claude Code) is running: selecting text and pressing Ctrl+C or right-clicking actually puts it on your clipboard, instead of silently doing nothing.
+- Copy and paste now work reliably while an AI CLI (like Copilot CLI or Claude Code) is running: drag to select, double-click a word, or triple-click a line, then press Ctrl+C or right-click to copy — instead of selection silently doing nothing.
 - Right-clicking in an AI session no longer pastes your clipboard by mistake, and pasting with nothing selected no longer pastes twice.
-- Dragging to select in an AI session now shows a visible highlight, just like a normal terminal.
+
+### Notes
+
+- In an AI session, hold **Alt** while clicking or dragging to interact with the AI tool's own mouse interface (menus, scrolling regions); plain clicks and drags now select text. Mouse-wheel scrolling is unaffected.
 
 ## [0.27.0] — 2026-06-20
 

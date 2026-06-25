@@ -13,14 +13,7 @@ import {
   clipboardKeyAction,
   copyTerminalSelection,
   pasteIntoTerminal,
-  cellFromPixel,
-  readBufferRange,
-  selectionLength,
-  isDrag,
-  resolveCopyText,
-  shouldSuppressPaste,
-  type BufferCell,
-  type BufferLike
+  shouldSuppressPaste
 } from './terminalClipboard'
 import { useSettingsStore } from '../stores/settingsStore'
 import { TruecolorSgrNormalizer } from './truecolorSgrNormalizer'
@@ -141,6 +134,12 @@ export function getOrCreateTerminal(
     // reselecting would replace the user's selection before our contextmenu
     // handler runs — so right-click only copied when clicked on the selection.
     rightClickSelectsWord: false,
+    // AI CLIs (Copilot/Claude) enable mouse tracking, which by default disables
+    // xterm's own text selection (every gesture is forwarded to the PTY). With
+    // this option, plain drag / double-click word / triple-click line selection
+    // work natively, and mouse events only reach the app when Alt is held; wheel
+    // scroll still passes through. This is what makes copy work in AI panes (#86).
+    mouseEventsRequireAlt: isAiPane,
     scrollback: 10000
   })
 
@@ -164,118 +163,37 @@ export function getOrCreateTerminal(
     }
   )
 
-  // ── AI-pane clipboard takeover (issue #86) ────────────────────────────
-  // When an AI CLI (Copilot/Claude) enables mouse tracking, xterm forwards
-  // drags to the PTY and `term.hasSelection()` is always false — so the
-  // selection-based copy paths fail silently. For AI panes we reconstruct the
-  // dragged text from the buffer (`pendingCopyText`) and paint a visible
-  // selection. Non-AI panes keep native behavior (Shift+drag still forces a
-  // local xterm selection under mouse mode).
-  const PENDING_COPY_TTL_MS = 3000
-  let pendingCopyText: string | null = null
-  let pendingCopyTimer: ReturnType<typeof setTimeout> | null = null
+  // ── Copy / paste wiring (issue #86) ───────────────────────────────────
+  // With `mouseEventsRequireAlt` (set in the Terminal options above for AI
+  // panes), xterm keeps its own selection service active under mouse tracking,
+  // so drag / double-click word / triple-click line selection all work natively.
+  // Copy therefore just reads `term.getSelection()` — no buffer reconstruction
+  // or pixel→cell math needed. `lastCopyAt` backs the post-copy paste guard.
   let lastCopyAt = 0
-  let dragStartPos: { x: number; y: number } | null = null
-  // Set while applying a programmatic `term.select()` so the copy-on-selection
-  // listener doesn't auto-copy a selection the user didn't make by hand.
-  let suppressSelectionCopy = false
-  // Handle for the deferred AI-pane selection paint, tracked so disposal can
-  // cancel a paint scheduled in the same tick as a teardown.
-  let deferredSelectTimer: ReturnType<typeof setTimeout> | null = null
-  // TEMP (#86 triage): dev-only clipboard diagnostics. Always on in `npm run
-  // dev`, compiled out of production. Remove once the Windows path is verified.
-  const dlog = import.meta.env.DEV
-    ? (event: string, data: Record<string, unknown>): void => {
-        console.log(`[dplex:clipboard] ${event}`, data)
-      }
-    : (): void => {}
-
-  const clearPendingCopy = (): void => {
-    pendingCopyText = null
-    if (pendingCopyTimer) {
-      clearTimeout(pendingCopyTimer)
-      pendingCopyTimer = null
-    }
-  }
-  const snapshotCopy = (text: string): void => {
-    pendingCopyText = text
-    if (pendingCopyTimer) clearTimeout(pendingCopyTimer)
-    pendingCopyTimer = setTimeout(clearPendingCopy, PENDING_COPY_TTL_MS)
-  }
-  // Copy the native selection or, failing that, the buffer snapshot. Returns
-  // true when something non-whitespace was copied.
-  const copyResolved = (): boolean => {
-    const native = term.hasSelection() ? term.getSelection() : null
-    const text = resolveCopyText(native, pendingCopyText)
-    if (!text) return false
+  // Copy the current native selection. Returns true when something
+  // non-whitespace was copied. The raw selection is written verbatim (internal
+  // whitespace may be meaningful); only the accept/reject test trims.
+  const copySelection = (clearAfter = true): boolean => {
+    if (!term.hasSelection()) return false
+    const text = term.getSelection()
+    if (!text.trim()) return false
     window.dplex.clipboard.writeText(text)
+    if (clearAfter) term.clearSelection()
     lastCopyAt = Date.now()
-    term.clearSelection()
-    clearPendingCopy()
     return true
-  }
-
-  // Internal xterm access for pixel→cell mapping, isolated and fail-closed so a
-  // future xterm upgrade only touches here.
-  const getCellDims = (): { cellWidth: number; cellHeight: number } | null => {
-    const core = (
-      term as unknown as {
-        _core?: {
-          _renderService?: {
-            dimensions?: {
-              css?: { cell?: { width: number; height: number } }
-              actualCellWidth?: number
-              actualCellHeight?: number
-            }
-          }
-        }
-      }
-    )._core
-    const dim = core?._renderService?.dimensions
-    const cellWidth = dim?.css?.cell?.width ?? dim?.actualCellWidth ?? 0
-    const cellHeight = dim?.css?.cell?.height ?? dim?.actualCellHeight ?? 0
-    if (!cellWidth || !cellHeight) return null
-    return { cellWidth, cellHeight }
-  }
-  const pixelToCell = (clientX: number, clientY: number): BufferCell | null => {
-    const screen = wrapperEl.querySelector('.xterm-screen') as HTMLElement | null
-    if (!screen) return null
-    const rect = screen.getBoundingClientRect()
-    // Derive cell size from the screen element, which xterm sizes to exactly
-    // cols×rows cells. This is robust across xterm versions; the render-service
-    // internals are only a fallback for the brief window before layout.
-    let cellWidth = term.cols > 0 ? rect.width / term.cols : 0
-    let cellHeight = term.rows > 0 ? rect.height / term.rows : 0
-    if (!cellWidth || !cellHeight) {
-      const dims = getCellDims()
-      if (!dims) return null
-      cellWidth = dims.cellWidth
-      cellHeight = dims.cellHeight
-    }
-    return cellFromPixel(
-      clientX,
-      clientY,
-      rect,
-      { cellWidth, cellHeight },
-      term.cols,
-      term.rows,
-      term.buffer.active.viewportY
-    )
   }
 
   // Copy/paste + (macOS) word-motion + Shift+Enter key handling. xterm allows a
   // single custom key handler, so these concerns share one. Returning false
   // stops xterm from forwarding the key to the PTY.
   term.attachCustomKeyEventHandler((e) => {
-    // Treat a buffer snapshot as a selection so Ctrl+C copies it under mouse
-    // mode (where term.hasSelection() is false) instead of sending SIGINT.
     const action = clipboardKeyAction(e, {
       isMac,
-      hasSelection: term.hasSelection() || !!pendingCopyText
+      hasSelection: term.hasSelection()
     })
     if (action === 'copy') {
       e.preventDefault()
-      copyResolved()
+      copySelection()
       return false
     }
     if (action === 'paste') {
@@ -308,136 +226,35 @@ export function getOrCreateTerminal(
     return true
   })
 
-  // Right-click: copy the selection/snapshot, or paste when there's nothing to
-  // copy — Windows Terminal's default. A post-copy guard stops a confirming
-  // second right-click from pasting the just-copied text back into the prompt.
+  // Right-click: copy the selection, or paste when there's nothing selected —
+  // Windows Terminal's default. A post-copy guard stops a confirming second
+  // right-click from pasting the just-copied text back into the prompt. With
+  // `mouseEventsRequireAlt`, a plain right-click in an AI pane is not forwarded
+  // to the PTY, so there's no double-paste to guard against here.
   const onContextMenu = (e: MouseEvent): void => {
     e.preventDefault()
     e.stopPropagation()
-    e.stopImmediatePropagation()
-    dlog('rightclick', {
-      isAiPane,
-      nativeSelection: term.hasSelection(),
-      pendingLen: pendingCopyText ? pendingCopyText.length : 0
-    })
-    if (copyResolved()) return
+    // Any selection means the user is copying — copy it (a whitespace-only
+    // selection is a no-op) and never fall through to paste their clipboard.
+    if (term.hasSelection()) {
+      copySelection()
+      return
+    }
     if (shouldSuppressPaste(lastCopyAt, Date.now())) return
     void pasteIntoTerminal(term)
   }
 
-  // Mirror every xterm selection into the copy cache. This is the authoritative
-  // Mirror a real (non-empty) xterm selection into the copy cache: drag,
-  // double/triple-click, and our programmatic AI-pane `term.select()` paint.
-  // We deliberately do NOT clear the cache on an empty selection: on the
-  // alternate screen a TUI repaint (Copilot/Claude) makes xterm drop the
-  // painted selection a tick later, which would otherwise destroy the snapshot
-  // before the user can right-click. The snapshot is the durable copy source;
-  // it's invalidated only by a new left click (handleLeftDown), focus loss, the
-  // 3s TTL, or a completed copy.
+  // Optional copy-on-selection: mirror a settled native selection to the
+  // clipboard. xterm fires this repeatedly during a drag, so debounce.
   let selectionCopyTimer: ReturnType<typeof setTimeout> | null = null
   const selectionDisposable = term.onSelectionChange(() => {
-    dlog('selchange', {
-      hasSel: term.hasSelection(),
-      len: term.hasSelection() ? term.getSelection().length : 0,
-      suppress: suppressSelectionCopy
-    })
-    if (!term.hasSelection()) return
-    const sel = term.getSelection().replace(/\s+$/u, '')
-    if (sel) snapshotCopy(sel)
-    // Optional copy-on-selection — but never for our own programmatic paint,
-    // so an AI-pane drag never silently overwrites the clipboard.
-    if (!suppressSelectionCopy && useSettingsStore.getState().settings.copyOnSelection) {
-      if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
-      selectionCopyTimer = setTimeout(() => {
-        selectionCopyTimer = null
-        if (term.hasSelection()) copyTerminalSelection(term)
-      }, 120)
-    }
+    if (!useSettingsStore.getState().settings.copyOnSelection) return
+    if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
+    selectionCopyTimer = setTimeout(() => {
+      selectionCopyTimer = null
+      if (term.hasSelection()) copyTerminalSelection(term)
+    }, 120)
   })
-
-  // Right mouse button: snapshot any existing selection (double/triple-click
-  // word/line selections get cleared by the click before contextmenu reads
-  // them), and — in AI panes — suppress xterm's own forwarding so the click
-  // isn't ALSO delivered to the PTY (which caused the double-paste in #86).
-  const handleRightButton = (e: MouseEvent): void => {
-    if (e.button !== 2) return
-    if (e.type === 'mousedown' && term.hasSelection()) {
-      const sel = term.getSelection().replace(/\s+$/u, '')
-      if (sel) snapshotCopy(sel)
-    }
-    if (isAiPane) {
-      e.preventDefault()
-      e.stopPropagation()
-    }
-  }
-
-  // Left mouse button: track drags. In an AI pane, mouse tracking swallows the
-  // native selection, so on a drag with no resulting xterm selection we read
-  // the dragged text straight from the buffer (snapshot for copy) and paint a
-  // visible selection — matching Windows Terminal.
-  const handleLeftDown = (e: MouseEvent): void => {
-    if (e.button !== 0) return
-    dragStartPos = { x: e.clientX, y: e.clientY }
-    clearPendingCopy()
-  }
-  const handleLeftUp = (e: MouseEvent): void => {
-    if (e.button !== 0 || !dragStartPos) return
-    const start = dragStartPos
-    dragStartPos = null
-    if (!isDrag(e.clientX - start.x, e.clientY - start.y)) return
-    const startCell = pixelToCell(start.x, start.y)
-    const endCell = pixelToCell(e.clientX, e.clientY)
-    dlog('drag', {
-      isAiPane,
-      nativeSelection: term.hasSelection(),
-      gotCells: !!startCell && !!endCell,
-      len: startCell && endCell ? selectionLength(startCell, endCell, term.cols) : null,
-      cols: term.cols,
-      rows: term.rows
-    })
-    // Only take over in AI panes; real TUIs (vim/htop) keep their mouse, and
-    // plain shells select natively. A native xterm selection always wins.
-    if (!isAiPane || term.hasSelection()) return
-    if (!startCell || !endCell) return
-    const snapshot = readBufferRange(
-      term.buffer.active as unknown as BufferLike,
-      startCell,
-      endCell
-    ).replace(/\s+$/u, '')
-    if (snapshot) snapshotCopy(snapshot)
-    const len = selectionLength(startCell, endCell, term.cols)
-    dlog('snapshot', { snapLen: snapshot.length, len, bufType: term.buffer.active.type })
-    if (len <= 0) return
-    let s = startCell
-    let en = endCell
-    if (s.row > en.row || (s.row === en.row && s.col > en.col)) {
-      const tmp = s
-      s = en
-      en = tmp
-    }
-    const selCol = s.col
-    const selRow = s.row
-    // Defer past this event cycle: our capture-phase listener runs before
-    // xterm's bubble-phase mouseup, which would otherwise reset the selection.
-    if (deferredSelectTimer) clearTimeout(deferredSelectTimer)
-    deferredSelectTimer = setTimeout(() => {
-      deferredSelectTimer = null
-      suppressSelectionCopy = true
-      try {
-        term.select(selCol, selRow, len)
-      } catch {
-        // Selection service may have shifted (resize/scroll) — non-fatal.
-      } finally {
-        suppressSelectionCopy = false
-      }
-      dlog('paint', {
-        afterHasSel: term.hasSelection(),
-        selLen: term.getSelection().length,
-        pendingLen: pendingCopyText ? pendingCopyText.length : 0
-      })
-    }, 0)
-  }
-  const onFocusOut = (): void => clearPendingCopy()
 
   // Create a persistent wrapper element for the xterm DOM
   const wrapperEl = document.createElement('div')
@@ -447,16 +264,9 @@ export function getOrCreateTerminal(
 
   term.open(wrapperEl)
 
-  // Capture phase so we run before (and can stop) xterm's own inner-element
-  // mouse handlers. Left-button events are NOT stopped — xterm still does its
-  // native selection / mouse reporting; we only read coordinates.
-  wrapperEl.addEventListener('mousedown', handleRightButton, true)
-  wrapperEl.addEventListener('mouseup', handleRightButton, true)
-  wrapperEl.addEventListener('mousedown', handleLeftDown, true)
-  wrapperEl.addEventListener('mouseup', handleLeftUp, true)
+  // Capture phase so we run before xterm's own inner-element contextmenu
+  // handling and can drive right-click copy/paste ourselves.
   wrapperEl.addEventListener('contextmenu', onContextMenu, true)
-  wrapperEl.addEventListener('focusout', onFocusOut)
-  dlog('create', { terminalId, isAiPane })
 
   const entry: TerminalEntry = {
     term,
@@ -469,16 +279,9 @@ export function getOrCreateTerminal(
     cleanupIpc: null,
     disposeExtras: () => {
       if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
-      if (pendingCopyTimer) clearTimeout(pendingCopyTimer)
-      if (deferredSelectTimer) clearTimeout(deferredSelectTimer)
       selectionDisposable.dispose()
       modifyOtherKeysDisposable.dispose()
-      wrapperEl.removeEventListener('mousedown', handleRightButton, true)
-      wrapperEl.removeEventListener('mouseup', handleRightButton, true)
-      wrapperEl.removeEventListener('mousedown', handleLeftDown, true)
-      wrapperEl.removeEventListener('mouseup', handleLeftUp, true)
       wrapperEl.removeEventListener('contextmenu', onContextMenu, true)
-      wrapperEl.removeEventListener('focusout', onFocusOut)
     }
   }
 
