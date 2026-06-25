@@ -146,9 +146,16 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <span
+              className="text-[11px] font-mono uppercase tracking-wider hidden @md:inline"
+              style={{ color: 'var(--dplex-text-dim)' }}
+            >
+              History
+            </span>
             <div
               className="flex items-center rounded-lg overflow-hidden"
               style={{ border: '1px solid var(--dplex-border)' }}
+              title="Time range for the historical cards (live cards are unaffected)"
             >
               {WINDOW_OPTIONS.map((d) => (
                 <button
@@ -331,7 +338,7 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
               <Placeholder loading={loading} />
             )}
           </DashboardCard>
-          <DashboardCard className="@3xl:col-span-4" title="Status right now">
+          <DashboardCard className="@3xl:col-span-4" title="Status right now" meta="live">
             <StatusDonut counts={kpis.statusCounts} />
           </DashboardCard>
 
