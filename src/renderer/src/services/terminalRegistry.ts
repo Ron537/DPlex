@@ -147,6 +147,18 @@ export function getOrCreateTerminal(
   term.loadAddon(fitAddon)
   term.loadAddon(new WebLinksAddon())
 
+  // TEMP (#86 verify): dev-only proof of which build is running. If you don't
+  // see `mouseEventsRequireAlt:true` for an AI pane, you're on a stale bundle —
+  // stop `npm run dev`, delete node_modules/.vite, reinstall, and restart.
+  if (import.meta.env.DEV) {
+    console.log('[dplex:clipboard] build-check', {
+      terminalId,
+      isAiPane,
+      mouseEventsRequireAlt: term.options.mouseEventsRequireAlt,
+      buildTag: 'native-selection-v2'
+    })
+  }
+
   // Track whether the foreground app has enabled xterm's modifyOtherKeys mode
   // (CSI > 4 ; n m). Copilot/Claude CLIs enable it; plain shells do not. We use
   // it to gate Shift+Enter translation so the encoded sequence only reaches
