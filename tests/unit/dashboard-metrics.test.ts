@@ -163,11 +163,32 @@ describe('computeHousekeeping', () => {
     expect(hk.oldestWaitingMs).toBeNull()
   })
 
-  it('counts idle sessions inactive beyond the threshold', () => {
-    const fresh = session({ status: 'idle', lastActivityTime: NOW - 5 * 60_000 })
-    const stale = session({ status: 'idle', lastActivityTime: NOW - 45 * 60_000 })
-    const active = session({ status: 'active', lastActivityTime: NOW - 90 * 60_000 })
-    const hk = computeHousekeeping([fresh, stale, active], [], 30, NOW)
+  it('counts only ACTIVE sessions that have gone quiet beyond the threshold', () => {
+    // Active but quiet for 45m → stale. Active and recently active → not.
+    // Idle (non-active) sessions are excluded regardless of how old they are.
+    const activeQuiet = session({
+      status: 'active',
+      createdAt: new Date(NOW - 2 * 3_600_000),
+      lastActivityTime: NOW - 45 * 60_000
+    })
+    const activeBusy = session({
+      status: 'active',
+      createdAt: new Date(NOW - 2 * 3_600_000),
+      lastActivityTime: NOW - 2 * 60_000
+    })
+    const oldIdle = session({ status: 'idle', lastActivityTime: NOW - 10 * 86_400_000 })
+    const hk = computeHousekeeping([activeQuiet, activeBusy, oldIdle], [], 30, NOW)
+    expect(hk.staleCount).toBe(1)
+  })
+
+  it('falls back to updatedAt when an active session has no lastActivityTime', () => {
+    const s = session({
+      status: 'active',
+      createdAt: new Date(NOW - 3 * 3_600_000),
+      updatedAt: new Date(NOW - 50 * 60_000),
+      lastActivityTime: undefined
+    })
+    const hk = computeHousekeeping([s], [], 30, NOW)
     expect(hk.staleCount).toBe(1)
   })
 

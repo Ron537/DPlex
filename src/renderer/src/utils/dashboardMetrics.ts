@@ -159,22 +159,24 @@ export function computeHousekeeping(
     }
   }
 
-  // Stale = idle sessions whose last activity is older than the threshold.
+  // Stale = ACTIVE sessions that have gone quiet: still running (lock alive)
+  // but with no activity for longer than the idle-too-long threshold. These
+  // are the actionable "check on it or close it" candidates — a stuck or
+  // forgotten agent. Non-active (historical) sessions are intentionally
+  // excluded; counting those would just tally your entire session history.
   const thresholdMs = Math.max(1, idleTooLongMinutes) * 60_000
   let staleCount = 0
   let longestActiveMs: number | null = null
   let longestActiveName: string | null = null
   for (const s of sessions) {
-    if (s.status === 'active') {
-      const elapsed = nowMs - s.createdAt.getTime()
-      if (longestActiveMs === null || elapsed > longestActiveMs) {
-        longestActiveMs = elapsed
-        longestActiveName = s.displayName
-      }
-    } else {
-      const last = s.lastActivityTime ?? s.updatedAt.getTime()
-      if (nowMs - last > thresholdMs) staleCount += 1
+    if (s.status !== 'active') continue
+    const elapsed = nowMs - s.createdAt.getTime()
+    if (longestActiveMs === null || elapsed > longestActiveMs) {
+      longestActiveMs = elapsed
+      longestActiveName = s.displayName
     }
+    const last = s.lastActivityTime ?? s.updatedAt.getTime()
+    if (nowMs - last > thresholdMs) staleCount += 1
   }
 
   return {

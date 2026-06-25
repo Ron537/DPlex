@@ -264,12 +264,16 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
           <KpiCard
             label="Stale sessions"
             value={housekeeping.staleCount}
-            unit={`idle >${idleTooLongMinutes}m`}
+            unit={`quiet >${idleTooLongMinutes}m`}
             Icon={MoonStar}
-            accent="var(--dplex-text-dim)"
-            onClick={() => revealSessions({ status: ['idle'] })}
+            accent={
+              housekeeping.staleCount > 0 ? 'var(--dplex-status-warning)' : 'var(--dplex-text-dim)'
+            }
+            onClick={() => revealSessions({ status: ['active'] })}
             sub={
-              housekeeping.staleCount > 0 ? 'candidates to resume or close' : 'nothing gone stale'
+              housekeeping.staleCount > 0
+                ? 'running but idle — check or close'
+                : 'no idle running sessions'
             }
           />
           <KpiCard
