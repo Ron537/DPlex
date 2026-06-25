@@ -204,9 +204,39 @@ export class CopilotChronicle {
     }
   }
 
-  /** Returns `Map<sessionId, messageCount>` for every session that has turns. */
-  getMessageCounts(): Map<string, number> {
+  /**
+   * Returns `Map<sessionId, messageCount>`. When `sessionIds` is provided,
+   * counts turns only for those sessions (chunked `WHERE session_id IN (...)`)
+   * — so callers like the dashboard pay a cost bounded by their window rather
+   * than scanning the entire `turns` table. With no argument, returns counts
+   * for every session (used by the live discovery path).
+   */
+  getMessageCounts(sessionIds?: readonly string[]): Map<string, number> {
     const map = new Map<string, number>()
+
+    if (sessionIds) {
+      if (sessionIds.length === 0) return map
+      if (!this.db || !this.hasTurnsCols.has('session_id')) return map
+      const CHUNK = 500
+      try {
+        for (let i = 0; i < sessionIds.length; i += CHUNK) {
+          const chunk = sessionIds.slice(i, i + CHUNK)
+          const placeholders = chunk.map(() => '?').join(',')
+          const stmt = this.db.prepare(
+            `SELECT session_id AS sid, COUNT(*) AS n FROM turns
+             WHERE session_id IN (${placeholders}) GROUP BY session_id`
+          )
+          const rows = stmt.all(...chunk) as unknown as Array<{ sid: string; n: number }>
+          for (const r of rows) {
+            if (typeof r.sid === 'string' && typeof r.n === 'number') map.set(r.sid, r.n)
+          }
+        }
+      } catch {
+        // ignore
+      }
+      return map
+    }
+
     if (!this.stmts.countTurns) return map
     try {
       const rows = this.stmts.countTurns.all() as unknown as Array<{

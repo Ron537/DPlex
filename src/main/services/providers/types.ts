@@ -3,6 +3,8 @@
  * Each AI CLI tool (Copilot, Claude, Codex, etc.) implements SessionProvider.
  */
 
+import type { HistoricalSession } from '../dashboard/types'
+
 /** Granular session status derived from JSONL event parsing. */
 export type SessionStatus =
   | 'idle'
@@ -74,6 +76,14 @@ export interface SessionProvider {
 
   /** Discover all sessions for this provider from disk/filesystem. */
   discoverSessions(): Promise<DiscoveredSession[]>
+
+  /**
+   * Return lightweight historical rows for sessions created at/after
+   * `cutoffMs`. Used by the Overview Dashboard for long-window aggregation,
+   * independent of the (shorter) live-discovery age cap. Must stay cheap —
+   * no deep per-session event parsing.
+   */
+  getSessionHistory(cutoffMs: number): Promise<HistoricalSession[]>
 
   /** Close an active session by killing its process. Returns true if a process was killed. */
   closeSession(sessionId: string): Promise<boolean>

@@ -1,6 +1,6 @@
 import { useState, DragEvent } from 'react'
 import type { EditorGroup as EditorGroupType } from '../../types'
-import { isFileDiffTab, isFileEditorTab } from '../../types'
+import { isFileDiffTab, isFileEditorTab, isDashboardTab } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useFocusFilter } from '../../hooks/useFocusFilter'
 import { GroupTabBar } from './GroupTabBar'
@@ -8,6 +8,7 @@ import { TabHeader } from './TabHeader'
 import { TerminalView } from './TerminalView'
 import { FileDiffTabView } from '../diff/FileDiffTabView'
 import { FileEditorTabView } from './FileEditorTabView'
+import { DashboardTabView } from '../dashboard/DashboardTabView'
 
 interface EditorGroupProps {
   group: EditorGroupType
@@ -129,6 +130,8 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
                 <FileDiffTabView tab={tab} />
               ) : isFileEditorTab(tab) ? (
                 <FileEditorTabView tab={tab} isActive={isActiveGroup && isActive} />
+              ) : isDashboardTab(tab) ? (
+                <DashboardTabView isActive={isActiveGroup && isActive} />
               ) : (
                 <TerminalView
                   terminalId={tab.id}

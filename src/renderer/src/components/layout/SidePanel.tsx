@@ -82,6 +82,22 @@ export function SidePanel(): React.JSX.Element | null {
     return () => window.removeEventListener('dplex:focus-search', handler)
   }, [])
 
+  // Apply a status filter requested from elsewhere (e.g. the Dashboard's
+  // "Active now" / "Needs you" drill-down KPIs). The request lives in the
+  // session store (not a fire-and-forget DOM event), so it survives this panel
+  // not being visible yet when the dashboard makes the request. We subscribe
+  // imperatively and consume + clear the request when it appears.
+  useEffect(() => {
+    const consume = (pending: string[] | null): void => {
+      if (pending && pending.length > 0) {
+        setStatusFilters(new Set(pending))
+        useSessionStore.getState().clearPendingStatusFilter()
+      }
+    }
+    consume(useSessionStore.getState().pendingStatusFilter)
+    return useSessionStore.subscribe((s) => consume(s.pendingStatusFilter))
+  }, [])
+
   // Compute available providers and counts
   const providerOptions = useMemo(() => {
     const counts = new Map<string, number>()
@@ -259,6 +275,8 @@ export function SidePanel(): React.JSX.Element | null {
               color: hasActiveFilters ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
             }}
             title="Filter & group options"
+            data-testid="sessions-filter-toggle"
+            aria-pressed={hasActiveFilters}
           >
             <SlidersHorizontal size={13} />
           </button>

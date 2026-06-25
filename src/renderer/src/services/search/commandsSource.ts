@@ -15,7 +15,8 @@ import {
   BellRing,
   RefreshCw,
   Files,
-  ChevronsDownUp
+  ChevronsDownUp,
+  LayoutDashboard
 } from 'lucide-react'
 import type { SearchItem, SearchSource } from './types'
 import { useTerminalStore } from '../../stores/terminalStore'
@@ -43,6 +44,16 @@ interface CommandEntry {
 }
 
 const COMMANDS: readonly CommandEntry[] = [
+  {
+    id: 'open-dashboard',
+    label: 'Open Dashboard',
+    description: 'Open the Overview dashboard tab',
+    keywords: ['overview', 'metrics', 'stats', 'home', 'activity'],
+    Icon: LayoutDashboard,
+    run: () => {
+      useTerminalStore.getState().openOrFocusDashboardTab()
+    }
+  },
   {
     id: 'add-project',
     label: 'Add Project',
