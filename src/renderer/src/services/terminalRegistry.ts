@@ -338,6 +338,12 @@ export function getOrCreateTerminal(
   // is the copy source-of-truth; the buffer snapshot is only an early fallback.
   let selectionCopyTimer: ReturnType<typeof setTimeout> | null = null
   const selectionDisposable = term.onSelectionChange(() => {
+    dlog('selchange', {
+      hasSel: term.hasSelection(),
+      len: term.hasSelection() ? term.getSelection().length : 0,
+      rightClickInFlight,
+      suppress: suppressSelectionCopy
+    })
     if (term.hasSelection()) {
       const sel = term.getSelection().replace(/\s+$/u, '')
       if (sel) snapshotCopy(sel)
@@ -412,6 +418,7 @@ export function getOrCreateTerminal(
     ).replace(/\s+$/u, '')
     if (snapshot) snapshotCopy(snapshot)
     const len = selectionLength(startCell, endCell, term.cols)
+    dlog('snapshot', { snapLen: snapshot.length, len, bufType: term.buffer.active.type })
     if (len <= 0) return
     let s = startCell
     let en = endCell
@@ -435,6 +442,11 @@ export function getOrCreateTerminal(
       } finally {
         suppressSelectionCopy = false
       }
+      dlog('paint', {
+        afterHasSel: term.hasSelection(),
+        selLen: term.getSelection().length,
+        pendingLen: pendingCopyText ? pendingCopyText.length : 0
+      })
     }, 0)
   }
   const onFocusOut = (): void => clearPendingCopy()
