@@ -30,6 +30,20 @@ function tabExists(terminalId: string): boolean {
   return useTerminalStore.getState().groups.some((g) => g.tabs.some((t) => t.id === terminalId))
 }
 
+/**
+ * Whether a tab is an AI-session pane (Copilot CLI, Claude Code, …). These run
+ * a `command` and typically enable mouse tracking, which swallows xterm's
+ * native selection — so the terminal clipboard wiring needs to reconstruct
+ * selections from the buffer for them (issue #86).
+ */
+function isAiSessionTab(terminalId: string): boolean {
+  const tab = useTerminalStore
+    .getState()
+    .groups.flatMap((g) => g.tabs)
+    .find((t) => t.id === terminalId)
+  return !!(tab && isTerminalTab(tab) && tab.command)
+}
+
 async function resolveSessionIdForTab(
   terminalId: string,
   pid: number,
@@ -105,7 +119,8 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       settings.fontSize,
       settings.fontFamily,
       settings.macOptionIsMeta,
-      settings.theme
+      settings.theme,
+      isAiSessionTab(terminalId)
     )
     entryRef.current = entry
 

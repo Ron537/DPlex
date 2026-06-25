@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.1] — 2026-06-25
+
+### Bug Fixes
+
+- Copy and paste now work reliably while an AI CLI (like Copilot CLI or Claude Code) is running: selecting text and pressing Ctrl+C or right-clicking actually puts it on your clipboard, instead of silently doing nothing.
+- Right-clicking in an AI session no longer pastes your clipboard by mistake, and pasting with nothing selected no longer pastes twice.
+- Dragging to select in an AI session now shows a visible highlight, just like a normal terminal.
+
 ## [0.27.0] — 2026-06-20
 
 ### Features
@@ -614,7 +622,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/Ron537/DPlex/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/Ron537/DPlex/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/Ron537/DPlex/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/Ron537/DPlex/compare/v0.24.1...v0.25.0
