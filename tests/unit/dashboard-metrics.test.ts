@@ -1,7 +1,7 @@
 /**
  * Unit tests for the renderer-side live dashboard derivations
- * (`computeLiveKpis`, `recentSessions`, `timeAgo`). Pure functions over the
- * session list + attention inbox — no store or window access required.
+ * (`computeLiveKpis`, `computeHousekeeping`, helpers). Pure functions over the
+ * session list — no store or window access required.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -20,7 +20,6 @@ import {
   weekdayName
 } from '../../src/renderer/src/utils/dashboardMetrics'
 import type { AISession } from '../../src/renderer/src/types'
-import type { AttentionEvent } from '../../src/preload/attentionTypes'
 
 function session(overrides: Partial<AISession>): AISession {
   return {
@@ -30,24 +29,6 @@ function session(overrides: Partial<AISession>): AISession {
     aiTool: 'copilot-cli',
     createdAt: new Date(),
     updatedAt: new Date(),
-    ...overrides
-  }
-}
-
-function event(
-  kind: AttentionEvent['kind'],
-  overrides: Partial<AttentionEvent> = {}
-): AttentionEvent {
-  return {
-    compositeId: `copilot-cli:${Math.random()}`,
-    providerId: 'copilot-cli',
-    sessionId: 'abc',
-    displayName: 'Session',
-    kind,
-    createdAt: Date.now(),
-    escalated: false,
-    suppressed: false,
-    seeded: false,
     ...overrides
   }
 }
@@ -71,28 +52,30 @@ describe('computeLiveKpis', () => {
       session({ status: 'active', detailedStatus: 'thinking' }),
       session({ status: 'idle' })
     ]
-    const kpis = computeLiveKpis(sessions, [])
+    const kpis = computeLiveKpis(sessions)
     expect(kpis.activeCount).toBe(2)
     expect(kpis.statusCounts.executingTool).toBe(1)
     expect(kpis.statusCounts.thinking).toBe(1)
     expect(kpis.statusCounts.idle).toBe(1)
   })
 
-  it('derives needs-you counts from the attention inbox', () => {
-    const attention = [
-      event('waitingForApproval'),
-      event('waitingForInput'),
-      event('waitingForInput'),
-      event('finished')
+  it('derives needs-you counts from live session status, not the inbox', () => {
+    const sessions = [
+      session({ status: 'active', detailedStatus: 'awaitingApproval' }),
+      session({ status: 'active', detailedStatus: 'waitingForUser' }),
+      session({ status: 'active', detailedStatus: 'waitingForUser' }),
+      session({ status: 'active', detailedStatus: 'thinking' }),
+      session({ status: 'idle' })
     ]
-    const kpis = computeLiveKpis([], attention)
+    const kpis = computeLiveKpis(sessions)
     expect(kpis.approvalCount).toBe(1)
     expect(kpis.inputCount).toBe(2)
     expect(kpis.needsYouCount).toBe(3)
   })
 
-  it('ignores suppressed attention events', () => {
-    const kpis = computeLiveKpis([], [event('waitingForApproval', { suppressed: true })])
+  it('does not count a non-active session as needing you (stale status)', () => {
+    // An idle session whose detailedStatus is stale must not inflate needs-you.
+    const kpis = computeLiveKpis([session({ status: 'idle', detailedStatus: 'awaitingApproval' })])
     expect(kpis.needsYouCount).toBe(0)
   })
 
@@ -136,36 +119,48 @@ describe('formatDuration', () => {
 
 describe('computeHousekeeping', () => {
   const NOW = Date.now()
-  it('finds the OLDEST waiting attention item, not the newest', () => {
+  it('finds the OLDEST waiting session (by detailedStatus), not the newest', () => {
     const hk = computeHousekeeping(
-      [],
       [
-        event('waitingForApproval', {
-          createdAt: NOW - 10 * 60_000,
+        session({
+          id: 'recent-id',
           displayName: 'recent',
-          sessionId: 'recent-id'
+          status: 'active',
+          detailedStatus: 'awaitingApproval',
+          lastActivityTime: NOW - 10 * 60_000
         }),
-        event('waitingForInput', {
-          createdAt: NOW - 30 * 60_000,
+        session({
+          id: 'old-id',
           displayName: 'old',
-          sessionId: 'old-id'
+          status: 'active',
+          detailedStatus: 'waitingForUser',
+          lastActivityTime: NOW - 30 * 60_000
         })
       ],
       30,
       NOW
     )
-    // 30m-old event must win over the 10m-old one.
+    // The session waiting 30m must win over the one waiting 10m.
     expect(Math.round((hk.oldestWaitingMs ?? 0) / 60_000)).toBe(30)
     expect(hk.oldestWaitingLabel).toContain('old')
     expect(hk.oldestWaitingSessionId).toBe('old-id')
   })
 
-  it('picks the oldest regardless of input ordering (oldest listed first)', () => {
+  it('picks the oldest waiting regardless of input ordering', () => {
     const hk = computeHousekeeping(
-      [],
       [
-        event('waitingForApproval', { createdAt: NOW - 50 * 60_000, sessionId: 'oldest' }),
-        event('waitingForInput', { createdAt: NOW - 5 * 60_000, sessionId: 'newest' })
+        session({
+          id: 'oldest',
+          status: 'active',
+          detailedStatus: 'awaitingApproval',
+          lastActivityTime: NOW - 50 * 60_000
+        }),
+        session({
+          id: 'newest',
+          status: 'active',
+          detailedStatus: 'waitingForUser',
+          lastActivityTime: NOW - 5 * 60_000
+        })
       ],
       30,
       NOW
@@ -174,17 +169,18 @@ describe('computeHousekeeping', () => {
     expect(Math.round((hk.oldestWaitingMs ?? 0) / 60_000)).toBe(50)
   })
 
-  it('ignores suppressed and finished events for oldest-waiting', () => {
+  it('reports nothing waiting when no active session needs the user', () => {
     const hk = computeHousekeeping(
-      [],
       [
-        event('finished', { createdAt: NOW - 60 * 60_000 }),
-        event('waitingForApproval', { createdAt: NOW - 5 * 60_000, suppressed: true })
+        session({ status: 'active', detailedStatus: 'thinking' }),
+        // Stale idle status must not register as waiting.
+        session({ status: 'idle', detailedStatus: 'awaitingApproval' })
       ],
       30,
       NOW
     )
     expect(hk.oldestWaitingMs).toBeNull()
+    expect(hk.oldestWaitingSessionId).toBeNull()
   })
 
   it('counts only ACTIVE sessions that have gone quiet beyond the threshold', () => {
@@ -201,7 +197,7 @@ describe('computeHousekeeping', () => {
       lastActivityTime: NOW - 2 * 60_000
     })
     const oldIdle = session({ status: 'idle', lastActivityTime: NOW - 10 * 86_400_000 })
-    const hk = computeHousekeeping([activeQuiet, activeBusy, oldIdle], [], 30, NOW)
+    const hk = computeHousekeeping([activeQuiet, activeBusy, oldIdle], 30, NOW)
     expect(hk.staleCount).toBe(1)
   })
 
@@ -212,7 +208,7 @@ describe('computeHousekeeping', () => {
       updatedAt: new Date(NOW - 50 * 60_000),
       lastActivityTime: undefined
     })
-    const hk = computeHousekeeping([s], [], 30, NOW)
+    const hk = computeHousekeeping([s], 30, NOW)
     expect(hk.staleCount).toBe(1)
   })
 
@@ -229,7 +225,7 @@ describe('computeHousekeeping', () => {
       createdAt: new Date(NOW - 2 * 3_600_000),
       displayName: 'long'
     })
-    const hk = computeHousekeeping([a, b], [], 30, NOW)
+    const hk = computeHousekeeping([a, b], 30, NOW)
     expect(hk.longestActiveName).toBe('long')
     expect(hk.longestActiveSessionId).toBe('long-id')
     expect(Math.round((hk.longestActiveMs ?? 0) / 3_600_000)).toBe(2)

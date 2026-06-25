@@ -1,5 +1,4 @@
 import type { AISession, SessionStatus } from '../types'
-import type { AttentionEvent } from '../../../preload/attentionTypes'
 
 /** CSS variable carrying the themed color for each detailed status. */
 export const STATUS_VAR: Record<SessionStatus, string> = {
@@ -54,13 +53,15 @@ function isToday(d: Date): boolean {
 }
 
 /**
- * Derive the live KPI numbers from the session list and attention inbox.
- * Pure — depends only on its inputs, so it memoizes cleanly in a component.
+ * Derive the live KPI numbers from the session list. Pure — depends only on
+ * its inputs, so it memoizes cleanly in a component.
+ *
+ * "Needs you" is derived from each session's live `detailedStatus` (the same
+ * source the Sessions panel's "waiting" filter and the status donut use), NOT
+ * from the attention inbox — inbox notifications can be acknowledged, dismissed
+ * or seeded and drift out of sync with the real session state.
  */
-export function computeLiveKpis(
-  sessions: readonly AISession[],
-  attention: readonly AttentionEvent[]
-): LiveKpis {
+export function computeLiveKpis(sessions: readonly AISession[]): LiveKpis {
   const statusCounts: Record<SessionStatus, number> = {
     idle: 0,
     thinking: 0,
@@ -76,13 +77,8 @@ export function computeLiveKpis(
     if (isToday(s.createdAt)) sessionsToday += 1
   }
 
-  let approvalCount = 0
-  let inputCount = 0
-  for (const e of attention) {
-    if (e.suppressed) continue
-    if (e.kind === 'waitingForApproval') approvalCount += 1
-    else if (e.kind === 'waitingForInput') inputCount += 1
-  }
+  const approvalCount = statusCounts.awaitingApproval
+  const inputCount = statusCounts.waitingForUser
 
   return {
     activeCount,
@@ -124,10 +120,10 @@ export function formatDuration(ms: number): string {
 }
 
 export interface Housekeeping {
-  /** Age (ms) of the longest-waiting attention item, or null when none. */
+  /** Age (ms) the longest-waiting session has been waiting, or null when none. */
   oldestWaitingMs: number | null
   oldestWaitingLabel: string | null
-  /** Session id of the oldest-waiting item (for focusing it in the panel). */
+  /** Session id of the oldest-waiting session (for focusing it in the panel). */
   oldestWaitingSessionId: string | null
   /** Active sessions that have gone quiet beyond the idle-too-long threshold. */
   staleCount: number
@@ -139,45 +135,47 @@ export interface Housekeeping {
 }
 
 /**
- * Live "housekeeping" signals from the session list + attention inbox — the
- * actionable things a user should clean up. Pure over its inputs.
+ * Live "housekeeping" signals from the session list — the actionable things a
+ * user should clean up. Pure over its inputs.
+ *
+ * "Oldest awaiting you" is derived from each session's live `detailedStatus`
+ * (awaitingApproval / waitingForUser), NOT the attention inbox — inbox
+ * notifications can be acknowledged/dismissed/seeded and drift out of sync,
+ * which would make this disagree with the Sessions panel's "waiting" filter.
  */
 export function computeHousekeeping(
   sessions: readonly AISession[],
-  attention: readonly AttentionEvent[],
   idleTooLongMinutes: number,
   nowMs: number = Date.now()
 ): Housekeeping {
-  // Oldest item that needs the user (approval / input), ignoring dismissed.
-  // "Oldest" = the largest age = the smallest createdAt; we keep the running
-  // maximum age, so an event waiting longer always wins over a newer one.
+  const thresholdMs = Math.max(1, idleTooLongMinutes) * 60_000
   let oldestWaitingMs: number | null = null
   let oldestWaitingLabel: string | null = null
   let oldestWaitingSessionId: string | null = null
-  for (const e of attention) {
-    if (e.suppressed) continue
-    if (e.kind !== 'waitingForApproval' && e.kind !== 'waitingForInput') continue
-    const age = nowMs - e.createdAt
-    if (oldestWaitingMs === null || age > oldestWaitingMs) {
-      oldestWaitingMs = age
-      oldestWaitingLabel = `${e.displayName} · ${
-        e.kind === 'waitingForApproval' ? 'approval' : 'input'
-      }`
-      oldestWaitingSessionId = e.sessionId
-    }
-  }
-
-  // Stale = ACTIVE sessions that have gone quiet: still running (lock alive)
-  // but with no activity for longer than the idle-too-long threshold. These
-  // are the actionable "check on it or close it" candidates — a stuck or
-  // forgotten agent. Non-active (historical) sessions are intentionally
-  // excluded; counting those would just tally your entire session history.
-  const thresholdMs = Math.max(1, idleTooLongMinutes) * 60_000
   let staleCount = 0
   let longestActiveMs: number | null = null
   let longestActiveName: string | null = null
   let longestActiveSessionId: string | null = null
+
   for (const s of sessions) {
+    const status = effectiveStatus(s)
+
+    // Oldest session that needs the user. The wait age is approximated by the
+    // time since last activity (when the agent asked). "Oldest" = the largest
+    // such age, so a session waiting longer always wins over a newer one.
+    if (status === 'awaitingApproval' || status === 'waitingForUser') {
+      const since = s.lastActivityTime ?? s.updatedAt.getTime()
+      const age = nowMs - since
+      if (oldestWaitingMs === null || age > oldestWaitingMs) {
+        oldestWaitingMs = age
+        oldestWaitingLabel = `${s.displayName} · ${
+          status === 'awaitingApproval' ? 'approval' : 'input'
+        }`
+        oldestWaitingSessionId = s.id
+      }
+    }
+
+    // Stale + longest-active only consider running sessions (lock alive).
     if (s.status !== 'active') continue
     const elapsed = nowMs - s.createdAt.getTime()
     if (longestActiveMs === null || elapsed > longestActiveMs) {

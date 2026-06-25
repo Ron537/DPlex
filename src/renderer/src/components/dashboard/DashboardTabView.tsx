@@ -11,7 +11,6 @@ import {
   GitCompare
 } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
-import { useAttentionStore } from '../../stores/attentionStore'
 import { useDashboardStore } from '../../stores/dashboardStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useUncommittedStore } from '../../stores/uncommittedStore'
@@ -48,7 +47,6 @@ const WINDOW_OPTIONS = [7, 14, 30, 90]
  */
 export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX.Element {
   const sessions = useSessionStore((s) => s.sessions)
-  const attention = useAttentionStore((s) => s.active)
   const idleTooLongMinutes = useSettingsStore((s) => s.settings.idleTooLongMinutes)
 
   const metrics = useDashboardStore((s) => s.metrics)
@@ -87,10 +85,10 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
     if (isActive) void refreshUncommitted()
   }, [isActive, refreshUncommitted])
 
-  const kpis = useMemo(() => computeLiveKpis(sessions, attention), [sessions, attention])
+  const kpis = useMemo(() => computeLiveKpis(sessions), [sessions])
   const housekeeping = useMemo(
-    () => computeHousekeeping(sessions, attention, idleTooLongMinutes),
-    [sessions, attention, idleTooLongMinutes]
+    () => computeHousekeeping(sessions, idleTooLongMinutes),
+    [sessions, idleTooLongMinutes]
   )
   // Only treat the snapshot as usable when it matches the currently selected
   // window. While a window switch is in flight the prior snapshot is NOT shown
