@@ -179,10 +179,6 @@ export function getOrCreateTerminal(
   // Set while applying a programmatic `term.select()` so the copy-on-selection
   // listener doesn't auto-copy a selection the user didn't make by hand.
   let suppressSelectionCopy = false
-  // Set between a right-button mousedown and its contextmenu so the
-  // selection-empty handler doesn't drop the cached copy text when the click
-  // clears the visible selection before contextmenu reads it.
-  let rightClickInFlight = false
   // Handle for the deferred AI-pane selection paint, tracked so disposal can
   // cancel a paint scheduled in the same tick as a teardown.
   let deferredSelectTimer: ReturnType<typeof setTimeout> | null = null
@@ -319,7 +315,6 @@ export function getOrCreateTerminal(
     e.preventDefault()
     e.stopPropagation()
     e.stopImmediatePropagation()
-    rightClickInFlight = false
     dlog('rightclick', {
       isAiPane,
       nativeSelection: term.hasSelection(),
@@ -331,36 +326,32 @@ export function getOrCreateTerminal(
   }
 
   // Mirror every xterm selection into the copy cache. This is the authoritative
-  // capture point: it covers drag, double/triple-click word/line selection, AND
-  // our programmatic AI-pane `term.select()` paint — all fired by xterm the
-  // moment the selection changes. Right-click / Ctrl+C then have the text even
-  // though mouse mode keeps `term.hasSelection()` racy at click time. The cache
-  // is the copy source-of-truth; the buffer snapshot is only an early fallback.
+  // Mirror a real (non-empty) xterm selection into the copy cache: drag,
+  // double/triple-click, and our programmatic AI-pane `term.select()` paint.
+  // We deliberately do NOT clear the cache on an empty selection: on the
+  // alternate screen a TUI repaint (Copilot/Claude) makes xterm drop the
+  // painted selection a tick later, which would otherwise destroy the snapshot
+  // before the user can right-click. The snapshot is the durable copy source;
+  // it's invalidated only by a new left click (handleLeftDown), focus loss, the
+  // 3s TTL, or a completed copy.
   let selectionCopyTimer: ReturnType<typeof setTimeout> | null = null
   const selectionDisposable = term.onSelectionChange(() => {
     dlog('selchange', {
       hasSel: term.hasSelection(),
       len: term.hasSelection() ? term.getSelection().length : 0,
-      rightClickInFlight,
       suppress: suppressSelectionCopy
     })
-    if (term.hasSelection()) {
-      const sel = term.getSelection().replace(/\s+$/u, '')
-      if (sel) snapshotCopy(sel)
-      // Optional copy-on-selection — but never for our own programmatic paint,
-      // so an AI-pane drag never silently overwrites the clipboard.
-      if (!suppressSelectionCopy && useSettingsStore.getState().settings.copyOnSelection) {
-        if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
-        selectionCopyTimer = setTimeout(() => {
-          selectionCopyTimer = null
-          if (term.hasSelection()) copyTerminalSelection(term)
-        }, 120)
-      }
-    } else if (!rightClickInFlight) {
-      // Selection cleared by a real click elsewhere — drop the cache so a
-      // follow-up right-click on empty space pastes as expected. A 3s TTL on
-      // the snapshot is only a safety net on top of this.
-      clearPendingCopy()
+    if (!term.hasSelection()) return
+    const sel = term.getSelection().replace(/\s+$/u, '')
+    if (sel) snapshotCopy(sel)
+    // Optional copy-on-selection — but never for our own programmatic paint,
+    // so an AI-pane drag never silently overwrites the clipboard.
+    if (!suppressSelectionCopy && useSettingsStore.getState().settings.copyOnSelection) {
+      if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
+      selectionCopyTimer = setTimeout(() => {
+        selectionCopyTimer = null
+        if (term.hasSelection()) copyTerminalSelection(term)
+      }, 120)
     }
   })
 
@@ -370,12 +361,9 @@ export function getOrCreateTerminal(
   // isn't ALSO delivered to the PTY (which caused the double-paste in #86).
   const handleRightButton = (e: MouseEvent): void => {
     if (e.button !== 2) return
-    if (e.type === 'mousedown') {
-      rightClickInFlight = true
-      if (term.hasSelection()) {
-        const sel = term.getSelection().replace(/\s+$/u, '')
-        if (sel) snapshotCopy(sel)
-      }
+    if (e.type === 'mousedown' && term.hasSelection()) {
+      const sel = term.getSelection().replace(/\s+$/u, '')
+      if (sel) snapshotCopy(sel)
     }
     if (isAiPane) {
       e.preventDefault()
