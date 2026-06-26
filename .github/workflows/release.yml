@@ -188,14 +188,20 @@ jobs:
               printf '## ✨ What'\''s New\n\n%s\n\n---\n\n' "$CHANGELOG_SECTION"
             fi
             printf '%s\n\n---\n\n' "$GENERATED"
+            # Link to THIS release's own assets (tag-specific), not
+            # /releases/latest/download — otherwise every release body
+            # (including prereleases and older versions) points at whatever
+            # is currently "latest", so an RC would hand testers the stable
+            # build and old releases could never be downloaded from their own
+            # page. `$TAG` is this release's tag (github.ref_name).
             printf '## 📦 Downloads\n\n'
             printf '| Platform | Download |\n'
             printf '| -------- | -------- |\n'
-            printf '| macOS (Apple Silicon) | [DPlex-arm64.dmg](https://github.com/%s/releases/latest/download/DPlex-arm64.dmg) |\n' "$GITHUB_REPOSITORY"
-            printf '| macOS (Intel) | [DPlex-x64.dmg](https://github.com/%s/releases/latest/download/DPlex-x64.dmg) |\n' "$GITHUB_REPOSITORY"
-            printf '| Windows | [DPlex-Setup.exe](https://github.com/%s/releases/latest/download/DPlex-Setup.exe) |\n' "$GITHUB_REPOSITORY"
-            printf '| Linux (AppImage) | [DPlex.AppImage](https://github.com/%s/releases/latest/download/DPlex.AppImage) |\n' "$GITHUB_REPOSITORY"
-            printf '| Linux (Debian) | [DPlex-amd64.deb](https://github.com/%s/releases/latest/download/DPlex-amd64.deb) |\n\n' "$GITHUB_REPOSITORY"
+            printf '| macOS (Apple Silicon) | [DPlex-arm64.dmg](https://github.com/%s/releases/download/%s/DPlex-arm64.dmg) |\n' "$GITHUB_REPOSITORY" "$TAG"
+            printf '| macOS (Intel) | [DPlex-x64.dmg](https://github.com/%s/releases/download/%s/DPlex-x64.dmg) |\n' "$GITHUB_REPOSITORY" "$TAG"
+            printf '| Windows | [DPlex-Setup.exe](https://github.com/%s/releases/download/%s/DPlex-Setup.exe) |\n' "$GITHUB_REPOSITORY" "$TAG"
+            printf '| Linux (AppImage) | [DPlex.AppImage](https://github.com/%s/releases/download/%s/DPlex.AppImage) |\n' "$GITHUB_REPOSITORY" "$TAG"
+            printf '| Linux (Debian) | [DPlex-amd64.deb](https://github.com/%s/releases/download/%s/DPlex-amd64.deb) |\n\n' "$GITHUB_REPOSITORY" "$TAG"
             printf '> Builds are currently unsigned — verify the SHA-256 from this page if you want extra confidence. macOS builds are ad-hoc codesigned; you may still need `xattr -dr com.apple.quarantine /Applications/DPlex.app` on first launch.\n'
           } > /tmp/release-body.md
 
