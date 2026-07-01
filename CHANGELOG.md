@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
+- Copy and paste now work in AI CLI sessions (Copilot CLI, Claude Code): select text to copy it to your clipboard, and paste with Ctrl+V, Ctrl+Shift+V, or ⌘V. Previously copying appeared to succeed but nothing actually reached the clipboard.
 - Each release's download links now point to that release's own installers, so you always get the exact version you're viewing — including older releases and pre-release/test builds — instead of always being redirected to the latest stable build.
 
 ## [0.28.0] — 2026-06-23
