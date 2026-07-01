@@ -100,12 +100,22 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
     const container = containerRef.current
     if (!container) return
 
+    // A tab with a `command` runs an AI CLI (Copilot/Claude), which enables
+    // mouse tracking and owns right-click itself. Flag it so the terminal defers
+    // right-click to the app rather than pasting (avoids a double paste, #86).
+    const initialTab = useTerminalStore
+      .getState()
+      .groups.flatMap((g) => g.tabs)
+      .find((t) => t.id === terminalId)
+    const isAiPane = !!(initialTab && isTerminalTab(initialTab) && initialTab.command)
+
     const entry = getOrCreateTerminal(
       terminalId,
       settings.fontSize,
       settings.fontFamily,
       settings.macOptionIsMeta,
-      settings.theme
+      settings.theme,
+      isAiPane
     )
     entryRef.current = entry
 

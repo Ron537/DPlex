@@ -113,7 +113,8 @@ export function getOrCreateTerminal(
   fontSize: number,
   fontFamily: string,
   macOptionIsMeta: boolean,
-  themeId?: string
+  themeId?: string,
+  isAiPane = false
 ): TerminalEntry {
   const existing = registry.get(terminalId)
   if (existing) return existing
@@ -209,10 +210,16 @@ export function getOrCreateTerminal(
     return true
   })
 
-  // Right-click: copy the selection (clearing it so a follow-up right-click
-  // pastes), or paste when nothing is selected — Windows Terminal's default.
+  // Right-click. In AI panes the CLI (Copilot/Claude) enables mouse tracking and
+  // owns the right-click itself — it copies the selection (via OSC 52, handled
+  // above) and pastes from its own buffer. If DPlex also pasted here the text
+  // would be inserted twice (#86), so we suppress the OS menu and let the
+  // forwarded right-click reach the app. Plain shells have no mouse tracking, so
+  // DPlex provides right-click copy/paste (Windows Terminal convention): copy the
+  // selection (clearing it so a follow-up right-click pastes), else paste.
   const onContextMenu = (e: MouseEvent): void => {
     e.preventDefault()
+    if (isAiPane) return
     if (!copyTerminalSelection(term, true)) {
       void pasteIntoTerminal(term)
     }
