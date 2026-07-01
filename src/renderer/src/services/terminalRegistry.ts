@@ -174,7 +174,11 @@ export function getOrCreateTerminal(
   // single custom key handler, so these concerns share one. Returning false
   // stops xterm from forwarding the key to the PTY.
   term.attachCustomKeyEventHandler((e) => {
-    const action = clipboardKeyAction(e, { isMac, hasSelection: term.hasSelection() })
+    const action = clipboardKeyAction(e, {
+      isMac,
+      hasSelection: term.hasSelection(),
+      isAiPane
+    })
     if (action === 'copy') {
       e.preventDefault()
       copyTerminalSelection(term)

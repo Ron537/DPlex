@@ -49,8 +49,28 @@ describe('clipboardKeyAction — Windows/Linux', () => {
     ).toBe('paste')
   })
 
-  it('plain Ctrl+V is NOT hijacked (readline quoted-insert)', () => {
+  it('plain Ctrl+V is NOT hijacked in a plain shell (readline quoted-insert)', () => {
     expect(clipboardKeyAction(keyEvent({ ctrlKey: true, key: 'v' }), opts(false))).toBe('none')
+  })
+
+  it("plain Ctrl+V pastes in an AI pane (CLI can't read the clipboard itself)", () => {
+    expect(
+      clipboardKeyAction(keyEvent({ ctrlKey: true, key: 'v' }), {
+        isMac: false,
+        hasSelection: false,
+        isAiPane: true
+      })
+    ).toBe('paste')
+  })
+
+  it('plain Ctrl+C in an AI pane still sends SIGINT when nothing is selected', () => {
+    expect(
+      clipboardKeyAction(keyEvent({ ctrlKey: true, key: 'c' }), {
+        isMac: false,
+        hasSelection: false,
+        isAiPane: true
+      })
+    ).toBe('none')
   })
 
   it('uppercase key (caps lock / shift) still matches', () => {
