@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   clipboardKeyAction,
+  parseOsc52,
   type ClipboardKeyEvent
 } from '../../src/renderer/src/services/terminalClipboard'
 
@@ -48,8 +49,28 @@ describe('clipboardKeyAction — Windows/Linux', () => {
     ).toBe('paste')
   })
 
-  it('plain Ctrl+V is NOT hijacked (readline quoted-insert)', () => {
+  it('plain Ctrl+V is NOT hijacked in a plain shell (readline quoted-insert)', () => {
     expect(clipboardKeyAction(keyEvent({ ctrlKey: true, key: 'v' }), opts(false))).toBe('none')
+  })
+
+  it("plain Ctrl+V pastes in an AI pane (CLI can't read the clipboard itself)", () => {
+    expect(
+      clipboardKeyAction(keyEvent({ ctrlKey: true, key: 'v' }), {
+        isMac: false,
+        hasSelection: false,
+        isAiPane: true
+      })
+    ).toBe('paste')
+  })
+
+  it('plain Ctrl+C in an AI pane still sends SIGINT when nothing is selected', () => {
+    expect(
+      clipboardKeyAction(keyEvent({ ctrlKey: true, key: 'c' }), {
+        isMac: false,
+        hasSelection: false,
+        isAiPane: true
+      })
+    ).toBe('none')
   })
 
   it('uppercase key (caps lock / shift) still matches', () => {
@@ -93,5 +114,42 @@ describe('clipboardKeyAction — macOS', () => {
     expect(
       clipboardKeyAction(keyEvent({ metaKey: true, altKey: true, key: 'c' }), opts(true))
     ).toBe('none')
+  })
+})
+
+describe('parseOsc52', () => {
+  const b64 = (s: string): string => Buffer.from(s, 'utf8').toString('base64')
+
+  it('decodes a clipboard (c) write payload', () => {
+    expect(parseOsc52(`c;${b64('hello world')}`)).toBe('hello world')
+  })
+
+  it('decodes UTF-8 / multibyte content correctly', () => {
+    const s = '▘▝ █  Check for mistakes. — café'
+    expect(parseOsc52(`c;${b64(s)}`)).toBe(s)
+  })
+
+  it('ignores read requests (Pd = "?")', () => {
+    expect(parseOsc52('c;?')).toBeNull()
+  })
+
+  it('accepts an empty selection parameter (";<base64>")', () => {
+    expect(parseOsc52(`;${b64('primary')}`)).toBe('primary')
+  })
+
+  it('handles multi-target selection parameters (e.g. "pc")', () => {
+    expect(parseOsc52(`pc;${b64('both')}`)).toBe('both')
+  })
+
+  it('returns null when there is no separator', () => {
+    expect(parseOsc52('cnope')).toBeNull()
+  })
+
+  it('returns null for an empty payload', () => {
+    expect(parseOsc52('c;')).toBeNull()
+  })
+
+  it('returns null for malformed base64', () => {
+    expect(parseOsc52('c;@@@not base64@@@')).toBeNull()
   })
 })

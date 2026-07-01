@@ -9,7 +9,12 @@ import {
   shiftEnterSequence,
   modifyOtherKeysActive
 } from '../utils/terminalKeys'
-import { clipboardKeyAction, copyTerminalSelection, pasteIntoTerminal } from './terminalClipboard'
+import {
+  clipboardKeyAction,
+  copyTerminalSelection,
+  parseOsc52,
+  pasteIntoTerminal
+} from './terminalClipboard'
 import { useSettingsStore } from '../stores/settingsStore'
 import { TruecolorSgrNormalizer } from './truecolorSgrNormalizer'
 
@@ -108,7 +113,8 @@ export function getOrCreateTerminal(
   fontSize: number,
   fontFamily: string,
   macOptionIsMeta: boolean,
-  themeId?: string
+  themeId?: string,
+  isAiPane = false
 ): TerminalEntry {
   const existing = registry.get(terminalId)
   if (existing) return existing
@@ -151,11 +157,28 @@ export function getOrCreateTerminal(
     }
   )
 
+  // OSC 52 clipboard writes. AI CLIs (Copilot/Claude) enable mouse tracking and
+  // do their own drag-selection; when the user copies, they ask the terminal to
+  // set the host clipboard via OSC 52 (`ESC ] 52 ; c ; <base64> BEL`). xterm has
+  // no built-in OSC 52 handler, so without this the sequence is parsed and
+  // silently dropped — the app prints "copied" but nothing reaches the system
+  // clipboard (issue #86). We honor writes and ignore read requests (Pd = `?`)
+  // so a program can't exfiltrate the clipboard.
+  const osc52Disposable = term.parser.registerOscHandler(52, (data) => {
+    const text = parseOsc52(data)
+    if (text !== null) window.dplex.clipboard.writeText(text)
+    return true
+  })
+
   // Copy/paste + (macOS) word-motion + Shift+Enter key handling. xterm allows a
   // single custom key handler, so these concerns share one. Returning false
   // stops xterm from forwarding the key to the PTY.
   term.attachCustomKeyEventHandler((e) => {
-    const action = clipboardKeyAction(e, { isMac, hasSelection: term.hasSelection() })
+    const action = clipboardKeyAction(e, {
+      isMac,
+      hasSelection: term.hasSelection(),
+      isAiPane
+    })
     if (action === 'copy') {
       e.preventDefault()
       copyTerminalSelection(term)
@@ -191,10 +214,16 @@ export function getOrCreateTerminal(
     return true
   })
 
-  // Right-click: copy the selection (clearing it so a follow-up right-click
-  // pastes), or paste when nothing is selected — Windows Terminal's default.
+  // Right-click. In AI panes the CLI (Copilot/Claude) enables mouse tracking and
+  // owns the right-click itself — it copies the selection (via OSC 52, handled
+  // above) and pastes from its own buffer. If DPlex also pasted here the text
+  // would be inserted twice (#86), so we suppress the OS menu and let the
+  // forwarded right-click reach the app. Plain shells have no mouse tracking, so
+  // DPlex provides right-click copy/paste (Windows Terminal convention): copy the
+  // selection (clearing it so a follow-up right-click pastes), else paste.
   const onContextMenu = (e: MouseEvent): void => {
     e.preventDefault()
+    if (isAiPane) return
     if (!copyTerminalSelection(term, true)) {
       void pasteIntoTerminal(term)
     }
@@ -237,6 +266,7 @@ export function getOrCreateTerminal(
       if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
       selectionDisposable.dispose()
       modifyOtherKeysDisposable.dispose()
+      osc52Disposable.dispose()
       wrapperEl.removeEventListener('contextmenu', onContextMenu)
     }
   }
