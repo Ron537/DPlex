@@ -80,6 +80,33 @@ export function copyTerminalSelection(term: Terminal, clearAfter = false): boole
 }
 
 /**
+ * Parse an OSC 52 clipboard-write payload into decoded UTF-8 text.
+ *
+ * OSC 52 (`ESC ] 52 ; Pc ; Pd BEL`) is how a program running inside the PTY
+ * asks the terminal to set the host clipboard. The value passed here is the
+ * part after `52;`, i.e. `<Pc>;<Pd>`, where `Pc` selects the target
+ * (`c`=clipboard, `p`=primary, …) and `Pd` is base64-encoded text — or `?`
+ * for a clipboard *read* request.
+ *
+ * Returns the decoded text for a write, or `null` for a read / malformed /
+ * empty payload. Read requests are ignored on purpose so a program can't
+ * exfiltrate the user's clipboard.
+ */
+export function parseOsc52(data: string): string | null {
+  const sep = data.indexOf(';')
+  if (sep === -1) return null
+  const payload = data.slice(sep + 1)
+  if (!payload || payload === '?') return null
+  try {
+    const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0))
+    return new TextDecoder().decode(bytes)
+  } catch {
+    // Malformed base64 — nothing safe to copy.
+    return null
+  }
+}
+
+/**
  * Paste clipboard text into the terminal. Routed through `term.paste` so
  * bracketed-paste mode is honored when the shell/app has enabled it.
  */

@@ -9,7 +9,12 @@ import {
   shiftEnterSequence,
   modifyOtherKeysActive
 } from '../utils/terminalKeys'
-import { clipboardKeyAction, copyTerminalSelection, pasteIntoTerminal } from './terminalClipboard'
+import {
+  clipboardKeyAction,
+  copyTerminalSelection,
+  parseOsc52,
+  pasteIntoTerminal
+} from './terminalClipboard'
 import { useSettingsStore } from '../stores/settingsStore'
 import { TruecolorSgrNormalizer } from './truecolorSgrNormalizer'
 
@@ -151,6 +156,19 @@ export function getOrCreateTerminal(
     }
   )
 
+  // OSC 52 clipboard writes. AI CLIs (Copilot/Claude) enable mouse tracking and
+  // do their own drag-selection; when the user copies, they ask the terminal to
+  // set the host clipboard via OSC 52 (`ESC ] 52 ; c ; <base64> BEL`). xterm has
+  // no built-in OSC 52 handler, so without this the sequence is parsed and
+  // silently dropped — the app prints "copied" but nothing reaches the system
+  // clipboard (issue #86). We honor writes and ignore read requests (Pd = `?`)
+  // so a program can't exfiltrate the clipboard.
+  const osc52Disposable = term.parser.registerOscHandler(52, (data) => {
+    const text = parseOsc52(data)
+    if (text !== null) window.dplex.clipboard.writeText(text)
+    return true
+  })
+
   // Copy/paste + (macOS) word-motion + Shift+Enter key handling. xterm allows a
   // single custom key handler, so these concerns share one. Returning false
   // stops xterm from forwarding the key to the PTY.
@@ -237,6 +255,7 @@ export function getOrCreateTerminal(
       if (selectionCopyTimer) clearTimeout(selectionCopyTimer)
       selectionDisposable.dispose()
       modifyOtherKeysDisposable.dispose()
+      osc52Disposable.dispose()
       wrapperEl.removeEventListener('contextmenu', onContextMenu)
     }
   }
