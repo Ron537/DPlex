@@ -1,4 +1,5 @@
 import { useMemo, type JSX } from 'react'
+import { ChevronRight, ChevronDown } from 'lucide-react'
 import type { AISession, ProviderInfo } from '../../types'
 import { SessionItem } from '../sessions/SessionItem'
 import { PendingSessionItem } from '../sessions/PendingSessionItem'
@@ -7,6 +8,7 @@ import { RecentSessionRow } from '../sessions/RecentSessionRow'
 import { ExternalSessionsDivider } from '../sessions/ExternalSessionsDivider'
 import { pairTabsToSessions, type OpenTabWithGroup } from '../../utils/sessionPairing'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useProjectStore } from '../../stores/projectStore'
 
 /**
  * Mirrors the pairing rule in `pairTabsToSessions` so any session that a
@@ -37,6 +39,10 @@ export function selectRecentSessions(
 }
 
 interface ProjectSessionListProps {
+  /** Stable id for this session-list scope (a project id for plain projects,
+   *  or a worktree section id). Keys the collapsible "Idle · N resumable"
+   *  rollup's per-scope expansion state in the project store. */
+  scopeId: string
   /** Active AI sessions in this scope (a project or one of its worktrees). */
   sessions: AISession[]
   /** Open AI terminal tabs in this scope. */
@@ -77,6 +83,7 @@ interface ProjectSessionListProps {
  * an open tab above are excluded to avoid duplicate rows.
  */
 export function ProjectSessionList({
+  scopeId,
   sessions,
   openTabs,
   emptyMessage,
@@ -94,6 +101,11 @@ export function ProjectSessionList({
   const settingRecentCount = useSettingsStore((s) => s.settings.recentSessionsCount)
   const effectiveShowRecent = showRecent ?? settingShowRecent
   const effectiveLimit = recentLimit ?? settingRecentCount
+  // Idle sessions collapse into a "Idle · N resumable" rollup that is closed
+  // by default so idle work doesn't clutter the live rows. Expansion state is
+  // per-scope and ephemeral (see projectStore.expandedIdleSections).
+  const idleExpanded = useProjectStore((s) => s.expandedIdleSections.has(scopeId))
+  const toggleIdleSection = useProjectStore((s) => s.toggleIdleSection)
 
   const recentSessions = useMemo(
     () =>
@@ -184,9 +196,28 @@ export function ProjectSessionList({
               }}
             />
           )}
-          {recentSessions.map((session) => (
-            <RecentSessionRow key={`recent:${session.aiTool}:${session.id}`} session={session} />
-          ))}
+          {/* Collapsible "Idle · N resumable" rollup — closed by default so
+              idle sessions stay out of the way until the user asks for them. */}
+          <button
+            type="button"
+            onClick={() => toggleIdleSection(scopeId)}
+            aria-expanded={idleExpanded}
+            title={idleExpanded ? 'Hide resumable sessions' : 'Show resumable sessions'}
+            className="group flex items-center gap-1.5 w-full text-left px-3 py-[3px] mx-1 rounded-[5px] hover:bg-[var(--dplex-hover)] transition-colors"
+          >
+            {idleExpanded ? (
+              <ChevronDown size={11} style={{ color: 'var(--dplex-text-dim)', flexShrink: 0 }} />
+            ) : (
+              <ChevronRight size={11} style={{ color: 'var(--dplex-text-dim)', flexShrink: 0 }} />
+            )}
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--dplex-text-muted)' }}>
+              Idle · {recentSessions.length} resumable
+            </span>
+          </button>
+          {idleExpanded &&
+            recentSessions.map((session) => (
+              <RecentSessionRow key={`recent:${session.aiTool}:${session.id}`} session={session} />
+            ))}
         </>
       )}
     </>

@@ -1,7 +1,7 @@
 import type { EditorTab, Project } from '../types'
 import { isFileDiffTab, isFileEditorTab, isDashboardTab } from '../types'
 import { normalizePath } from './normalizePath'
-import { getAvatarColor, getAvatarInitials } from './projectStatus'
+import { deriveAvatarColor, getAvatarInitials } from './projectStatus'
 
 /**
  * Return the filesystem path that a tab should be associated with for the
@@ -54,20 +54,29 @@ export interface TabProjectIdentity {
   initials: string
 }
 
+/**
+ * The project whose color a given project should adopt: its parent origin for
+ * a worktree (so a repo's main checkout + worktrees form one color group),
+ * else the project itself. Orphan worktrees (parent not registered) fall back
+ * to themselves. Use this anywhere a project surface needs its effective tab
+ * color so worktrees stay consistent with `getTabIdentity`.
+ */
+export function colorSourceProject(project: Project, projects: readonly Project[]): Project {
+  if (!project.parentProjectId) return project
+  return projects.find((p) => p.id === project.parentProjectId) ?? project
+}
+
 export function getTabIdentity(
   tab: EditorTab,
   projects: readonly Project[]
 ): TabProjectIdentity | undefined {
   const matched = findProjectForTab(tab, projects)
   if (!matched) return undefined
-  const parent = matched.parentProjectId
-    ? projects.find((p) => p.id === matched.parentProjectId)
-    : undefined
-  const colorProject = parent ?? matched
+  const colorProject = colorSourceProject(matched, projects)
   return {
     matched,
     colorProject,
-    color: getAvatarColor(colorProject.id),
+    color: deriveAvatarColor(colorProject.tabColor),
     initials: getAvatarInitials(colorProject.name)
   }
 }

@@ -5,6 +5,7 @@ import { isFileDiffTab, isFileEditorTab, isTerminalTab } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProvidersStore } from '../../stores/providersStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { getTabIdentity } from '../../utils/tabProject'
 import { ProjectAvatar } from '../projects/ProjectAvatar'
 import { ProviderGlyph } from '../common/ProviderGlyph'
@@ -34,6 +35,7 @@ export function TabHeader({ tab }: TabHeaderProps): JSX.Element | null {
   const projects = useProjectStore((s) => s.projects)
   const sessions = useSessionStore((s) => s.sessions)
   const getProviderLabel = useProvidersStore((s) => s.getLabel)
+  const applyTabColorToContent = useSettingsStore((s) => s.settings.applyTabColorToContent)
 
   const identity = getTabIdentity(tab, projects)
   const isTerminal = isTerminalTab(tab)
@@ -60,12 +62,21 @@ export function TabHeader({ tab }: TabHeaderProps): JSX.Element | null {
   const visual = session ? effectiveSessionVisual(session) : undefined
   const providerLabel = session ? getProviderLabel(session.aiTool) : undefined
 
+  // Effective tab colour (explicit per-tab, else project colour) — tints this
+  // breadcrumb header to match the tab and its content wash, unless the user
+  // has turned off "apply tab color to content".
+  const headerColor = applyTabColorToContent
+    ? ((tab as { color?: string }).color ?? identity?.colorProject.tabColor)
+    : undefined
+
   return (
     <div
       className="flex items-center gap-2 px-3 select-none flex-shrink-0"
       style={{
         height: 30,
-        backgroundColor: 'var(--dplex-bg-alt)',
+        backgroundColor: headerColor
+          ? `color-mix(in srgb, ${headerColor} 10%, var(--dplex-bg-alt))`
+          : 'var(--dplex-bg-alt)',
         borderBottom: '1px solid var(--dplex-border-subtle)',
         fontSize: 12,
         color: 'var(--dplex-text-muted)'
@@ -73,7 +84,7 @@ export function TabHeader({ tab }: TabHeaderProps): JSX.Element | null {
     >
       {identity ? (
         <ProjectAvatar
-          projectId={identity.colorProject.id}
+          color={identity.colorProject.tabColor}
           name={identity.colorProject.name}
           size={18}
         />

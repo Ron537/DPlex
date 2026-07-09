@@ -8,6 +8,7 @@ import { focusSessionTab } from '../../utils/sessionTabs'
 import { ProjectAvatar } from '../projects/ProjectAvatar'
 import { decideRowClickAction } from './rowClickAction'
 import { normalizePath } from '../../utils/normalizePath'
+import { colorSourceProject } from '../../utils/tabProject'
 import type { AttentionEvent, AttentionKind } from '../../../../preload/attentionTypes'
 
 const KIND_LABEL: Record<AttentionKind, string> = {
@@ -78,21 +79,28 @@ export function AttentionBellButton(): React.JSX.Element {
    * on disk but the prefix check would only succeed for slashes), and
    * the avatar would always fall back to the initial-letter placeholder.
    * Mirrors the same approach used by `findProjectForTab`. */
-  const resolveProject = (event: AttentionEvent): { id: string; name: string } | undefined => {
+  const resolveProject = (
+    event: AttentionEvent
+  ): { id: string; name: string; tabColor?: string } | undefined => {
     const session = sessions.find((s) => s.id === event.sessionId && s.aiTool === event.providerId)
     const cwd = session?.cwd
     if (!cwd) return undefined
     const normCwd = normalizePath(cwd)
-    let best: { id: string; name: string; len: number } | undefined
+    let best: { id: string; name: string; tabColor?: string; len: number } | undefined
     for (const p of projects) {
       const normProject = normalizePath(p.path)
       if (normCwd === normProject || normCwd.startsWith(normProject + '/')) {
         if (!best || normProject.length > best.len) {
-          best = { id: p.id, name: p.name, len: normProject.length }
+          best = {
+            id: p.id,
+            name: p.name,
+            tabColor: colorSourceProject(p, projects).tabColor,
+            len: normProject.length
+          }
         }
       }
     }
-    return best ? { id: best.id, name: best.name } : undefined
+    return best ? { id: best.id, name: best.name, tabColor: best.tabColor } : undefined
   }
 
   const handleRowClick = (event: AttentionEvent): void => {
@@ -279,7 +287,7 @@ export function AttentionBellButton(): React.JSX.Element {
                         onClick={() => handleRowClick(e)}
                       >
                         {project ? (
-                          <ProjectAvatar projectId={project.id} name={project.name} size={28} />
+                          <ProjectAvatar color={project.tabColor} name={project.name} size={28} />
                         ) : (
                           <span
                             aria-hidden

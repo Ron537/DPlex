@@ -12,6 +12,7 @@ export interface TerminalTab {
   pid?: number // PTY process PID, used for PID→session mapping
   worktreePath?: string // Canonical worktree path if this tab was launched against a worktree
   worktreeBranch?: string // Worktree branch at launch time (display hint, not authoritative)
+  color?: string // Optional user-chosen tab color (hex). Drives the tab's accent stripe. Set via the tab context menu.
 }
 
 export type DiffScopePersisted = DiffScopeFromIPC
@@ -39,6 +40,8 @@ export interface FileDiffTab {
   preview?: boolean
   /** UI preference per tab. */
   sideBySide?: boolean
+  /** Optional user-chosen tab color (hex). Set via the tab context menu. */
+  color?: string
 }
 
 export type EditorTab = TerminalTab | FileDiffTab | FileEditorTab | DashboardTab
@@ -52,6 +55,8 @@ export interface DashboardTab {
   id: string
   title: string
   kind: 'dashboard'
+  /** Optional user-chosen tab color (hex). Set via the tab context menu. */
+  color?: string
 }
 
 /**
@@ -74,6 +79,8 @@ export interface FileEditorTab {
   preview?: boolean
   /** True when the editor has unsaved changes (drives the dirty dot). */
   dirty?: boolean
+  /** Optional user-chosen tab color (hex). Set via the tab context menu. */
+  color?: string
 }
 
 export function isFileDiffTab(tab: EditorTab): tab is FileDiffTab {
@@ -233,6 +240,13 @@ export interface AppSettings {
    */
   focusFilterMode: 'dim' | 'isolate'
   /**
+   * Whether a tab's color also tints its breadcrumb header (project · path)
+   * and its content area. When `false`, a colored tab still shows its color on
+   * the tab itself, but the header and content keep the theme's default
+   * background. Default `true`.
+   */
+  applyTabColorToContent: boolean
+  /**
    * Version the user explicitly chose to skip from the update banner.
    * Honored only for `manualDownload` flows (macOS, .deb) — auto-install
    * platforms surface the banner only after the bytes are already on
@@ -293,6 +307,10 @@ export interface Project {
    *  deduped. Used for filtering the projects sidebar and for fuzzy matching
    *  in the command palette. Absent / empty array both mean "no tags". */
   tags?: string[]
+  /** User-chosen color (hex) applied to all of this project's tabs (main
+   *  checkout + worktrees). Individual tabs can still override it via the tab
+   *  context menu. Absent means "no project color". */
+  tabColor?: string
   /** Git panel UI state scoped to this project. Persists across sessions
    *  so the user lands back on the file they last opened. Validated on
    *  each refresh — stale paths fall back to the first changed file. */

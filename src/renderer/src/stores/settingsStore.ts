@@ -213,6 +213,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   editorAutoSave: 'manual',
   focusFilterMode: 'dim',
+  applyTabColorToContent: true,
   skippedUpdateVersion: null
 }
 

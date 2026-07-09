@@ -15,7 +15,8 @@ import {
   ArrowUp,
   ArrowDown,
   GitCompare,
-  Tag as TagIcon
+  Tag as TagIcon,
+  X
 } from 'lucide-react'
 import type { Project, AISession, ProviderInfo, WorktreeDefaults } from '../../types'
 import { useProjectStore } from '../../stores/projectStore'
@@ -25,7 +26,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useGitBranch } from '../../hooks/useGitBranch'
 import { useWorktrees } from '../../hooks/useWorktrees'
 import { STATUS_ACTIVE_COLOR } from '../../utils/statusColors'
-import { getAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
+import { deriveAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
 import { isMixedProviderList } from '../../utils/providerHelpers'
 import { aggregateVisual } from '../../utils/aggregateVisual'
 import { PromptsDialog } from '../sessions/PromptsDialog'
@@ -35,6 +36,8 @@ import { TagPickerPopover } from './TagPickerPopover'
 import { WorktreeSection } from './WorktreeSection'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
 import { focusFirstTabForPaths } from '../../utils/sessionTabs'
+import { colorSourceProject } from '../../utils/tabProject'
+import { TAB_COLORS } from '../../utils/tabColors'
 import { PopoverMenu } from '../common/PopoverMenu'
 import { NewWorktreeModal } from '../worktrees/NewWorktreeModal'
 import { ManageWorktreesModal } from '../worktrees/ManageWorktreesModal'
@@ -95,6 +98,8 @@ export function ProjectItem({
   const removeProject = useProjectStore((s) => s.removeProject)
   const togglePin = useProjectStore((s) => s.togglePin)
   const reorderProject = useProjectStore((s) => s.reorderProject)
+  const setProjectTabColor = useProjectStore((s) => s.setProjectTabColor)
+  const allProjectsForColor = useProjectStore((s) => s.projects)
   const startAISession = useProjectStore((s) => s.startAISession)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
@@ -157,7 +162,11 @@ export function ProjectItem({
   const isActive = isDirectlyActive || isAmbientActive
   const branch = useGitBranch(project.path)
   const { sessions, openTabs, activeCount, hasActive, lastActivity } = activity
-  const avatarColor = getAvatarColor(project.id)
+  // A worktree row shares its origin's color (see colorSourceProject); resolve
+  // it so the avatar, the picker's selected swatch, and writes all target the
+  // same project the tab-color resolution actually reads.
+  const colorSource = colorSourceProject(project, allProjectsForColor)
+  const avatarColor = deriveAvatarColor(colorSource.tabColor)
   const avatarInitials = getAvatarInitials(project.name)
   // Only top-level origin projects can be pinned. Worktree children ride with
   // their parent — pinning a child has no defined semantics.
@@ -614,6 +623,63 @@ export function ProjectItem({
             <TagIcon size={11} /> Tags…
           </button>
 
+          {/* Project-wide tab color — tints every tab of this project (main
+              checkout + worktrees). Individual tabs can override via their own
+              right-click menu. */}
+          <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+          <div
+            className="px-3 pt-0.5 pb-1 text-[10px] font-semibold uppercase"
+            style={{ color: 'var(--dplex-text-faint)', letterSpacing: '0.08em' }}
+          >
+            Tab color
+          </div>
+          <div className="flex items-center gap-1.5 px-3 pb-2">
+            {TAB_COLORS.map((c) => {
+              const selected = colorSource.tabColor === c.value
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  title={c.label}
+                  aria-pressed={selected}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setProjectTabColor(colorSource.id, c.value)
+                    setShowMenu(false)
+                    setContextMenuPos(null)
+                  }}
+                  className="rounded-full transition-transform hover:scale-110"
+                  style={{
+                    width: 16,
+                    height: 16,
+                    backgroundColor: c.value,
+                    boxShadow: selected ? `0 0 0 2px var(--dplex-bg), 0 0 0 3px ${c.value}` : 'none'
+                  }}
+                />
+              )
+            })}
+            <button
+              type="button"
+              title="No color"
+              aria-label="Clear project tab color"
+              onClick={(e) => {
+                e.stopPropagation()
+                setProjectTabColor(colorSource.id, null)
+                setShowMenu(false)
+                setContextMenuPos(null)
+              }}
+              className="grid place-items-center rounded-full hover:bg-[var(--dplex-hover)]"
+              style={{
+                width: 16,
+                height: 16,
+                border: '1px solid var(--dplex-border-strong)',
+                color: 'var(--dplex-text-muted)'
+              }}
+            >
+              <X size={10} />
+            </button>
+          </div>
+
           {canPin && (
             <>
               <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
@@ -739,6 +805,7 @@ export function ProjectItem({
             </>
           ) : (
             <ProjectSessionList
+              scopeId={project.id}
               sessions={sessions}
               openTabs={openTabs}
               providers={providers}

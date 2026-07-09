@@ -3,6 +3,7 @@ import type { SearchItem, SearchSource } from './types'
 import { useProjectStore } from '../../stores/projectStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { focusFirstTabForPaths } from '../../utils/sessionTabs'
+import { colorSourceProject } from '../../utils/tabProject'
 import { pathBasename } from './pathUtils'
 import { ProjectAvatar } from '../../components/projects/ProjectAvatar'
 
@@ -46,7 +47,11 @@ export const projectsSource: SearchSource = {
         description,
         keywords: [pathBasename(p.path), p.path, ...(p.pinned ? ['pinned'] : []), ...tagKeywords],
         ...(p.tags && p.tags.length > 0 ? { tags: [...p.tags] } : {}),
-        icon: createElement(ProjectAvatar, { projectId: p.id, name: p.name, size: 24 }),
+        icon: createElement(ProjectAvatar, {
+          color: colorSourceProject(p, ctx.projects).tabColor,
+          name: p.name,
+          size: 24
+        }),
         run: () => openProject(p.id)
       }
       if (p.parentRepoName) {

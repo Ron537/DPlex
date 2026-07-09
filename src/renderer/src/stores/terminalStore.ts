@@ -132,6 +132,9 @@ interface TerminalState {
   setActiveGroup: (groupId: string) => void
   setActiveTerminalInGroup: (groupId: string, terminalId: string) => void
   renameTerminal: (terminalId: string, title: string) => void
+  /** Set (hex string) or clear (null) a tab's user-chosen color. Applies to
+   *  any tab kind; the choice is persisted with the workspace. */
+  setTabColor: (tabId: string, color: string | null) => void
   splitGroup: (groupId: string, direction: 'horizontal' | 'vertical', cwd?: string) => string
   moveTerminalToGroup: (terminalId: string, targetGroupId: string, insertIndex?: number) => void
   moveTerminalToNewSplit: (
@@ -328,6 +331,19 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       groups: state.groups.map((g) => ({
         ...g,
         tabs: g.tabs.map((t) => (t.id === terminalId ? { ...t, title } : t))
+      }))
+    }))
+  },
+
+  setTabColor: (tabId, color) => {
+    set((state) => ({
+      groups: state.groups.map((g) => ({
+        ...g,
+        // `color ?? undefined` clears the key when passed null; JSON.stringify
+        // drops undefined so cleared tabs don't carry an empty `color` field.
+        tabs: g.tabs.map((t) =>
+          t.id === tabId ? ({ ...t, color: color ?? undefined } as EditorTab) : t
+        )
       }))
     }))
   },
@@ -948,7 +964,7 @@ function serializeWorkspace(): unknown {
         })
         .map((t) => {
           if (isDashboardTab(t)) {
-            return { kind: 'dashboard' as const, id: t.id, title: t.title }
+            return { kind: 'dashboard' as const, id: t.id, title: t.title, color: t.color }
           }
           if (isFileDiffTab(t)) {
             return {
@@ -959,7 +975,8 @@ function serializeWorkspace(): unknown {
               repoLabel: t.repoLabel,
               scope: t.scope,
               file: t.file,
-              sideBySide: t.sideBySide
+              sideBySide: t.sideBySide,
+              color: t.color
             }
           }
           if (isFileEditorTab(t)) {
@@ -969,7 +986,8 @@ function serializeWorkspace(): unknown {
               title: t.title,
               rootFs: t.rootFs,
               rootLabel: t.rootLabel,
-              relPath: t.relPath
+              relPath: t.relPath,
+              color: t.color
             }
           }
           return {
@@ -980,7 +998,8 @@ function serializeWorkspace(): unknown {
             sessionId: t.sessionId,
             providerId: t.providerId,
             worktreePath: t.worktreePath,
-            worktreeBranch: t.worktreeBranch
+            worktreeBranch: t.worktreeBranch,
+            color: t.color
           }
         }),
       activeTabId: g.activeTabId
