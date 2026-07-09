@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useState } from 'react'
 import { useProjectStore } from '../../stores/projectStore'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { getAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
+import { deriveAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
 import { focusFirstTabForPaths } from '../../utils/sessionTabs'
 import { STATUS_ACTIVE_COLOR } from '../../utils/statusColors'
 import { aggregateVisual } from '../../utils/aggregateVisual'
@@ -75,7 +75,7 @@ export const ProjectAvatarButton = memo(function ProjectAvatarButton({
       s.status === 'active' &&
       (s.detailedStatus === 'thinking' || s.detailedStatus === 'executingTool')
   )
-  const color = getAvatarColor(project.id)
+  const color = deriveAvatarColor(project.tabColor)
   const initials = getAvatarInitials(project.name)
   const attentionCount = attentionEvents.length
 
@@ -163,9 +163,7 @@ export const ProjectAvatarButton = memo(function ProjectAvatarButton({
           // tinted border (same hue as bg) so the silhouette stays
           // visible even on themes where the soft fill is invisible.
           border: `1.5px solid ${
-            statusRevealed && attentionCount > 0
-              ? 'var(--dplex-status-approval)'
-              : color.border
+            statusRevealed && attentionCount > 0 ? 'var(--dplex-status-approval)' : color.border
           }`,
           transition: 'border-color 280ms ease, opacity 280ms ease',
           // Dim avatars for projects that are not "live" so the rail clearly

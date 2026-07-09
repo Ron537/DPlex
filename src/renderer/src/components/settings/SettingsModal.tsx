@@ -185,6 +185,55 @@ function ToggleRow({
   )
 }
 
+/**
+ * Compact theme swatch used in the Appearance picker. Shows a small
+ * bg / bgAlt / accent / text preview strip and the theme name — deliberately
+ * short so several rows of themes fit without pushing the settings below the
+ * fold. Selected state uses the accent border + soft ring.
+ */
+function ThemeTile({
+  themeId,
+  name,
+  selected,
+  onSelect
+}: {
+  themeId: string
+  name: string
+  selected: boolean
+  onSelect: () => void
+}): React.JSX.Element {
+  const theme = getTheme(themeId)
+  return (
+    <button
+      onClick={onSelect}
+      title={name}
+      className="flex flex-col p-1.5 rounded-lg transition-colors text-left"
+      style={{
+        backgroundColor: 'var(--dplex-bg-alt)',
+        border: '1px solid',
+        borderColor: selected ? 'var(--dplex-accent)' : 'var(--dplex-border)',
+        boxShadow: selected ? '0 0 0 2px var(--dplex-accent-soft)' : undefined
+      }}
+    >
+      <div
+        className="h-7 rounded-md flex overflow-hidden mb-1.5"
+        style={{ border: '1px solid var(--dplex-border)' }}
+      >
+        <span className="flex-1" style={{ backgroundColor: theme.ui.bg }} />
+        <span className="flex-1" style={{ backgroundColor: theme.ui.bgAlt }} />
+        <span className="flex-1" style={{ backgroundColor: theme.ui.accent }} />
+        <span className="flex-1" style={{ backgroundColor: theme.ui.text }} />
+      </div>
+      <span
+        className="text-[11px] font-medium truncate px-0.5"
+        style={{ color: 'var(--dplex-text)' }}
+      >
+        {name}
+      </span>
+    </button>
+  )
+}
+
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JSX.Element | null {
   const settings = useSettingsStore((s) => s.settings)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
@@ -402,46 +451,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                   >
                     Dark
                   </h4>
-                  <div className="grid grid-cols-4 gap-2.5 mb-4">
-                    {darkThemes.map((t) => {
-                      const theme = getTheme(t.id)
-                      const isSelected = settings.theme === t.id
-                      return (
-                        <button
-                          key={t.id}
-                          onClick={() => applyNow({ theme: t.id })}
-                          className="flex flex-col p-2.5 rounded-lg transition-colors text-left"
-                          style={{
-                            backgroundColor: 'var(--dplex-bg-alt)',
-                            border: '1px solid',
-                            borderColor: isSelected ? 'var(--dplex-accent)' : 'var(--dplex-border)',
-                            boxShadow: isSelected ? '0 0 0 3px var(--dplex-accent-soft)' : undefined
-                          }}
-                        >
-                          <div
-                            className="h-12 rounded flex overflow-hidden mb-2"
-                            style={{ border: '1px solid var(--dplex-border)' }}
-                          >
-                            <span className="flex-1" style={{ backgroundColor: theme.ui.bg }} />
-                            <span className="flex-1" style={{ backgroundColor: theme.ui.bgAlt }} />
-                            <span className="flex-1" style={{ backgroundColor: theme.ui.accent }} />
-                            <span className="flex-1" style={{ backgroundColor: theme.ui.text }} />
-                          </div>
-                          <span
-                            className="text-[12px] font-medium"
-                            style={{ color: 'var(--dplex-text)' }}
-                          >
-                            {t.name}
-                          </span>
-                          <span
-                            className="text-[11px] mt-0.5"
-                            style={{ color: 'var(--dplex-text-muted)' }}
-                          >
-                            Dark
-                          </span>
-                        </button>
-                      )
-                    })}
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {darkThemes.map((t) => (
+                      <ThemeTile
+                        key={t.id}
+                        themeId={t.id}
+                        name={t.name}
+                        selected={settings.theme === t.id}
+                        onSelect={() => applyNow({ theme: t.id })}
+                      />
+                    ))}
                   </div>
                   <h4
                     className="text-[10px] font-semibold uppercase tracking-wider mb-2"
@@ -449,47 +468,32 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                   >
                     Light
                   </h4>
-                  <div className="grid grid-cols-4 gap-2.5">
-                    {lightThemes.map((t) => {
-                      const theme = getTheme(t.id)
-                      const isSelected = settings.theme === t.id
-                      return (
-                        <button
-                          key={t.id}
-                          onClick={() => applyNow({ theme: t.id })}
-                          className="flex flex-col p-2.5 rounded-lg transition-colors text-left"
-                          style={{
-                            backgroundColor: 'var(--dplex-bg-alt)',
-                            border: '1px solid',
-                            borderColor: isSelected ? 'var(--dplex-accent)' : 'var(--dplex-border)',
-                            boxShadow: isSelected ? '0 0 0 3px var(--dplex-accent-soft)' : undefined
-                          }}
-                        >
-                          <div
-                            className="h-12 rounded flex overflow-hidden mb-2"
-                            style={{ border: '1px solid var(--dplex-border)' }}
-                          >
-                            <span className="flex-1" style={{ backgroundColor: theme.ui.bg }} />
-                            <span className="flex-1" style={{ backgroundColor: theme.ui.bgAlt }} />
-                            <span className="flex-1" style={{ backgroundColor: theme.ui.accent }} />
-                            <span className="flex-1" style={{ backgroundColor: theme.ui.text }} />
-                          </div>
-                          <span
-                            className="text-[12px] font-medium"
-                            style={{ color: 'var(--dplex-text)' }}
-                          >
-                            {t.name}
-                          </span>
-                          <span
-                            className="text-[11px] mt-0.5"
-                            style={{ color: 'var(--dplex-text-muted)' }}
-                          >
-                            Light
-                          </span>
-                        </button>
-                      )
-                    })}
+                  <div className="grid grid-cols-4 gap-2">
+                    {lightThemes.map((t) => (
+                      <ThemeTile
+                        key={t.id}
+                        themeId={t.id}
+                        name={t.name}
+                        selected={settings.theme === t.id}
+                        onSelect={() => applyNow({ theme: t.id })}
+                      />
+                    ))}
                   </div>
+                </SettingItem>
+              )}
+
+              {activeTab === 'appearance' && (
+                <SettingItem label="Tab Color" settingId="tab-color-content">
+                  <ToggleRow
+                    label="Apply tab color to the tab's header and content"
+                    checked={settings.applyTabColorToContent}
+                    onChange={(v) => applyNow({ applyTabColorToContent: v })}
+                  />
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--dplex-text-muted)' }}>
+                    When off, a colored tab still shows its color on the tab itself, but its
+                    breadcrumb header (project · path) and content keep the theme&apos;s default
+                    background.
+                  </p>
                 </SettingItem>
               )}
 

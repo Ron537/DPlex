@@ -201,6 +201,7 @@ export function WorktreeSection({
 
       {isExpanded && (
         <ProjectSessionList
+          scopeId={sectionId}
           sessions={sessions}
           openTabs={openTabs}
           providers={providers}

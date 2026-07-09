@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] — 2026-07-09
+
+### Features
+
+- Give any tab its own color: right-click a tab and pick a color (or clear it). The whole tab is tinted with the color — even when it's not the active one — and the active tab's breadcrumb header (project · path) and content area pick up a subtle matching tint (which you can turn off in Settings → Appearance if you prefer the tint on the tab only). Your choices are remembered across restarts. The right-click menu also offers quick Rename and Close.
+- Set a color for a whole project: right-click a project in the sidebar and pick a "Tab color" to tint every one of that project's tabs (across its worktrees too) and its avatar. Project avatars are now neutral grey by default and take on the color you choose, so color in the sidebar always means something you picked. Individual tabs can still override, and the choice is remembered across restarts.
+
+### Improvements
+
+- The theme picker in Settings → Appearance is now more compact, so the other appearance options are visible without scrolling.
+- Idle, resumable sessions inside a project are now tucked into a collapsible "Idle · N resumable" row that's closed by default, so a project's live sessions stay front and centre. Click it to reveal (and resume) older sessions when you want them.
+
 ## [0.28.1] — 2026-07-01
 
 ### Bug Fixes
@@ -633,7 +645,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.28.1...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/Ron537/DPlex/compare/v0.28.1...v0.29.0
 [0.28.1]: https://github.com/Ron537/DPlex/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/Ron537/DPlex/compare/v0.27.1...v0.28.0
 [0.27.1]: https://github.com/Ron537/DPlex/compare/v0.27.0...v0.27.1

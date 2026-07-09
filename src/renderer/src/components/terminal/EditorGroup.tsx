@@ -2,7 +2,10 @@ import { useState, DragEvent } from 'react'
 import type { EditorGroup as EditorGroupType } from '../../types'
 import { isFileDiffTab, isFileEditorTab, isDashboardTab } from '../../types'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { useProjectStore } from '../../stores/projectStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { useFocusFilter } from '../../hooks/useFocusFilter'
+import { getTabIdentity } from '../../utils/tabProject'
 import { GroupTabBar } from './GroupTabBar'
 import { TabHeader } from './TabHeader'
 import { TerminalView } from './TerminalView'
@@ -32,6 +35,17 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
     ? group.activeTabId
     : visibleTabs[0]?.id
   const activeTab = visibleTabs.find((t) => t.id === effectiveActiveId)
+
+  // Effective colour of the active tab (explicit per-tab colour, else its
+  // project's colour). Drives a very subtle wash over the pane content so the
+  // whole surface — not just the tab — reflects the chosen colour.
+  const projects = useProjectStore((s) => s.projects)
+  const applyTabColorToContent = useSettingsStore((s) => s.settings.applyTabColorToContent)
+  const activeTabColor =
+    applyTabColorToContent && activeTab
+      ? ((activeTab as { color?: string }).color ??
+        getTabIdentity(activeTab, projects)?.colorProject.tabColor)
+      : undefined
 
   // Activate this group. When isolate focus has pushed the rendered (effective)
   // active tab away from the stored `activeTabId` (the stored one is hidden),
@@ -142,6 +156,18 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
             </div>
           )
         })}
+
+        {/* Subtle colour wash — tints the whole pane with the active tab's
+            colour (~7%) so a coloured tab carries through to its content, not
+            just the tab strip. Sits above the content but below the
+            inactive-group dim and drop overlays, and never intercepts input. */}
+        {activeTabColor && (
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            style={{ backgroundColor: `${activeTabColor}12`, zIndex: 5 }}
+          />
+        )}
 
         {/* Inactive-group dimming wash. Tinted toward the panel/sidebar
             tone so a non-focused group's content visually matches its

@@ -2,6 +2,7 @@ import { useRef, useState, DragEvent } from 'react'
 import {
   Plus,
   X,
+  Pencil,
   Terminal as TerminalIcon,
   LayoutDashboard,
   SplitSquareHorizontal,
@@ -13,6 +14,8 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useFocusFilter } from '../../hooks/useFocusFilter'
 import { StatusDot } from '../common/StatusDot'
+import { PopoverMenu } from '../common/PopoverMenu'
+import { TAB_COLORS } from '../../utils/tabColors'
 import { labelForVisual } from '../../utils/sessionStatusVisual'
 import { effectiveSessionVisual } from '../../utils/sessionPairing'
 import { getTabIdentity } from '../../utils/tabProject'
@@ -38,6 +41,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const renameTerminal = useTerminalStore((s) => s.renameTerminal)
+  const setTabColor = useTerminalStore((s) => s.setTabColor)
   const promotePreviewTab = useTerminalStore((s) => s.promotePreviewTab)
   const moveTerminalToGroup = useTerminalStore((s) => s.moveTerminalToGroup)
   const reorderTab = useTerminalStore((s) => s.reorderTab)
@@ -45,6 +49,10 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  // Right-click tab context menu (color picker + rename/close), anchored at
+  // the cursor via a 1×1 virtual anchor element.
+  const [menu, setMenu] = useState<{ tabId: string; x: number; y: number } | null>(null)
+  const menuAnchorRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const sessions = useSessionStore((s) => s.sessions)
@@ -142,6 +150,20 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
             (isFileDiff || isFileEditor) && (tab as { preview?: boolean }).preview === true
           const isDirty = isFileEditor && tab.dirty === true
           const identity = getTabIdentity(tab, projects)
+          // Effective tab colour: an explicit per-tab colour wins; otherwise
+          // the tab inherits its project's colour (shared across the origin +
+          // its worktrees via `colorProject`).
+          const tabColor = (tab as { color?: string }).color ?? identity?.colorProject.tabColor
+          // A coloured tab tints its whole chip (stronger when active) so the
+          // colour is unmistakable at a glance; uncoloured tabs keep the
+          // default active/inactive surfaces.
+          const tabBg = tabColor
+            ? isActive
+              ? `${tabColor}38`
+              : `${tabColor}1F`
+            : isActive
+              ? 'var(--dplex-bg)'
+              : 'var(--dplex-bg-alt)'
           // Isolate mode hides non-matching tabs entirely; dim mode keeps them
           // visible but de-emphasized. Iterate the real `group.tabs` (returning
           // null for hidden tabs) so drag-reorder indices stay correct.
@@ -176,7 +198,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 marginBottom: isActive ? -1 : 0,
                 paddingBottom: isActive ? 1 : 0,
                 borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
-                backgroundColor: isActive ? 'var(--dplex-bg)' : 'var(--dplex-bg-alt)',
+                backgroundColor: tabBg,
                 color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
                 opacity: dimmed ? 0.4 : 1,
                 zIndex: isActive ? 1 : 0
@@ -192,12 +214,17 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   handleDoubleClick(tab.id, tab.title)
                 }
               }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setActiveGroup(group.id)
+                setMenu({ tabId: tab.id, x: e.clientX, y: e.clientY })
+              }}
             >
-              {/* Active tab gets a 2-px accent stripe along the top edge —
-                  flat VS Code style. Project identity is now carried by
-                  the avatar (below) and the pane's TabHeader, so the tab
-                  itself only needs the active indicator. v2 adds a soft
-                  glow under the stripe to match the visual identity. */}
+              {/* Only the active tab gets the 2-px top stripe — flat VS Code
+                  style. It adopts the tab's chosen colour (falling back to the
+                  accent). Inactive tabs, coloured or not, carry no stripe; a
+                  coloured inactive tab is identified by its full-chip tint. */}
               {isActive && (
                 <span
                   aria-hidden
@@ -207,8 +234,8 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                     left: 0,
                     right: 0,
                     height: 2,
-                    backgroundColor: 'var(--dplex-accent)',
-                    boxShadow: '0 0 8px var(--dplex-accent-glow)',
+                    backgroundColor: tabColor ?? 'var(--dplex-accent)',
+                    boxShadow: `0 0 8px ${tabColor ? `${tabColor}66` : 'var(--dplex-accent-glow)'}`,
                     pointerEvents: 'none'
                   }}
                 />
@@ -365,6 +392,112 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
           <SplitSquareVertical size={13} />
         </button>
       </div>
+
+      {menu &&
+        (() => {
+          const menuTab = group.tabs.find((t) => t.id === menu.tabId)
+          if (!menuTab) return null
+          const currentColor = (menuTab as { color?: string }).color
+          return (
+            <>
+              <div
+                ref={menuAnchorRef}
+                aria-hidden
+                style={{
+                  position: 'fixed',
+                  left: menu.x,
+                  top: menu.y,
+                  width: 1,
+                  height: 1,
+                  pointerEvents: 'none'
+                }}
+              />
+              <PopoverMenu
+                anchorRef={menuAnchorRef}
+                open
+                align="left"
+                onClose={() => setMenu(null)}
+                className="min-w-[184px]"
+              >
+                <div
+                  className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase"
+                  style={{ color: 'var(--dplex-text-faint)', letterSpacing: '0.08em' }}
+                >
+                  Tab color
+                </div>
+                <div className="flex items-center gap-1.5 px-3 pb-2">
+                  {TAB_COLORS.map((c) => {
+                    const selected = currentColor === c.value
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        title={c.label}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setTabColor(menu.tabId, c.value)
+                          setMenu(null)
+                        }}
+                        className="rounded-full transition-transform hover:scale-110"
+                        style={{
+                          width: 16,
+                          height: 16,
+                          backgroundColor: c.value,
+                          boxShadow: selected
+                            ? `0 0 0 2px var(--dplex-bg), 0 0 0 3px ${c.value}`
+                            : 'none'
+                        }}
+                      />
+                    )
+                  })}
+                  <button
+                    type="button"
+                    title="No color"
+                    aria-label="Clear tab color"
+                    onClick={() => {
+                      setTabColor(menu.tabId, null)
+                      setMenu(null)
+                    }}
+                    className="grid place-items-center rounded-full hover:bg-[var(--dplex-hover)]"
+                    style={{
+                      width: 16,
+                      height: 16,
+                      border: '1px solid var(--dplex-border-strong)',
+                      color: 'var(--dplex-text-muted)'
+                    }}
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+                <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+                {isTerminalTab(menuTab) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDoubleClick(menuTab.id, menuTab.title)
+                      setMenu(null)
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                    style={{ color: 'var(--dplex-text)' }}
+                  >
+                    <Pencil size={12} /> Rename
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    requestCloseTab(menu.tabId)
+                    setMenu(null)
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                  style={{ color: 'var(--dplex-text)' }}
+                >
+                  <X size={12} /> Close
+                </button>
+              </PopoverMenu>
+            </>
+          )
+        })()}
     </div>
   )
 }

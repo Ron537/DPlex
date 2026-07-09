@@ -31,6 +31,16 @@ interface ProjectState {
    * loads.
    */
   collapsedWorktreeSections: Set<string>
+  /**
+   * Per-scope expansion state for the collapsible "Idle · N resumable"
+   * rollup that groups a project/worktree's recent (idle) sessions. Keyed by
+   * the scope id passed to `ProjectSessionList` (a project id for plain
+   * projects, or the worktree section id — `${parentId}::main` or a worktree
+   * project id). Defaults to **collapsed** — a scope appears in this set only
+   * after the user expands its idle rollup, so idle sessions stay tucked away
+   * until asked for. Ephemeral like `collapsedWorktreeSections`; not persisted.
+   */
+  expandedIdleSections: Set<string>
   /** Id of the most recently expanded project. Used to visually emphasize it. */
   lastExpandedProjectId: string | null
   /**
@@ -56,6 +66,8 @@ interface ProjectState {
   toggleExpanded: (id: string) => void
   /** Toggle the collapsed/expanded state of a worktree section header. */
   toggleWorktreeSection: (sectionId: string) => void
+  /** Toggle the collapsed/expanded state of a project's idle-sessions rollup. */
+  toggleIdleSection: (scopeId: string) => void
   setLastExpanded: (id: string) => void
   setActiveProject: (id: string | null) => void
   setProjectGitState: (id: string, patch: ProjectGitPanelState) => void
@@ -68,6 +80,9 @@ interface ProjectState {
   addProjectTag: (id: string, tag: string) => void
   /** Convenience: remove a single tag. No-op if not present. */
   removeProjectTag: (id: string, tag: string) => void
+  /** Set (hex) or clear (null) the project-wide tab color applied to all of
+   *  this project's tabs. Persists with the project list. */
+  setProjectTabColor: (id: string, color: string | null) => void
   startAISession: (project: Project, providerId?: string) => Promise<string | null>
   updateProjectWorktreeOverrides: (
     projectId: string,
@@ -80,6 +95,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   expandedProjectIds: new Set(),
   collapsedWorktreeSections: new Set(),
+  expandedIdleSections: new Set(),
   lastExpandedProjectId: null,
   activeProjectId: null,
   loaded: false,
@@ -149,6 +165,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const next = projects.map((p) =>
       p.id === projectId ? { ...p, worktreeOverrides: overrides ?? undefined } : p
     )
+    set({ projects: next })
+    persistProjects()
+  },
+
+  setProjectTabColor: (id, color) => {
+    const { projects, persistProjects } = get()
+    const next = projects.map((p) => (p.id === id ? { ...p, tabColor: color ?? undefined } : p))
     set({ projects: next })
     persistProjects()
   },
@@ -409,6 +432,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (next.has(sectionId)) next.delete(sectionId)
       else next.add(sectionId)
       return { collapsedWorktreeSections: next }
+    })
+  },
+
+  // Toggle a project/worktree idle-rollup's expansion. Ephemeral (session-only,
+  // like worktree-section collapse) — the idle list is a convenience surface,
+  // not workspace state worth persisting. Defaults to collapsed, so a scope is
+  // present in the set only while its idle sessions are being shown.
+  toggleIdleSection: (scopeId) => {
+    set((state) => {
+      const next = new Set(state.expandedIdleSections)
+      if (next.has(scopeId)) next.delete(scopeId)
+      else next.add(scopeId)
+      return { expandedIdleSections: next }
     })
   },
 

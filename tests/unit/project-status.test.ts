@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  getAvatarColor,
+  deriveAvatarColor,
   getAvatarInitials,
   getProjectStatus,
   getRailBackground
@@ -49,22 +49,19 @@ describe('projectStatus', () => {
     })
   })
 
-  describe('getAvatarColor', () => {
-    it('is deterministic for the same id', () => {
-      expect(getAvatarColor('proj-abc')).toEqual(getAvatarColor('proj-abc'))
+  describe('deriveAvatarColor', () => {
+    it('returns a neutral grey (theme tokens) when no colour is set', () => {
+      const c = deriveAvatarColor(undefined)
+      expect(c.bg).toBe('var(--dplex-bg-elev-2)')
+      expect(c.fg).toBe('var(--dplex-text-dim)')
+      expect(c.border).toBe('var(--dplex-border)')
     })
 
-    it('yields different colors for different ids (usually)', () => {
-      const a = getAvatarColor('proj-aaa')
-      const b = getAvatarColor('proj-zzz')
-      // Can't guarantee difference for 2 random ids, but these two should land in different buckets.
-      expect(a).not.toEqual(b)
-    })
-
-    it('returns both bg and fg as non-empty strings', () => {
-      const c = getAvatarColor('x')
-      expect(c.bg).toMatch(/rgba/)
-      expect(c.fg).toMatch(/^#/)
+    it('derives a same-hue tint from the given colour', () => {
+      const c = deriveAvatarColor('#F87171')
+      expect(c.fg).toBe('#F87171')
+      expect(c.bg).toBe('#F8717126')
+      expect(c.border).toBe('#F871715C')
     })
   })
 

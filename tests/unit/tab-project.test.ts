@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  colorSourceProject,
   findProjectForTab,
   getTabIdentity,
   getTabProjectPath
 } from '../../src/renderer/src/utils/tabProject'
 import type { FileDiffTab, Project, TerminalTab } from '../../src/renderer/src/types'
-import { getAvatarColor } from '../../src/renderer/src/utils/projectStatus'
+import { deriveAvatarColor } from '../../src/renderer/src/utils/projectStatus'
 
 function makeProject(partial: Partial<Project> & Pick<Project, 'id' | 'name' | 'path'>): Project {
   return {
@@ -94,7 +95,7 @@ describe('getTabIdentity', () => {
     expect(identity).toBeDefined()
     expect(identity!.matched.id).toBe('p-wt')
     expect(identity!.colorProject.id).toBe('p-app')
-    expect(identity!.color).toEqual(getAvatarColor('p-app'))
+    expect(identity!.color).toEqual(deriveAvatarColor(undefined))
   })
 
   it('uses matched project color when not a worktree', () => {
@@ -105,5 +106,38 @@ describe('getTabIdentity', () => {
 
   it('returns undefined for unmatched tabs', () => {
     expect(getTabIdentity(makeTerminalTab({ id: 't', cwd: '/x' }), PROJECTS)).toBeUndefined()
+  })
+})
+
+describe('colorSourceProject', () => {
+  it('returns the parent origin for a worktree', () => {
+    const wt = PROJECTS.find((p) => p.id === 'p-wt')!
+    expect(colorSourceProject(wt, PROJECTS).id).toBe('p-app')
+  })
+
+  it('returns the project itself when it is an origin', () => {
+    const app = PROJECTS.find((p) => p.id === 'p-app')!
+    expect(colorSourceProject(app, PROJECTS).id).toBe('p-app')
+  })
+
+  it('falls back to the project itself for an orphan worktree (parent missing)', () => {
+    const orphan = makeProject({ id: 'o', name: 'orphan', path: '/o', parentProjectId: 'missing' })
+    expect(colorSourceProject(orphan, PROJECTS).id).toBe('o')
+  })
+
+  it('worktree tabs inherit the origin tab color', () => {
+    const colored: Project[] = [
+      makeProject({ id: 'p-app', name: 'DPlex', path: '/code/dplex', tabColor: '#34D399' }),
+      makeProject({
+        id: 'p-wt',
+        name: 'feature-x',
+        path: '/code/dplex-wt',
+        parentProjectId: 'p-app'
+      })
+    ]
+    const tab = makeTerminalTab({ id: 't', worktreePath: '/code/dplex-wt' })
+    const identity = getTabIdentity(tab, colored)
+    expect(identity!.colorProject.tabColor).toBe('#34D399')
+    expect(identity!.color).toEqual(deriveAvatarColor('#34D399'))
   })
 })

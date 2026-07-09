@@ -5,10 +5,10 @@ import type { Project } from '../types'
 export const MAX_TAG_LENGTH = 32
 
 /**
- * Theme-safe palette used by tag pills. Same pattern as `AVATAR_PALETTE` in
- * `projectStatus.ts` — translucent background so the pill tints any panel
- * color cleanly, plus a saturated foreground that reads on both light and
- * dark themes. Each entry's `id` is what gets persisted in `tagColors`.
+ * Theme-safe palette used by tag pills — translucent background so the pill
+ * tints any panel color cleanly, plus a saturated foreground that reads on both
+ * light and dark themes. Each entry's `id` is what gets persisted in
+ * `tagColors`.
  *
  * Order is the order shown in the color picker swatch grid; keep it stable
  * because users will memorize positions ("third swatch = my client tag").

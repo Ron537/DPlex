@@ -1,9 +1,9 @@
 import { memo } from 'react'
-import { getAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
+import { deriveAvatarColor, getAvatarInitials } from '../../utils/projectStatus'
 
 interface ProjectAvatarProps {
-  /** Stable id used to derive the deterministic avatar color. */
-  projectId: string
+  /** The project's chosen tab color (hex), if any. Absent → neutral grey. */
+  color?: string
   /** Project name used to derive the 1-2 letter glyph. */
   name: string
   /** Square size in px. Defaults to 22 — the size used in the command palette. */
@@ -11,17 +11,18 @@ interface ProjectAvatarProps {
 }
 
 /**
- * Small square project avatar — deterministic color + initials glyph derived
- * from the project's id/name. Used in surfaces that aren't `ProjectItem`
- * (e.g. the command palette) so they share the same visual identity as the
+ * Small square project avatar — neutral grey by default, tinted with the
+ * project's chosen tab color when one is set. The glyph is the project's
+ * 1-2 letter initials. Used in surfaces that aren't `ProjectItem` (e.g. the
+ * command palette, tab header) so they share the same visual identity as the
  * sidebar without duplicating the styling logic.
  */
 export const ProjectAvatar = memo(function ProjectAvatar({
-  projectId,
+  color: tabColor,
   name,
   size = 22
 }: ProjectAvatarProps): React.JSX.Element {
-  const color = getAvatarColor(projectId)
+  const color = deriveAvatarColor(tabColor)
   const initials = getAvatarInitials(name)
   return (
     <span
