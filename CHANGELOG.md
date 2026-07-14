@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] — 2026-07-14
+
+### Features
+
+- Move a tab to another Space: right-click any session, terminal, editor, or diff tab and pick **Move to space** to send it to a different Space (or a brand-new one) without restarting it — the session keeps running and its scrollback is preserved.
+
 ## [0.31.1] — 2026-07-14
 
 ### Improvements
@@ -676,7 +682,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.31.1...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/Ron537/DPlex/compare/v0.31.1...v0.32.0
 [0.31.1]: https://github.com/Ron537/DPlex/compare/v0.31.0...v0.31.1
 [0.31.0]: https://github.com/Ron537/DPlex/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/Ron537/DPlex/compare/v0.29.0...v0.30.0

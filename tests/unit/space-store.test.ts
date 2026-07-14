@@ -22,7 +22,8 @@ import { useProjectStore, type ResolvedAISession } from '../../src/renderer/src/
 import { startProjectSession, openProjectTerminal } from '../../src/renderer/src/utils/spaceStart'
 import {
   stashParkedEditorBuffer,
-  clearParkedEditorBuffer
+  clearParkedEditorBuffer,
+  hasParkedEditorBuffer
 } from '../../src/renderer/src/services/parkedEditorBuffers'
 import { registerFileEditor } from '../../src/renderer/src/services/fileEditorRegistry'
 import type {
@@ -1205,5 +1206,146 @@ describe('spaceStore.spaceHasUnsavedEditors', () => {
 
     expect(spaceHasUnsavedEditors('A')).toBe(true)
     unregister()
+  })
+})
+
+describe('spaceStore.moveTabToSpace', () => {
+  it('moves a live tab into a background space, keeping the session running', () => {
+    useProjectStore.setState({
+      projects: [{ id: 'p1', name: 'repo-a', path: '/repo-a', addedAt: '' }],
+      activeProjectId: null
+    } as never)
+    seed(
+      {
+        id: 'A',
+        groups: [group('gA', [aiTab('a1', 'sa1', '/repo-a'), aiTab('a2', 'sa2', '/repo-a')])]
+      },
+      [{ id: 'B', workspace: snapshot([group('gB', [aiTab('b1', 'sb1', '/repo-b')])]) }]
+    )
+
+    useSpaceStore.getState().moveTabToSpace('a2', 'B')
+
+    // a2 left the live (active) workspace; a1 stays.
+    const live = useTerminalStore.getState().groups.flatMap((g) => g.tabs.map((t) => t.id))
+    expect(live).toEqual(['a1'])
+    // a2 landed in B's stored snapshot, focused, alongside b1.
+    const B = useSpaceStore.getState().spaces.find((s) => s.id === 'B')!
+    const bTabs = B.workspace.groups.flatMap((g) => g.tabs.map((t) => t.id))
+    expect(bTabs).toEqual(['b1', 'a2'])
+    const bGroup = B.workspace.groups.find((g) => g.tabs.some((t) => t.id === 'a2'))!
+    expect(bGroup.activeTabId).toBe('a2')
+    // Project of the moved tab (cwd /repo-a → p1) is bound to the target.
+    expect(B.projectIds).toContain('p1')
+    // The whole point: the terminal is NEVER destroyed and the session NEVER closed.
+    expect(destroyTerminal).not.toHaveBeenCalled()
+    expect(closeSession).not.toHaveBeenCalled()
+  })
+
+  it('injects into an empty background space as a new group and can empty the source', () => {
+    seed({ id: 'A', groups: [group('gA', [aiTab('a1', 'sa1', '/repo-a')])] }, [
+      { id: 'B', workspace: snapshot([]) }
+    ])
+
+    useSpaceStore.getState().moveTabToSpace('a1', 'B')
+
+    const B = useSpaceStore.getState().spaces.find((s) => s.id === 'B')!
+    expect(B.workspace.groups).toHaveLength(1)
+    expect(B.workspace.groups[0].tabs.map((t) => t.id)).toEqual(['a1'])
+    expect(B.workspace.activeGroupId).toBe(B.workspace.groups[0].id)
+    // The active space is now empty (like closing its last tab) but still active.
+    expect(useTerminalStore.getState().groups).toHaveLength(0)
+    expect(useSpaceStore.getState().activeSpaceId).toBe('A')
+    expect(destroyTerminal).not.toHaveBeenCalled()
+  })
+
+  it('serializes without duplicating the moved tab (active from live, target from snapshot)', () => {
+    seed(
+      {
+        id: 'A',
+        groups: [group('gA', [aiTab('a1', 'sa1', '/repo-a'), aiTab('a2', 'sa2', '/repo-a')])]
+      },
+      [{ id: 'B', workspace: snapshot([group('gB', [aiTab('b1', 'sb1', '/repo-b')])]) }]
+    )
+    useSpaceStore.getState().moveTabToSpace('a2', 'B')
+
+    saveSpacesSync.mockClear()
+    useSpaceStore.getState().persistNow()
+    const file = saveSpacesSync.mock.calls[0][0] as {
+      spaces: { id: string; workspace: { groups: { tabs: { id: string }[] }[] } }[]
+    }
+    const ids = (id: string): string[] =>
+      file.spaces.find((s) => s.id === id)!.workspace.groups.flatMap((g) => g.tabs.map((t) => t.id))
+    expect(ids('A')).toEqual(['a1']) // moved tab gone from the active space
+    expect(ids('B')).toContain('a2') // present in the target exactly once
+    expect(ids('B').filter((x) => x === 'a2')).toHaveLength(1)
+  })
+
+  it('is a no-op when the target is the active space, missing, or the tab is not live', () => {
+    seed({ id: 'A', groups: [group('gA', [aiTab('a1', 'sa1', '/repo-a')])] }, [
+      { id: 'B', workspace: snapshot([group('gB', [aiTab('b1', 'sb1', '/repo-b')])]) }
+    ])
+    const before = useSpaceStore.getState().spaces
+
+    useSpaceStore.getState().moveTabToSpace('a1', 'A') // target === active
+    useSpaceStore.getState().moveTabToSpace('a1', 'nope') // missing target
+    useSpaceStore.getState().moveTabToSpace('ghost', 'B') // tab not in live workspace
+
+    expect(useTerminalStore.getState().groups.flatMap((g) => g.tabs.map((t) => t.id))).toEqual([
+      'a1'
+    ])
+    expect(useSpaceStore.getState().spaces).toBe(before) // no state churn
+    expect(destroyTerminal).not.toHaveBeenCalled()
+  })
+
+  it('preserves a moved file editor unsaved buffer via the parked stash', () => {
+    const fe = fileTab('fe1', '/repo-a', 'src/x.ts', { dirty: true })
+    seed({ id: 'A', groups: [mixedGroup('gA', [fe])] }, [{ id: 'B', workspace: snapshot([]) }])
+    // Register a mounted editor with a dirty buffer so the move stashes it.
+    const handle = {
+      isDirty: () => true,
+      getDirtyBuffer: () => ({ content: 'edited', baseline: 'orig', savedViewState: null }),
+      flushIfAutoSave: vi.fn()
+    }
+    const unregister = registerFileEditor('fe1', handle as never)
+
+    useSpaceStore.getState().moveTabToSpace('fe1', 'B')
+
+    // The editor's unsaved buffer was stashed (survives unmount→remount in B).
+    expect(hasParkedEditorBuffer('fe1')).toBe(true)
+    clearParkedEditorBuffer('fe1')
+    unregister()
+  })
+})
+
+describe('spaceStore.moveTabToNewSpace', () => {
+  it('creates a background untitled space and moves the tab into it', () => {
+    seed(
+      {
+        id: 'A',
+        groups: [group('gA', [aiTab('a1', 'sa1', '/repo-a'), aiTab('a2', 'sa2', '/repo-a')])]
+      },
+      []
+    )
+
+    useSpaceStore.getState().moveTabToNewSpace('a2')
+
+    const st = useSpaceStore.getState()
+    expect(st.spaces).toHaveLength(2)
+    const created = st.spaces.find((s) => s.id !== 'A')!
+    expect(created.name).toMatch(/^Untitled Space \d+$/)
+    // The new space stays in the background; A remains active.
+    expect(st.activeSpaceId).toBe('A')
+    expect(created.workspace.groups.flatMap((g) => g.tabs.map((t) => t.id))).toEqual(['a2'])
+    // a2 left the live workspace; a1 stays.
+    expect(useTerminalStore.getState().groups.flatMap((g) => g.tabs.map((t) => t.id))).toEqual([
+      'a1'
+    ])
+    expect(destroyTerminal).not.toHaveBeenCalled()
+  })
+
+  it('is a no-op (creates no space) when the tab is not live', () => {
+    seed({ id: 'A', groups: [group('gA', [aiTab('a1', 'sa1', '/repo-a')])] }, [])
+    useSpaceStore.getState().moveTabToNewSpace('ghost')
+    expect(useSpaceStore.getState().spaces).toHaveLength(1)
   })
 })

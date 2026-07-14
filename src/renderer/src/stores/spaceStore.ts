@@ -3,6 +3,7 @@ import type { EditorTab, Space, WorkspaceSnapshot } from '../types'
 import { isTerminalTab } from '../types'
 import {
   EMPTY_WORKSPACE,
+  injectTabIntoSnapshot,
   reconstructWorkspace,
   serializeWorkspaceSnapshot,
   type PersistedWorkspaceSnapshot
@@ -14,7 +15,11 @@ import { useTerminalStore, setWorkspaceSink } from './terminalStore'
 import { useProjectStore } from './projectStore'
 import { useSessionStore } from './sessionStore'
 import { destroyTerminal, cancelExitHandler } from '../services/terminalRegistry'
-import { stashAllDirtyFileEditors, isFileEditorDirty } from '../services/fileEditorRegistry'
+import {
+  stashAllDirtyFileEditors,
+  stashDirtyFileEditor,
+  isFileEditorDirty
+} from '../services/fileEditorRegistry'
 import { clearParkedEditorBuffer, hasParkedEditorBuffer } from '../services/parkedEditorBuffers'
 
 const SPACES_VERSION = 1
@@ -65,6 +70,16 @@ export interface SpaceState {
    *  or already includes the project. Used when work for an unbound project is
    *  started from within a space. */
   addProjectToSpace: (id: string, projectId: string) => void
+  /** Move a single tab from the ACTIVE space's live workspace into a background
+   *  target space, without restarting it: its terminal/session keeps running in
+   *  the registry and re-attaches when the target space is opened. The tab's
+   *  project (if any) is bound to the target. No-op when the target is missing,
+   *  is the active space, or the tab isn't in the live workspace. */
+  moveTabToSpace: (tabId: string, targetSpaceId: string) => void
+  /** Create a fresh background space (neutral "Untitled Space N" name) and move
+   *  the tab into it, without restarting it. No-op when the tab isn't in the live
+   *  workspace (so an invalid id never leaves an empty orphan space behind). */
+  moveTabToNewSpace: (tabId: string) => void
   /** Remove a project id from every space that references it (called when the
    *  project is deleted from the Projects panel) so no space keeps a dangling
    *  binding. If the removed id was a space's primary (projectIds[0]), the next
@@ -510,6 +525,56 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
       )
     }))
     get().persist()
+  },
+
+  moveTabToSpace: (tabId, targetSpaceId) => {
+    const { activeSpaceId, spaces } = get()
+    const target = spaces.find((s) => s.id === targetSpaceId)
+    // Only the active space's tabs are live/mounted, so the source is always the
+    // active space; moving to the active space (or a missing one) is a no-op.
+    if (!target || targetSpaceId === activeSpaceId) return
+
+    // Preserve any unsaved edits of a moved file editor across its unmount here /
+    // remount in the target, then detach WITHOUT destroying the PTY or closing
+    // the session. detachTab returns null if the tab isn't in the live workspace.
+    stashDirtyFileEditor(tabId)
+    const tab = useTerminalStore.getState().detachTab(tabId)
+    if (!tab) return
+
+    const project = findProjectForTab(tab, useProjectStore.getState().projects)
+    const now = Date.now()
+    set((state) => ({
+      spaces: state.spaces.map((s) =>
+        s.id === targetSpaceId
+          ? {
+              ...s,
+              workspace: injectTabIntoSnapshot(s.workspace, tab),
+              projectIds:
+                project && !s.projectIds.includes(project.id)
+                  ? [...s.projectIds, project.id]
+                  : s.projectIds,
+              updatedAt: now
+            }
+          : s
+      )
+    }))
+    // buildPersistedFile serializes the active space from the LIVE terminal store
+    // (tab already gone) and the target from its stored workspace (tab present),
+    // so there's no duplication — the active space's own stored snapshot is left
+    // intentionally stale until it next backgrounds. Attention re-aggregates from
+    // the snapshots. A moved fileEditor/fileDiff may briefly coexist with an
+    // equivalent tab already in the target (two views of one file, VS Code-style,
+    // non-lossy); the dashboard singleton is excluded from the move menu instead.
+    get().persist()
+  },
+
+  moveTabToNewSpace: (tabId) => {
+    // Only spin up a destination when the tab is actually live/movable, so an
+    // invalid id can't leave an empty orphan space behind.
+    const live = useTerminalStore.getState().groups.some((g) => g.tabs.some((t) => t.id === tabId))
+    if (!live) return
+    const id = get().createSpace({ name: nextUntitledSpaceName(get().spaces), activate: false })
+    get().moveTabToSpace(tabId, id)
   },
 
   pruneProject: (projectId) => {
