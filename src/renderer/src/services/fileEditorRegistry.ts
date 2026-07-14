@@ -69,13 +69,25 @@ export function isFileEditorDirty(tabId: string): boolean {
  * store swaps the active workspace out.
  */
 export function stashAllDirtyFileEditors(): void {
-  for (const [tabId, reg] of registry) {
-    const buffer = reg.handle.getDirtyBuffer()
-    if (buffer) stashParkedEditorBuffer(tabId, buffer)
-    // onChange editors also flush their pending debounced save to disk at park
-    // time, so an edit within the debounce window survives a quit-while-parked.
-    // The stash above remains the in-session restore + conflict-detection
-    // baseline; the resume path reconciles the two (adopts disk when identical).
-    reg.handle.flushIfAutoSave()
-  }
+  for (const tabId of registry.keys()) stashDirtyFileEditor(tabId)
+}
+
+/**
+ * Stash a single mounted editor's unsaved buffer + flush its pending auto-save.
+ *
+ * Used both by {@link stashAllDirtyFileEditors} (park) and when a single tab is
+ * MOVED to another Space: the editor unmounts here and remounts there, consuming
+ * the stash. (Contrast closeTerminal, which CLEARS the stash because a closed tab
+ * never remounts.) No-op when no editor is mounted for the tab.
+ */
+export function stashDirtyFileEditor(tabId: string): void {
+  const reg = registry.get(tabId)
+  if (!reg) return
+  const buffer = reg.handle.getDirtyBuffer()
+  if (buffer) stashParkedEditorBuffer(tabId, buffer)
+  // onChange editors also flush their pending debounced save to disk here, so an
+  // edit within the debounce window survives a quit-while-parked. The stash above
+  // remains the in-session restore + conflict-detection baseline; the resume path
+  // reconciles the two (adopts disk when identical).
+  reg.handle.flushIfAutoSave()
 }

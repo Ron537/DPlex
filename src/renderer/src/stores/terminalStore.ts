@@ -132,6 +132,13 @@ interface TerminalState {
     providerId?: string
   ) => string
   closeTerminal: (terminalId: string) => void
+  /** Remove a tab from the live workspace WITHOUT destroying its terminal or
+   *  closing its session, returning the removed tab (promoted out of preview) so
+   *  it can be injected into another Space's snapshot. The PTY keeps running in
+   *  the registry and re-attaches when the tab mounts again; empty groups/layout
+   *  are pruned exactly like closeTerminal. Returns null when the tab isn't in
+   *  the live workspace. */
+  detachTab: (tabId: string) => EditorTab | null
   setActiveGroup: (groupId: string) => void
   setActiveTerminalInGroup: (groupId: string, terminalId: string) => void
   renameTerminal: (terminalId: string, title: string) => void
@@ -352,6 +359,57 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       layout: aliveGroups.length > 0 ? newLayout : { type: 'group', groupId: 'group-0' },
       activeGroupId: newActiveGroupId
     })
+  },
+
+  detachTab: (tabId) => {
+    const state = get()
+    let removed: EditorTab | undefined
+    for (const g of state.groups) {
+      const found = g.tabs.find((t) => t.id === tabId)
+      if (found) {
+        removed = found
+        break
+      }
+    }
+    if (!removed) return null
+
+    // Same removal/prune logic as closeTerminal, minus every side effect: no
+    // destroyTerminal, no session close, no parked-buffer clear. The terminal
+    // survives in the registry so the tab can re-attach in its new Space. Nothing
+    // fires synchronously here, so a plain (non-re-read) state pass is safe.
+    const updatedGroups = state.groups.map((g) => {
+      const idx = g.tabs.findIndex((t) => t.id === tabId)
+      if (idx === -1) return g
+      const newTabs = g.tabs.filter((t) => t.id !== tabId)
+      const newActive =
+        g.activeTabId === tabId ? (newTabs[Math.max(0, idx - 1)]?.id ?? null) : g.activeTabId
+      return {
+        ...g,
+        tabs: newTabs,
+        activeTabId: newActive ?? '',
+        previewTabId: g.previewTabId === tabId ? undefined : g.previewTabId
+      }
+    })
+
+    const emptyGroupIds = updatedGroups.filter((g) => g.tabs.length === 0).map((g) => g.id)
+    const aliveGroups = updatedGroups.filter((g) => g.tabs.length > 0)
+
+    let newLayout = state.layout
+    for (const gid of emptyGroupIds) {
+      const pruned = removeGroupFromLayout(newLayout, gid)
+      if (pruned) newLayout = pruned
+    }
+
+    const newActiveGroupId =
+      aliveGroups.find((g) => g.id === state.activeGroupId)?.id ?? aliveGroups[0]?.id ?? null
+
+    set({
+      groups: aliveGroups,
+      layout: aliveGroups.length > 0 ? newLayout : { type: 'group', groupId: 'group-0' },
+      activeGroupId: newActiveGroupId
+    })
+
+    return promoteOnMove(removed)
   },
 
   setActiveGroup: (groupId) => {

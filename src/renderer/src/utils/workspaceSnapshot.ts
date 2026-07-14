@@ -62,6 +62,44 @@ export const EMPTY_WORKSPACE: WorkspaceSnapshot = {
   activeGroupId: null
 }
 
+let movedGroupSeq = 0
+
+/**
+ * Inject a live tab into a (background) Space's workspace snapshot, focusing it.
+ * Used to move a tab from the active Space into another Space without touching
+ * its terminal: the PTY keeps running in the registry and re-attaches when the
+ * target Space is next opened. Pure — returns a new snapshot, never mutates the
+ * input; the caller owns removing the tab from its source (terminalStore
+ * .detachTab).
+ *
+ * - Empty target → a fresh single group holding the tab becomes the whole
+ *   workspace. The new group id is non-numeric (`group-moved-*`) so it can never
+ *   collide with the `group-<n>` ids syncGroupCounter tracks once the snapshot is
+ *   later swapped live.
+ * - Non-empty target → the tab is appended to the target's active group (or the
+ *   first group as a fallback) and focused there.
+ */
+export function injectTabIntoSnapshot(snap: WorkspaceSnapshot, tab: EditorTab): WorkspaceSnapshot {
+  if (snap.groups.length === 0) {
+    movedGroupSeq += 1
+    const groupId = `group-moved-${Date.now()}-${movedGroupSeq}`
+    return {
+      layout: { type: 'group', groupId },
+      groups: [{ id: groupId, tabs: [tab], activeTabId: tab.id }],
+      activeGroupId: groupId
+    }
+  }
+  const targetGroupId =
+    snap.groups.find((g) => g.id === snap.activeGroupId)?.id ?? snap.groups[0].id
+  return {
+    ...snap,
+    activeGroupId: targetGroupId,
+    groups: snap.groups.map((g) =>
+      g.id === targetGroupId ? { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id } : g
+    )
+  }
+}
+
 /**
  * Serialize a live workspace snapshot to its persisted (lossy) form. Only AI
  * session terminal tabs (they carry a `command`) and PERMANENT

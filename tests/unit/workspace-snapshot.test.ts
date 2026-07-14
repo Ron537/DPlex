@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   EMPTY_WORKSPACE,
+  injectTabIntoSnapshot,
   reconstructWorkspace,
   serializeWorkspaceSnapshot
 } from '../../src/renderer/src/utils/workspaceSnapshot'
@@ -243,5 +244,63 @@ describe('reconstructWorkspace', () => {
   it('EMPTY_WORKSPACE has no groups', () => {
     expect(EMPTY_WORKSPACE.groups).toHaveLength(0)
     expect(EMPTY_WORKSPACE.activeGroupId).toBeNull()
+  })
+})
+
+describe('injectTabIntoSnapshot', () => {
+  it('creates a fresh focused group when the target snapshot is empty', () => {
+    const tab = aiTab('t1', 's1', '/repo-a')
+    const out = injectTabIntoSnapshot(EMPTY_WORKSPACE, tab)
+    expect(out.groups).toHaveLength(1)
+    expect(out.groups[0].tabs.map((t) => t.id)).toEqual(['t1'])
+    expect(out.groups[0].activeTabId).toBe('t1')
+    expect(out.activeGroupId).toBe(out.groups[0].id)
+    // The layout points at the new group, whose id is non-numeric so it can
+    // never collide with the `group-<n>` ids syncGroupCounter tracks.
+    expect(out.layout).toEqual({ type: 'group', groupId: out.groups[0].id })
+    expect(out.groups[0].id.startsWith('group-moved-')).toBe(true)
+    // Pure: the shared EMPTY_WORKSPACE constant is never mutated.
+    expect(EMPTY_WORKSPACE.groups).toHaveLength(0)
+  })
+
+  it('generates a unique group id for each empty-target injection', () => {
+    const a = injectTabIntoSnapshot(EMPTY_WORKSPACE, aiTab('t1', 's1', '/r'))
+    const b = injectTabIntoSnapshot(EMPTY_WORKSPACE, aiTab('t2', 's2', '/r'))
+    expect(a.groups[0].id).not.toBe(b.groups[0].id)
+  })
+
+  it('appends the tab to the active group and focuses it when the target is non-empty', () => {
+    const snap: WorkspaceSnapshot = {
+      layout: {
+        type: 'split',
+        direction: 'horizontal',
+        children: [
+          { type: 'group', groupId: 'g1' },
+          { type: 'group', groupId: 'g2' }
+        ]
+      },
+      groups: [group('g1', [aiTab('a', 'sa', '/r')]), group('g2', [aiTab('b', 'sb', '/r')])],
+      activeGroupId: 'g2'
+    }
+    const out = injectTabIntoSnapshot(snap, aiTab('c', 'sc', '/r'))
+    // Landed in the active group g2, focused there; g1 untouched; layout intact.
+    expect(out.groups.find((g) => g.id === 'g2')!.tabs.map((t) => t.id)).toEqual(['b', 'c'])
+    expect(out.groups.find((g) => g.id === 'g2')!.activeTabId).toBe('c')
+    expect(out.groups.find((g) => g.id === 'g1')!.tabs.map((t) => t.id)).toEqual(['a'])
+    expect(out.activeGroupId).toBe('g2')
+    expect(out.layout).toEqual(snap.layout)
+    // Pure: input untouched.
+    expect(snap.groups.find((g) => g.id === 'g2')!.tabs).toHaveLength(1)
+  })
+
+  it('falls back to the first group when activeGroupId does not resolve', () => {
+    const snap: WorkspaceSnapshot = {
+      layout: { type: 'group', groupId: 'g1' },
+      groups: [group('g1', [aiTab('a', 'sa', '/r')])],
+      activeGroupId: null
+    }
+    const out = injectTabIntoSnapshot(snap, aiTab('c', 'sc', '/r'))
+    expect(out.groups[0].tabs.map((t) => t.id)).toEqual(['a', 'c'])
+    expect(out.activeGroupId).toBe('g1')
   })
 })

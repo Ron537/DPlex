@@ -12,9 +12,11 @@ import { useTerminalStore } from '../../stores/terminalStore'
 import { requestCloseTab } from '../../stores/closeConfirmStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
+import { useSpaceStore } from '../../stores/spaceStore'
 import { useFocusFilter } from '../../hooks/useFocusFilter'
 import { StatusDot } from '../common/StatusDot'
 import { PopoverMenu } from '../common/PopoverMenu'
+import { SpaceAvatar } from '../spaces/SpaceAvatar'
 import { TAB_COLORS } from '../../utils/tabColors'
 import { labelForVisual } from '../../utils/sessionStatusVisual'
 import { effectiveSessionVisual } from '../../utils/sessionPairing'
@@ -57,6 +59,11 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
 
   const sessions = useSessionStore((s) => s.sessions)
   const projects = useProjectStore((s) => s.projects)
+  const spaces = useSpaceStore((s) => s.spaces)
+  const activeSpaceId = useSpaceStore((s) => s.activeSpaceId)
+  const moveTabToSpace = useSpaceStore((s) => s.moveTabToSpace)
+  const moveTabToNewSpace = useSpaceStore((s) => s.moveTabToNewSpace)
+  const otherSpaces = spaces.filter((s) => s.id !== activeSpaceId)
   const { isolate, dim, matches } = useFocusFilter()
   // Mirror EditorGroup's effective-active-tab derivation: in isolate mode a
   // group's stored activeTabId may point at a now-hidden tab, in which case the
@@ -470,6 +477,56 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   </button>
                 </div>
                 <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+                {!isDashboardTab(menuTab) && (
+                  <>
+                    <div
+                      className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase"
+                      style={{ color: 'var(--dplex-text-faint)', letterSpacing: '0.08em' }}
+                    >
+                      Move to space
+                    </div>
+                    <div className="max-h-[188px] overflow-y-auto">
+                      {otherSpaces.map((sp) => (
+                        <button
+                          key={sp.id}
+                          type="button"
+                          title={`Move to ${sp.name}`}
+                          onClick={() => {
+                            moveTabToSpace(menu.tabId, sp.id)
+                            setMenu(null)
+                          }}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                          style={{ color: 'var(--dplex-text)' }}
+                        >
+                          <SpaceAvatar space={sp} size={16} radius={5} />
+                          <span className="truncate">{sp.name}</span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          moveTabToNewSpace(menu.tabId)
+                          setMenu(null)
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
+                        style={{ color: 'var(--dplex-text-muted)' }}
+                      >
+                        <span
+                          className="grid place-items-center rounded"
+                          style={{
+                            width: 16,
+                            height: 16,
+                            border: '1px dashed var(--dplex-border-strong)'
+                          }}
+                        >
+                          <Plus size={10} />
+                        </span>
+                        New space
+                      </button>
+                    </div>
+                    <div className="my-1" style={{ borderTop: '1px solid var(--dplex-border)' }} />
+                  </>
+                )}
                 {isTerminalTab(menuTab) && (
                   <button
                     type="button"
