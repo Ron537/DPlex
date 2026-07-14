@@ -1,7 +1,8 @@
-import { Terminal, PanelLeftOpen, PanelLeftClose, Settings, Search } from 'lucide-react'
+import { Terminal, PanelLeftOpen, PanelLeftClose, Settings, Search, Layers } from 'lucide-react'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
+import { useSpaceStore } from '../../stores/spaceStore'
 import { useCommandPaletteStore } from '../../stores/commandPaletteStore'
 import { MOD } from '../../utils/shortcuts'
 
@@ -19,6 +20,12 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar)
   const sessions = useSessionStore((s) => s.sessions)
   const activeSessionCount = sessions.filter((s) => s.status === 'active').length
+  const activeSpace = useSpaceStore((s) => s.spaces.find((sp) => sp.id === s.activeSpaceId) ?? null)
+  const openSpaces = (): void => {
+    void useSettingsStore
+      .getState()
+      .updateSettings({ sidebarActiveTab: 'spaces', sidebarPanelCollapsed: false })
+  }
 
   return (
     <div
@@ -65,6 +72,33 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
           >
             {MOD}P
           </kbd>
+        </button>
+        <button
+          onClick={openSpaces}
+          data-testid="statusbar-space"
+          className="inline-flex items-center gap-1.5 px-2 rounded-full hover:bg-[var(--dplex-hover)] transition-colors flex-shrink-0 min-w-0"
+          style={{ height: 20, color: 'var(--dplex-text-muted)' }}
+          title={activeSpace ? `Space: ${activeSpace.name}` : 'No space in focus — open Spaces'}
+          aria-label={activeSpace ? `Active space: ${activeSpace.name}` : 'No space in focus'}
+        >
+          {activeSpace ? (
+            <span
+              aria-hidden
+              className="flex-shrink-0"
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: activeSpace.color,
+                boxShadow: `0 0 6px color-mix(in srgb, ${activeSpace.color} 70%, transparent)`
+              }}
+            />
+          ) : (
+            <Layers size={11} className="flex-shrink-0" style={{ opacity: 0.7 }} />
+          )}
+          <span className="truncate" style={{ maxWidth: 160 }}>
+            {activeSpace ? activeSpace.name : 'No space in focus'}
+          </span>
         </button>
       </div>
       <div className="flex items-center gap-3 pr-1 min-w-0">

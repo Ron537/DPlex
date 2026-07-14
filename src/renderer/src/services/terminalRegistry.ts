@@ -43,11 +43,59 @@ interface PtyDataHandler {
   terminalId: string
   entry: TerminalEntry
   flowController: FlowController
-  onReady: (() => void) | null
 }
 
 const dataHandlers = new Map<string, PtyDataHandler>()
 const exitHandlers = new Map<string, (exitCode: number) => void>()
+
+// ── Terminal readiness subscriptions ────────────────────────────────────
+// A terminal becomes "ready" once its PTY first produces output (or on a
+// start failure, so the UI stops showing "Starting…"). Readiness is a
+// persistent, latched flag on the entry — but a hook can mount AFTER the PTY
+// was created (a Space switch remounts the tab mid-startup), so it can't rely
+// on catching the one-shot flip via a bound callback. Subscribers are keyed by
+// terminalId (stable across remounts); a late subscriber checks entry.ready
+// itself. Replacing the old single onReady callback fixes a "Starting terminal…
+// forever" hang when the original mount unmounted before the first byte.
+const readySubscribers = new Map<string, Set<() => void>>()
+
+/** Subscribe to a terminal's ready event. Returns an unsubscribe fn. The
+ *  callback may fire more than once (idempotent by design). */
+export function subscribeTerminalReady(terminalId: string, cb: () => void): () => void {
+  let subs = readySubscribers.get(terminalId)
+  if (!subs) {
+    subs = new Set()
+    readySubscribers.set(terminalId, subs)
+  }
+  subs.add(cb)
+  return () => {
+    const s = readySubscribers.get(terminalId)
+    if (!s) return
+    s.delete(cb)
+    if (s.size === 0) readySubscribers.delete(terminalId)
+  }
+}
+
+function notifyTerminalReady(terminalId: string): void {
+  const subs = readySubscribers.get(terminalId)
+  if (!subs) return
+  for (const cb of subs) {
+    try {
+      cb()
+    } catch {
+      /* isolate subscriber errors */
+    }
+  }
+}
+
+/** Latch a terminal ready and notify any mounted hooks. Idempotent. Used by the
+ *  early-buffer flush and start-failure paths, where readiness is decided in
+ *  the hook rather than by the global data dispatcher. */
+export function markTerminalReady(terminalId: string): void {
+  const entry = registry.get(terminalId)
+  if (entry) entry.ready = true
+  notifyTerminalReady(terminalId)
+}
 
 let globalDataListenerCleanup: (() => void) | null = null
 
@@ -62,10 +110,7 @@ function ensureGlobalListeners(): void {
 
     if (!handler.entry.ready) {
       handler.entry.ready = true
-      if (handler.onReady) {
-        handler.onReady()
-        handler.onReady = null
-      }
+      notifyTerminalReady(handler.terminalId)
     }
   })
 
@@ -80,8 +125,7 @@ export function registerPtyDataHandler(
   ptyId: string,
   terminalId: string,
   entry: TerminalEntry,
-  onExit: (exitCode: number) => void,
-  onReady?: () => void
+  onExit: (exitCode: number) => void
 ): () => void {
   ensureGlobalListeners()
 
@@ -95,8 +139,7 @@ export function registerPtyDataHandler(
   dataHandlers.set(ptyId, {
     terminalId,
     entry,
-    flowController,
-    onReady: onReady || null
+    flowController
   })
 
   exitHandlers.set(ptyId, onExit)
@@ -310,11 +353,54 @@ export function fireExitHandler(terminalId: string, exitCode: number): void {
   }
 }
 
+/** Discard a pending exit handler WITHOUT firing it. Used for deliberate
+ *  teardown (e.g. a Space is deleted) where a setup script's afterCreate action
+ *  must NOT run — otherwise destroying the still-running setup PTY would fire
+ *  its exit handler and spawn a session/terminal into a Space that no longer
+ *  exists (or re-focus the doomed Space mid-delete). Idempotent.
+ *
+ *  Note: this cancels only the deferred *afterCreate* work. Resource cleanup
+ *  registered via registerDestroyCleanup still runs on destroy, so e.g. a setup
+ *  script's temp file is never leaked even when the handler is cancelled. */
+export function cancelExitHandler(terminalId: string): void {
+  pendingExitHandlers.delete(terminalId)
+}
+
+// ── Destroy cleanups ────────────────────────────────────────────────────
+// Unlike an exit handler (which fires on PTY exit and is cancellable for
+// deliberate teardown), a destroy cleanup ALWAYS runs when the terminal is
+// destroyed — even if the exit handler was cancelled. It's for releasing OS
+// resources (e.g. a setup script's temp file) that must not leak on any path,
+// including Windows where $TMPDIR is not auto-reaped. Cleared after firing.
+const destroyCleanups = new Map<string, () => void>()
+
+export function registerDestroyCleanup(terminalId: string, cleanup: () => void): () => void {
+  destroyCleanups.set(terminalId, cleanup)
+  return () => {
+    if (destroyCleanups.get(terminalId) === cleanup) {
+      destroyCleanups.delete(terminalId)
+    }
+  }
+}
+
+function fireDestroyCleanup(terminalId: string): void {
+  const cleanup = destroyCleanups.get(terminalId)
+  if (!cleanup) return
+  destroyCleanups.delete(terminalId)
+  try {
+    cleanup()
+  } catch {
+    /* isolate cleanup errors */
+  }
+}
+
 export function destroyTerminal(terminalId: string): void {
   const entry = registry.get(terminalId)
   if (!entry) {
-    // Even if the entry never got registered, fire any pending handler so
-    // callers waiting on an exit result get unblocked with a synthetic code.
+    // Even if the entry never got registered, run cleanup + fire any pending
+    // handler so callers waiting on an exit result get unblocked and no temp
+    // resources leak.
+    fireDestroyCleanup(terminalId)
     fireExitHandler(terminalId, -1)
     return
   }
@@ -325,6 +411,10 @@ export function destroyTerminal(terminalId: string): void {
   entry.term.dispose()
   entry.wrapperEl.remove()
   registry.delete(terminalId)
+  readySubscribers.delete(terminalId)
+  // Always release OS resources (temp files etc.) tied to this terminal, even
+  // when the exit handler was cancelled for a deliberate teardown.
+  fireDestroyCleanup(terminalId)
   // If useTerminal hadn't yet wired pty:exit (fast destroy before PTY
   // resolved), still fire pending handlers so tmp files get cleaned up.
   fireExitHandler(terminalId, -1)

@@ -97,7 +97,10 @@ export class CopilotProvider extends BaseSessionProvider {
     return extractCopilotPrompts(sessionDir, limit)
   }
 
-  getResumeCommand(sessionId: string): string {
+  getResumeCommand(sessionId: string): string | null {
+    // Session ids come from filesystem entry names, so refuse to interpolate an
+    // unsafe id into a shell-executed command (see validateSessionId).
+    if (!this.validateSessionId(sessionId)) return null
     return `copilot --resume=${sessionId}`
   }
 

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTerminalStore } from '../stores/terminalStore'
-import { isTerminalTab } from '../types'
+import { useSpaceStore, patchBackgroundTab } from '../stores/spaceStore'
+import { isTerminalTab, type TerminalTab } from '../types'
 import {
   getOrCreateTerminal,
   updateTerminalFont,
@@ -10,6 +11,8 @@ import {
   applyThemeToAll,
   fireExitHandler,
   registerPtyDataHandler,
+  subscribeTerminalReady,
+  markTerminalReady,
   type TerminalEntry
 } from '../services/terminalRegistry'
 
@@ -26,8 +29,54 @@ const SESSION_RESOLVE_MAX_RETRIES = 6
  */
 const pendingOscTitles = new Map<string, string>()
 
+function findTabAnywhere(terminalId: string): { tab: TerminalTab; active: boolean } | null {
+  const active = useTerminalStore
+    .getState()
+    .groups.flatMap((g) => g.tabs)
+    .find((t) => t.id === terminalId)
+  if (active) return isTerminalTab(active) ? { tab: active, active: true } : null
+  // A tab that has been sent to the background lives in its space's stashed
+  // snapshot, not the active terminal store. It is still owned — treating it as
+  // gone would destroy a still-starting PTY on a Space switch and drop late
+  // session-id / OSC-title resolution for a parked session.
+  const { spaces, activeSpaceId } = useSpaceStore.getState()
+  for (const s of spaces) {
+    // Skip the active space: its live tabs are the terminal store (checked
+    // above), and its stashed `workspace` is a stale snapshot. Matching a tab
+    // there that was already closed would make a still-starting PTY look owned
+    // and leak it — mirrors patchBackgroundTab, which also skips the active space.
+    if (s.id === activeSpaceId) continue
+    for (const g of s.workspace.groups) {
+      for (const t of g.tabs) {
+        if (t.id === terminalId) return isTerminalTab(t) ? { tab: t, active: false } : null
+      }
+    }
+  }
+  return null
+}
+
 function tabExists(terminalId: string): boolean {
-  return useTerminalStore.getState().groups.some((g) => g.tabs.some((t) => t.id === terminalId))
+  return findTabAnywhere(terminalId) !== null
+}
+
+/** Apply resolved terminal metadata to a tab wherever it lives. Active tabs go
+ *  through the terminal store (keeps the on-screen view in sync); backgrounded
+ *  tabs are patched in their space snapshot so resolution isn't lost while the
+ *  space is parked. */
+function applyTabPatch(
+  terminalId: string,
+  patch: { sessionId?: string; title?: string; pid?: number }
+): void {
+  const loc = findTabAnywhere(terminalId)
+  if (!loc) return
+  if (loc.active) {
+    const store = useTerminalStore.getState()
+    if (patch.pid !== undefined) store.setPid(terminalId, patch.pid)
+    if (patch.sessionId) store.associateSessionId(terminalId, patch.sessionId)
+    if (patch.title) store.renameTerminal(terminalId, patch.title)
+  } else {
+    patchBackgroundTab(terminalId, patch)
+  }
 }
 
 async function resolveSessionIdForTab(
@@ -45,11 +94,8 @@ async function resolveSessionIdForTab(
   // authoritative on restore, and overwriting it during slow PID lookups
   // would let CWD fallback misassign a session from a different running
   // instance (or, before the providerId hint, from a different provider).
-  const currentTab = useTerminalStore
-    .getState()
-    .groups.flatMap((g) => g.tabs)
-    .find((t) => t.id === terminalId)
-  if (currentTab && isTerminalTab(currentTab) && currentTab.sessionId) {
+  const loc = findTabAnywhere(terminalId)
+  if (loc && loc.tab.sessionId) {
     pendingOscTitles.delete(terminalId)
     return
   }
@@ -57,14 +103,12 @@ async function resolveSessionIdForTab(
     const result = await window.dplex.sessions.resolveSessionId(pid, cwd, providerId)
     if (result) {
       if (tabExists(terminalId)) {
-        const store = useTerminalStore.getState()
-        store.associateSessionId(terminalId, result.sessionId)
         // If an OSC title arrived before resolution, prefer it — that's
         // typically the AI tool's own summary of what the session is about
         // and is more useful than the provider's truncated-id fallback.
         const pending = pendingOscTitles.get(terminalId)
         const titleToUse = pending ?? result.displayName
-        store.renameTerminal(terminalId, titleToUse)
+        applyTabPatch(terminalId, { sessionId: result.sessionId, title: titleToUse })
         if (pending && providerId) {
           useSessionStore.getState().setLiveTabTitle(providerId, result.sessionId, pending)
         }
@@ -131,7 +175,11 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
       }
     })
 
-    // If already connected to a PTY, we're ready
+    // Reflect terminal readiness even when this hook mounted AFTER the PTY was
+    // created (e.g. a Space switch remounts the tab while it's still starting):
+    // subscribe to the latched ready event and also sync immediately if it has
+    // already fired. Without this, a remount could hang on "Starting terminal…".
+    const unsubReady = subscribeTerminalReady(terminalId, () => setReady(true))
     if (entry.ready) {
       setReady(true)
     }
@@ -191,22 +239,14 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           removeExitListener()
 
           // Register with centralized dispatcher for O(1) routing + flow control
-          const unregisterHandler = registerPtyDataHandler(
-            ptyId,
-            terminalId,
-            entry,
-            (exitCode) => {
-              entry.term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n')
-              fireExitHandler(terminalId, exitCode)
-            },
-            () => {
-              setReady(true)
-            }
-          )
+          const unregisterHandler = registerPtyDataHandler(ptyId, terminalId, entry, (exitCode) => {
+            entry.term.write('\r\n\x1b[90m[Process exited]\x1b[0m\r\n')
+            fireExitHandler(terminalId, exitCode)
+          })
 
           // Store PID on the tab for session ID resolution
           if (tabCommand && pid) {
-            useTerminalStore.getState().setPid(terminalId, pid)
+            applyTabPatch(terminalId, { pid })
           }
 
           // Flush buffered output
@@ -219,8 +259,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           }
           earlyBuffer.length = 0
           if (hadData) {
-            entry.ready = true
-            setReady(true)
+            markTerminalReady(terminalId)
           }
 
           // Connect terminal input → PTY
@@ -245,11 +284,12 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           // so resolveSessionIdForTab can apply it once the sessionId is
           // known.
           const onTitleDisposable = entry.term.onTitleChange((title) => {
-            if (!title || !tabExists(terminalId)) return
-            const store = useTerminalStore.getState()
-            store.renameTerminal(terminalId, title)
-            const t = store.groups.flatMap((g) => g.tabs).find((tab) => tab.id === terminalId)
-            if (!t || !isTerminalTab(t) || !t.providerId) return
+            if (!title) return
+            const loc = findTabAnywhere(terminalId)
+            if (!loc) return
+            applyTabPatch(terminalId, { title })
+            const t = loc.tab
+            if (!t.providerId) return
             if (t.sessionId) {
               useSessionStore.getState().setLiveTabTitle(t.providerId, t.sessionId, title)
               pendingOscTitles.delete(terminalId)
@@ -284,8 +324,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           removeExitListener()
           entry.creating = false
           entry.term.write('\r\n\x1b[31m[Failed to start terminal]\x1b[0m\r\n')
-          entry.ready = true
-          setReady(true)
+          markTerminalReady(terminalId)
         })
     }
 
@@ -302,6 +341,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
     return () => {
       // Only detach the DOM element — do NOT destroy the terminal or PTY
       resizeObserver.disconnect()
+      unsubReady()
       if (container.contains(entry.wrapperEl)) {
         container.removeChild(entry.wrapperEl)
       }

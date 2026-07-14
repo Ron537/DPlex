@@ -21,6 +21,7 @@ import { SessionPanelFooter } from '../sessions/SessionPanelFooter'
 import { GitSidePanelView } from '../git/GitSidePanelView'
 import { ExplorerSidePanelView } from '../explorer/ExplorerSidePanelView'
 import { SearchSidePanelView } from '../search/SearchSidePanelView'
+import { SpacesPanel } from '../spaces/SpacesPanel'
 
 export type SessionGroupMode = 'time' | 'workspace'
 
@@ -408,6 +409,8 @@ export function SidePanel(): React.JSX.Element | null {
         <ExplorerSidePanelView />
       ) : activeTab === 'search' ? (
         <SearchSidePanelView />
+      ) : activeTab === 'spaces' ? (
+        <SpacesPanel />
       ) : (
         <>
           <div

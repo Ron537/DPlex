@@ -3,6 +3,8 @@ import type { FsEntry } from '../../../preload/index'
 import { useProjectStore } from './projectStore'
 import { useTerminalStore } from './terminalStore'
 import { setCanonicalRoot, clearCanonicalRoot, watchRootMatches } from './fileWatchRoots'
+import { hasParkedEditorBuffer } from '../services/parkedEditorBuffers'
+import { syncBackgroundEditorTabsOnRename } from './spaceStore'
 import type { Project } from '../types'
 
 /**
@@ -270,12 +272,17 @@ function syncTabsOnRename(root: string, fromRel: string, toRel: string): void {
       }
     }
   }
+  // Mirror the rename into background spaces' stashed snapshots too, so a
+  // renamed file doesn't read as "missing" (or get recreated at its old path by
+  // a stashed unsaved buffer) when one of those spaces is later resumed.
+  syncBackgroundEditorTabsOnRename(root, fromRel, toRel)
 }
 
 /**
  * After a delete, close clean editor tabs for the path (or its descendants).
- * Dirty tabs are left open so the editor can surface a "file missing" state
- * rather than silently dropping unsaved work.
+ * Dirty tabs — including an editor holding a stashed parked buffer (unsaved
+ * edits from a backgrounded Space) — are left open so the editor can surface a
+ * "file missing" state rather than silently dropping unsaved work.
  */
 function syncTabsOnDelete(root: string, relPath: string): void {
   const term = useTerminalStore.getState()
@@ -284,7 +291,7 @@ function syncTabsOnDelete(root: string, relPath: string): void {
     for (const t of g.tabs) {
       if (t.kind !== 'fileEditor' || t.rootFs !== root) continue
       const match = t.relPath === relPath || t.relPath.startsWith(prefix)
-      if (match && t.dirty !== true) term.closeTerminal(t.id)
+      if (match && t.dirty !== true && !hasParkedEditorBuffer(t.id)) term.closeTerminal(t.id)
     }
   }
 }

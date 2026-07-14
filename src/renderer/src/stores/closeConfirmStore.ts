@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { useTerminalStore } from './terminalStore'
 import { isFileEditorTab } from '../types'
 import { getFileEditorHandle } from '../services/fileEditorRegistry'
+import { hasParkedEditorBuffer } from '../services/parkedEditorBuffers'
 
 interface CloseConfirmState {
   /** Tab pending a dirty-close confirmation, or null. */
@@ -24,7 +25,13 @@ function findTab(tabId: string): { title: string; dirty: boolean } | null {
       if (t.id !== tabId) continue
       if (isFileEditorTab(t)) {
         const handle = getFileEditorHandle(tabId)
-        const dirty = handle ? handle.isDirty() : t.dirty === true
+        // Dirty if EITHER the live editor reports unsaved edits OR a parked
+        // buffer is stashed. A mounted handle can report clean while a stash
+        // still exists — e.g. the file turned binary/too-large while parked (the
+        // editor loads read-only and can't host the edits) or the tab is still
+        // loading — so the stash must be OR'd in regardless of handle presence,
+        // otherwise backgrounded unsaved edits would close without a prompt.
+        const dirty = (handle ? handle.isDirty() : t.dirty === true) || hasParkedEditorBuffer(tabId)
         return { title: t.title, dirty }
       }
       return { title: t.title, dirty: false }
@@ -64,6 +71,17 @@ export const useCloseConfirmStore = create<CloseConfirmState>((set, get) => ({
         set({ pendingTabId: null, pendingTitle: '' })
         return
       }
+    }
+    // A live editor can be mounted-but-unable-to-persist a stashed parked buffer
+    // (the file turned binary/too-large while parked → it loads read-only, or the
+    // model is still booting). handle.save() no-ops there and handle.isDirty()
+    // reports clean, so closing now would drop the stash despite the user picking
+    // "Save". Keep the tab open (dismiss the prompt) rather than silently losing
+    // the edits — the user can retry once it loads, or choose "Don't Save" to
+    // discard explicitly.
+    if (hasParkedEditorBuffer(tabId)) {
+      set({ pendingTabId: null, pendingTitle: '' })
+      return
     }
     set({ pendingTabId: null, pendingTitle: '' })
     useTerminalStore.getState().closeTerminal(tabId)

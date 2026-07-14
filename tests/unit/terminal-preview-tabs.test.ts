@@ -56,8 +56,7 @@ function setupWindow(): void {
 
 beforeEach(() => {
   setupWindow()
-  // Hard-reset the store between tests. `restoreWorkspace` early-returns
-  // when there are existing groups, so we have to drop directly via setState.
+  // Hard-reset the store between tests directly via setState.
   useTerminalStore.setState({
     groups: [],
     layout: { type: 'group', groupId: '' },

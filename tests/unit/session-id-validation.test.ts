@@ -3,6 +3,8 @@ import {
   BaseSessionProvider,
   type SessionEntry
 } from '../../src/main/services/providers/baseProvider'
+import { CopilotProvider } from '../../src/main/services/providers/copilotProvider'
+import { ClaudeCodeProvider } from '../../src/main/services/providers/claudeCodeProvider'
 import type {
   DiscoveredSession,
   ParsedSessionData,
@@ -87,5 +89,22 @@ describe('SessionEntry shape', () => {
   it('includes the four required fields', () => {
     const e: SessionEntry = { id: 'x', path: '/tmp/x', mtimeMs: 0, birthtimeMs: 0 }
     expect(e).toBeDefined()
+  })
+})
+
+describe('getResumeCommand refuses unsafe session ids', () => {
+  const copilot = new CopilotProvider()
+  const claude = new ClaudeCodeProvider()
+
+  it('builds the resume command for a safe id', () => {
+    expect(copilot.getResumeCommand('safe-123')).toBe('copilot --resume=safe-123')
+    expect(claude.getResumeCommand('safe-123')).toBe('claude --resume safe-123')
+  })
+
+  it('returns null for ids with shell metacharacters or traversal (no injection)', () => {
+    for (const bad of ['a;rm -rf /', 'a$(whoami)', 'a`whoami`', '../../x', 'a b', 'a|b', '']) {
+      expect(copilot.getResumeCommand(bad)).toBeNull()
+      expect(claude.getResumeCommand(bad)).toBeNull()
+    }
   })
 })

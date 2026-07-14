@@ -12,11 +12,22 @@
  * for the same tab id (can happen under React Strict Mode double-invoke).
  */
 
+import { stashParkedEditorBuffer, type ParkedEditorBuffer } from './parkedEditorBuffers'
+
 export interface FileEditorHandle {
   /** Persist the current buffer to disk. Resolves when the write settles. */
   save: () => Promise<void>
   /** True when the buffer differs from the last saved content. */
   isDirty: () => boolean
+  /** The current unsaved buffer to stash on park, or null when clean. */
+  getDirtyBuffer: () => ParkedEditorBuffer | null
+  /**
+   * Flush a pending onChange auto-save to disk if one is due. No-op in manual
+   * mode, when clean, or when a conflict/external change is unresolved. Called
+   * at park time so an edit made inside the debounce window isn't lost if the
+   * app quits before the editor remounts and re-arms its timer on resume.
+   */
+  flushIfAutoSave: () => void
 }
 
 interface Registration {
@@ -40,4 +51,31 @@ export function registerFileEditor(tabId: string, handle: FileEditorHandle): () 
 /** Look up the handle for a tab, or null when none is mounted. */
 export function getFileEditorHandle(tabId: string): FileEditorHandle | null {
   return registry.get(tabId)?.handle ?? null
+}
+
+/** Whether a mounted editor for this tab currently has unsaved changes. False
+ *  when no editor is mounted for the tab (e.g. it lives in a background space,
+ *  whose unsaved edits live in a stashed buffer instead). */
+export function isFileEditorDirty(tabId: string): boolean {
+  return registry.get(tabId)?.handle.isDirty() ?? false
+}
+
+/**
+ * Stash every mounted editor's unsaved buffer before a Space is parked.
+ *
+ * Only the active Space's editors are mounted, so this captures exactly the
+ * outgoing Space's dirty editors. Each stash is consumed when the editor
+ * remounts (see parkedEditorBuffers). Call this immediately before the terminal
+ * store swaps the active workspace out.
+ */
+export function stashAllDirtyFileEditors(): void {
+  for (const [tabId, reg] of registry) {
+    const buffer = reg.handle.getDirtyBuffer()
+    if (buffer) stashParkedEditorBuffer(tabId, buffer)
+    // onChange editors also flush their pending debounced save to disk at park
+    // time, so an edit within the debounce window survives a quit-while-parked.
+    // The stash above remains the in-session restore + conflict-detection
+    // baseline; the resume path reconciles the two (adopts disk when identical).
+    reg.handle.flushIfAutoSave()
+  }
 }

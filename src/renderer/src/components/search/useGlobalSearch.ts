@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { defaultRegistry } from '../../services/search'
 import type { SearchCategory, SearchResultGroup } from '../../services/search/types'
 import { useProjectStore } from '../../stores/projectStore'
+import { useSpaceStore } from '../../stores/spaceStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { countItems, flattenGroups } from './searchResultUtils'
@@ -65,13 +66,15 @@ export function useGlobalSearch({
   // Subscribe to the upstream stores so results recompute when their data
   // changes (e.g. user adds a project while the palette is open).
   const projects = useProjectStore((s) => s.projects)
+  const spaces = useSpaceStore((s) => s.spaces)
+  const activeSpaceId = useSpaceStore((s) => s.activeSpaceId)
   const sessions = useSessionStore((s) => s.sessions)
   const groups = useTerminalStore((s) => s.groups)
   const activeGroupId = useTerminalStore((s) => s.activeGroupId)
 
   const ctx = useMemo(
-    () => ({ projects, sessions, groups, activeGroupId }),
-    [projects, sessions, groups, activeGroupId]
+    () => ({ projects, spaces, activeSpaceId, sessions, groups, activeGroupId }),
+    [projects, spaces, activeSpaceId, sessions, groups, activeGroupId]
   )
 
   // While the surface is closed, skip work entirely.

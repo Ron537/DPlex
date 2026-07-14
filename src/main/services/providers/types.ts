@@ -97,8 +97,9 @@ export interface SessionProvider {
   /** Find the most recently active session matching the given CWD. */
   resolveSessionByCwd(cwd: string): Promise<ResolvedSession | null>
 
-  /** Return the CLI command string to resume a session (e.g. "copilot --resume=abc123"). */
-  getResumeCommand(sessionId: string): string
+  /** Return the CLI command string to resume a session (e.g. "copilot --resume=abc123"),
+   *  or null when the session id is unsafe to interpolate into a shell command. */
+  getResumeCommand(sessionId: string): string | null
 
   /** Return the CLI command string to start a new session (e.g. "copilot"). */
   getNewSessionCommand(): string

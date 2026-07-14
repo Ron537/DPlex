@@ -147,4 +147,46 @@ test.describe('DPlex global search', () => {
     const fontRow = modal.locator('[data-setting-id="font-size"]')
     await expect(fontRow).toBeVisible()
   })
+
+  test('Spaces are searchable as their own category in the palette', async () => {
+    if (!window || !app) throw new Error('App not available')
+
+    await window.getByTestId('activity-bar-search').waitFor({ state: 'visible' })
+    // Fresh boot seeds a single "My Work" space — it must be findable in search.
+    await app.evaluate(({ BrowserWindow: BW }) => {
+      const win = BW.getAllWindows()[0]
+      win?.webContents.send('dplex:shortcut', 'palette.all')
+    })
+    const palette = window.getByTestId('command-palette')
+    await expect(palette).toBeVisible()
+
+    await window.getByTestId('command-palette-input').fill('My Work')
+    const results = window.getByTestId('search-result')
+    await expect(results.first()).toContainText('My Work')
+    // The dedicated Spaces group header confirms the source is wired in.
+    await expect(palette).toContainText('Spaces')
+
+    // Activating a space dismisses the palette (switch runs, never restarts).
+    await window.keyboard.press('Enter')
+    await expect(palette).not.toBeVisible()
+  })
+
+  test('New Space command opens the create-space modal', async () => {
+    if (!window) throw new Error('Window not available')
+
+    await window.getByTestId('activity-bar-search').waitFor({ state: 'visible' })
+    await window.keyboard.press('ControlOrMeta+Shift+p')
+
+    const palette = window.getByTestId('command-palette')
+    await expect(palette).toBeVisible()
+
+    await window.getByTestId('command-palette-input').fill('New Space')
+    const results = window.getByTestId('search-result')
+    await expect(results.first()).toContainText('New Space')
+
+    await results.first().click()
+    await expect(palette).not.toBeVisible()
+    // The create/rename modal is now open.
+    await expect(window.getByTestId('space-modal-save')).toBeVisible({ timeout: 5_000 })
+  })
 })

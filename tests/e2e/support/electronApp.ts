@@ -26,7 +26,10 @@ function createTestEnv(userDataDir: string): NodeJS.ProcessEnv {
   return env
 }
 
-export async function launchApp(opts?: { settings?: Record<string, unknown> }): Promise<{
+export async function launchApp(opts?: {
+  settings?: Record<string, unknown>
+  spaces?: Record<string, unknown>
+}): Promise<{
   app: ElectronApplication
   window: Page
   userDataDir: string
@@ -54,6 +57,17 @@ export async function launchApp(opts?: { settings?: Record<string, unknown> }): 
     await fs.writeFile(path.join(userDataDir, 'settings.json'), JSON.stringify(seedSettings))
   } catch {
     // Best-effort; continue even if seeding fails.
+  }
+
+  // Optionally seed spaces.json so the app boots straight into a known Spaces
+  // state (e.g. the Overview with a set of background spaces). Written to the
+  // same userData location as settings.json above.
+  if (opts?.spaces) {
+    try {
+      await fs.writeFile(path.join(userDataDir, 'spaces.json'), JSON.stringify(opts.spaces))
+    } catch {
+      // Best-effort; continue even if seeding fails.
+    }
   }
 
   const app = await electron.launch({
