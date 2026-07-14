@@ -14,6 +14,23 @@ vi.mock('../../src/renderer/src/stores/terminalStore', () => ({
   }
 }))
 
+// sessionTabs also reaches into spaceStore for cross-space (background) tabs.
+// Mock it so these unit tests stay isolated from the real store graph.
+const spaceStoreState = {
+  switchSpace: vi.fn()
+}
+const bgFns = {
+  findBackgroundSessionTab: vi.fn(),
+  closeBackgroundSessionTabs: vi.fn()
+}
+vi.mock('../../src/renderer/src/stores/spaceStore', () => ({
+  useSpaceStore: { getState: () => spaceStoreState },
+  findBackgroundSessionTab: (...a: [string, string, (string | undefined)?]) =>
+    bgFns.findBackgroundSessionTab(...a),
+  closeBackgroundSessionTabs: (...a: [string, string, (string | undefined)?]) =>
+    bgFns.closeBackgroundSessionTabs(...a)
+}))
+
 import {
   findTabsForSession,
   findFirstTabForSession,
@@ -33,6 +50,14 @@ const group = (id: string, tabs: TerminalTab[]): EditorGroup => ({
   id,
   tabs,
   activeTabId: tabs[0]?.id ?? ''
+})
+
+// Reset the cross-space mocks to their "no background match" defaults before
+// every test so the existing active-space cases behave exactly as before.
+beforeEach(() => {
+  bgFns.findBackgroundSessionTab.mockReset().mockReturnValue(null)
+  bgFns.closeBackgroundSessionTabs.mockReset().mockReturnValue(false)
+  spaceStoreState.switchSpace.mockReset()
 })
 
 describe('findTabsForSession', () => {
@@ -176,6 +201,25 @@ describe('focusSessionTab', () => {
     expect(storeState.setActiveGroup).toHaveBeenCalledWith('g1')
     expect(storeState.setActiveTerminalInGroup).toHaveBeenCalledTimes(1)
   })
+
+  it('switches to a background space and focuses the parked tab when the active space has no match', () => {
+    storeState.groups = []
+    bgFns.findBackgroundSessionTab.mockReturnValue({ spaceId: 'sp2', groupId: 'g9', tabId: 't9' })
+    expect(focusSessionTab('s1', 'copilot-cli')).toBe(true)
+    expect(spaceStoreState.switchSpace).toHaveBeenCalledWith('sp2')
+    expect(storeState.setActiveGroup).toHaveBeenCalledWith('g9')
+    expect(storeState.setActiveTerminalInGroup).toHaveBeenCalledWith('g9', 't9')
+  })
+
+  it('prefers an active-space match over a background match (no space switch)', () => {
+    storeState.groups = [
+      group('g1', [tab({ id: 't1', sessionId: 's1', providerId: 'copilot-cli' })])
+    ]
+    bgFns.findBackgroundSessionTab.mockReturnValue({ spaceId: 'sp2', groupId: 'g9', tabId: 't9' })
+    expect(focusSessionTab('s1', 'copilot-cli')).toBe(true)
+    expect(spaceStoreState.switchSpace).not.toHaveBeenCalled()
+    expect(storeState.setActiveGroup).toHaveBeenCalledWith('g1')
+  })
 })
 
 describe('closeOpenTabsForSession', () => {
@@ -239,6 +283,24 @@ describe('closeOpenTabsForSession', () => {
     expect(storeState.closeTerminal).toHaveBeenCalledTimes(1)
     expect(storeState.closeTerminal).toHaveBeenCalledWith('t1')
   })
+
+  it('returns true when only a background space had a matching tab', () => {
+    storeState.groups = []
+    bgFns.closeBackgroundSessionTabs.mockReturnValue(true)
+    expect(closeOpenTabsForSession('s1', 'copilot-cli')).toBe(true)
+    expect(storeState.closeTerminal).not.toHaveBeenCalled()
+    expect(bgFns.closeBackgroundSessionTabs).toHaveBeenCalledWith('s1', 'copilot-cli', undefined)
+  })
+
+  it('closes matching tabs in both the active and background spaces', () => {
+    storeState.groups = [
+      group('g1', [tab({ id: 't1', sessionId: 's1', providerId: 'copilot-cli' })])
+    ]
+    bgFns.closeBackgroundSessionTabs.mockReturnValue(true)
+    expect(closeOpenTabsForSession('s1', 'copilot-cli')).toBe(true)
+    expect(storeState.closeTerminal).toHaveBeenCalledWith('t1')
+    expect(bgFns.closeBackgroundSessionTabs).toHaveBeenCalled()
+  })
 })
 
 describe('hasOpenTab', () => {
@@ -276,5 +338,11 @@ describe('hasOpenTab', () => {
     ]
     expect(hasOpenTab('s1', 'copilot-cli')).toBe(false)
     expect(hasOpenTab('s1', 'claude-code')).toBe(true)
+  })
+
+  it('returns true when the session is parked in a background space', () => {
+    storeState.groups = []
+    bgFns.findBackgroundSessionTab.mockReturnValue({ spaceId: 'sp2', groupId: 'g9', tabId: 't9' })
+    expect(hasOpenTab('s1', 'copilot-cli')).toBe(true)
   })
 })

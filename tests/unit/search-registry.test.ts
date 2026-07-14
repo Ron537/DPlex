@@ -11,6 +11,8 @@ import type {
 
 const EMPTY_CTX: SearchContext = {
   projects: [],
+  spaces: [],
+  activeSpaceId: null,
   sessions: [],
   groups: [],
   activeGroupId: null

@@ -6,11 +6,14 @@ import type {
   DashboardTab,
   EditorTab,
   EditorGroup,
-  LayoutNode
+  LayoutNode,
+  WorkspaceSnapshot
 } from '../types'
 import { isFileDiffTab, isFileEditorTab, isTerminalTab, isDashboardTab } from '../types'
 import { destroyTerminal } from '../services/terminalRegistry'
+import { clearParkedEditorBuffer } from '../services/parkedEditorBuffers'
 import { useSessionStore } from './sessionStore'
+import { serializeWorkspaceSnapshot } from '../utils/workspaceSnapshot'
 
 let tabCounter = 0
 let groupCounter = 0
@@ -146,11 +149,14 @@ interface TerminalState {
   reorderTab: (groupId: string, fromIndex: number, toIndex: number) => void
   getActiveGroup: () => EditorGroup | undefined
   getAllTerminalIds: () => string[]
-  restoreWorkspace: (
-    groups: EditorGroup[],
-    layout: LayoutNode,
-    activeGroupId: string | null
-  ) => void
+  /** Unconditionally replace the live workspace with a snapshot (Space switch /
+   *  resume / send-to-background). It has no boot
+   *  guard and never destroys terminals — detached terminals keep running in
+   *  the registry and re-attach when their tab mounts again, so switching a
+   *  Space never restarts a session. */
+  swapWorkspace: (snapshot: WorkspaceSnapshot) => void
+  /** Capture the current live workspace (lossless) for stashing on a Space. */
+  snapshotWorkspace: () => WorkspaceSnapshot
   setPid: (terminalId: string, pid: number) => void
   associateSessionId: (terminalId: string, sessionId: string) => void
   setWorktreeMetadata: (
@@ -194,6 +200,26 @@ interface TerminalState {
    * Returns the dashboard tab id.
    */
   openOrFocusDashboardTab: () => string
+}
+
+function syncGroupCounter(groups: EditorGroup[]): void {
+  for (const g of groups) {
+    const num = parseInt(g.id.replace('group-', ''), 10)
+    if (!isNaN(num) && num >= groupCounter) groupCounter = num + 1
+  }
+}
+
+/**
+ * Enforce the previewTabId invariant: undefined, or references an existing tab.
+ * Older serialized workspaces lack the field; reconstructed ones may point at a
+ * tab that was filtered out (preview tabs aren't persisted), so re-validate.
+ */
+function sanitizeGroupPreviews(groups: EditorGroup[]): EditorGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    previewTabId:
+      g.previewTabId && g.tabs.some((t) => t.id === g.previewTabId) ? g.previewTabId : undefined
+  }))
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -277,9 +303,22 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       useSessionStore.getState().clearLiveTabTitle(tab.providerId, tab.sessionId)
     }
 
+    if (tab && isFileEditorTab(tab)) {
+      // A closed fileEditor never remounts to consume its parked buffer, so drop
+      // any stash made while its Space was backgrounded — otherwise up to a few
+      // MB of content+baseline would leak in the module map until app restart.
+      clearParkedEditorBuffer(terminalId)
+    }
+
     destroyTerminal(terminalId)
 
-    const updatedGroups = state.groups.map((g) => {
+    // Re-read state AFTER destroyTerminal: it synchronously fires any pending
+    // exit handler (e.g. a running worktree setup script), whose afterCreate can
+    // create a new terminal tab. Computing the removal from the pre-destroy
+    // snapshot would clobber that just-created tab. Work from fresh state so the
+    // only change we apply is removing `terminalId`.
+    const fresh = get()
+    const updatedGroups = fresh.groups.map((g) => {
       const idx = g.tabs.findIndex((t) => t.id === terminalId)
       if (idx === -1) return g
       const newTabs = g.tabs.filter((t) => t.id !== terminalId)
@@ -299,14 +338,14 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     const emptyGroupIds = updatedGroups.filter((g) => g.tabs.length === 0).map((g) => g.id)
     const aliveGroups = updatedGroups.filter((g) => g.tabs.length > 0)
 
-    let newLayout = state.layout
+    let newLayout = fresh.layout
     for (const gid of emptyGroupIds) {
       const pruned = removeGroupFromLayout(newLayout, gid)
       if (pruned) newLayout = pruned
     }
 
     const newActiveGroupId =
-      aliveGroups.find((g) => g.id === state.activeGroupId)?.id ?? aliveGroups[0]?.id ?? null
+      aliveGroups.find((g) => g.id === fresh.activeGroupId)?.id ?? aliveGroups[0]?.id ?? null
 
     set({
       groups: aliveGroups,
@@ -513,25 +552,23 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     return get().groups.flatMap((g) => g.tabs.map((t) => t.id))
   },
 
-  restoreWorkspace: (groups, layout, activeGroupId) => {
-    // Don't overwrite if terminals were already created during async load
-    if (get().groups.length > 0) return
-    // Sync counters so new tabs/groups don't collide with restored IDs
-    for (const g of groups) {
-      const num = parseInt(g.id.replace('group-', ''), 10)
-      if (!isNaN(num) && num >= groupCounter) groupCounter = num + 1
-    }
-    // Sanitize the previewTabId invariant: must be undefined or refer to an
-    // existing tab in `tabs`. Older serialized workspaces lack the field
-    // entirely (undefined is fine); newer ones may persist a value pointing
-    // to a tab we deliberately filtered out (preview tabs aren't persisted),
-    // so re-validate.
-    const sanitized = groups.map((g) => ({
-      ...g,
-      previewTabId:
-        g.previewTabId && g.tabs.some((t) => t.id === g.previewTabId) ? g.previewTabId : undefined
-    }))
-    set({ groups: sanitized, layout, activeGroupId, restored: true })
+  swapWorkspace: (snapshot) => {
+    // No boot guard: this deliberately replaces whatever is mounted. Detaching
+    // a group's tabs only removes their DOM — the PTYs + xterm instances live
+    // in terminalRegistry and re-attach when the tab mounts again, so switching
+    // Spaces never restarts a session.
+    syncGroupCounter(snapshot.groups)
+    set({
+      groups: sanitizeGroupPreviews(snapshot.groups),
+      layout: snapshot.layout,
+      activeGroupId: snapshot.activeGroupId,
+      restored: true
+    })
+  },
+
+  snapshotWorkspace: () => {
+    const { groups, layout, activeGroupId } = get()
+    return { groups, layout, activeGroupId }
   },
 
   setPid: (terminalId, pid) => {
@@ -948,81 +985,42 @@ export function _serializeWorkspaceForTests(): unknown {
 
 function serializeWorkspace(): unknown {
   const { groups, layout, activeGroupId } = useTerminalStore.getState()
-  return {
-    layout,
-    groups: groups.map((g) => ({
-      id: g.id,
-      tabs: g.tabs
-        // Persist AI session terminal tabs (have a `command`) and
-        // PERMANENT fileDiff / fileEditor tabs. Plain shell terminals and
-        // preview tabs are intentionally NOT persisted.
-        .filter((t) => {
-          if (isFileDiffTab(t)) return t.preview !== true
-          if (isFileEditorTab(t)) return t.preview !== true
-          if (isDashboardTab(t)) return true
-          return isTerminalTab(t) && !!t.command
-        })
-        .map((t) => {
-          if (isDashboardTab(t)) {
-            return { kind: 'dashboard' as const, id: t.id, title: t.title, color: t.color }
-          }
-          if (isFileDiffTab(t)) {
-            return {
-              kind: 'fileDiff' as const,
-              id: t.id,
-              title: t.title,
-              repoRootFs: t.repoRootFs,
-              repoLabel: t.repoLabel,
-              scope: t.scope,
-              file: t.file,
-              sideBySide: t.sideBySide,
-              color: t.color
-            }
-          }
-          if (isFileEditorTab(t)) {
-            return {
-              kind: 'fileEditor' as const,
-              id: t.id,
-              title: t.title,
-              rootFs: t.rootFs,
-              rootLabel: t.rootLabel,
-              relPath: t.relPath,
-              color: t.color
-            }
-          }
-          return {
-            id: t.id,
-            title: t.title,
-            cwd: t.cwd,
-            command: t.command,
-            sessionId: t.sessionId,
-            providerId: t.providerId,
-            worktreePath: t.worktreePath,
-            worktreeBranch: t.worktreeBranch,
-            color: t.color
-          }
-        }),
-      activeTabId: g.activeTabId
-      // previewTabId is deliberately NOT serialized — preview tabs are
-      // transient and their slot is recomputed on first openOrFocusDiffTab
-      // after restore.
-    })),
-    activeGroupId,
-    savedAt: new Date().toISOString()
+  return serializeWorkspaceSnapshot({ groups, layout, activeGroupId })
+}
+
+export interface WorkspaceSink {
+  save: () => void
+  saveSync: () => void
+}
+
+// Where the active workspace snapshot is persisted. Defaults to the flat
+// sessions.json contract; spaceStore replaces this with a sink that embeds the
+// snapshot into the active Space and writes spaces.json instead.
+const defaultWorkspaceSink: WorkspaceSink = {
+  save: () => {
+    void window.dplex.sessions.saveWorkspace(serializeWorkspace())
+  },
+  saveSync: () => {
+    window.dplex.sessions.saveWorkspaceSync(serializeWorkspace())
   }
+}
+let workspaceSink: WorkspaceSink = defaultWorkspaceSink
+
+/** Redirect where the active workspace is persisted. Pass null to restore the
+ *  default (sessions.json) sink. */
+export function setWorkspaceSink(sink: WorkspaceSink | null): void {
+  workspaceSink = sink ?? defaultWorkspaceSink
 }
 
 /** Sync save — blocks until written. Use on beforeunload for reliable quit. */
 export function persistWorkspaceNow(): void {
-  const data = serializeWorkspace()
-  window.dplex.sessions.saveWorkspaceSync(data)
+  workspaceSink.saveSync()
 }
 
 function debouncedPersist(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    const data = serializeWorkspace()
-    window.dplex.sessions.saveWorkspace(data)
+    workspaceSink.save()
   }, 2000)
 }
 

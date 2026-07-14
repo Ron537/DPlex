@@ -9,6 +9,7 @@ import { useProjectStore } from './stores/projectStore'
 import { useProvidersStore } from './stores/providersStore'
 import { useUpdateStore } from './stores/updateStore'
 import { useCommandPaletteStore } from './stores/commandPaletteStore'
+import { useSpaceStore } from './stores/spaceStore'
 import { requestCloseTab } from './stores/closeConfirmStore'
 import { getFileEditorHandle } from './services/fileEditorRegistry'
 import { isFileEditorTab } from './types'
@@ -50,6 +51,9 @@ function App(): React.JSX.Element {
 
       if (meta && e.key === 't') {
         e.preventDefault()
+        // Suppress until Spaces hydrate: a tab spawned now would be discarded
+        // (and its PTY leaked) by the pending hydrate's workspace swap.
+        if (!useSpaceStore.getState().loaded) return
         void openInheritedTerminal(state.activeGroupId ?? undefined)
       }
 
@@ -151,7 +155,14 @@ function App(): React.JSX.Element {
         if (state.activeGroupId) void openInheritedSplit(state.activeGroupId, 'vertical')
       }
 
-      if (meta && e.key >= '1' && e.key <= '9') {
+      // Key off the physical digit (e.code) so numeric tab-switching works on
+      // every keyboard layout — on AZERTY the number row needs Shift to emit
+      // '1'..'9', so an e.key range check would silently break it there. Require
+      // NO shift and NO alt: the Space quick-switch (AppLayout) is
+      // Cmd/Ctrl+Shift+Digit1..9, and excluding Alt keeps AltGr (Ctrl+Alt on
+      // Windows/Linux) number-row input from being hijacked as a tab switch.
+      const tabDigit = meta && !e.shiftKey && !e.altKey ? /^Digit([1-9])$/.exec(e.code) : null
+      if (tabDigit) {
         e.preventDefault()
         // Flatten groups in visual (layout-tree) order, then concatenate
         // their tabs so CMD/CTRL+1..9 selects the Nth tab globally across
@@ -181,7 +192,7 @@ function App(): React.JSX.Element {
         const flatTabs = orderedGroups.flatMap((g) =>
           g.tabs.filter(isVisible).map((t) => ({ groupId: g.id, tabId: t.id }))
         )
-        const idx = parseInt(e.key) - 1
+        const idx = parseInt(tabDigit[1], 10) - 1
         if (idx < flatTabs.length) {
           const target = flatTabs[idx]
           setActiveGroup(target.groupId)

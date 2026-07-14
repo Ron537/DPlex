@@ -1,5 +1,6 @@
 import { useTerminalStore } from '../stores/terminalStore'
 import { useProjectStore } from '../stores/projectStore'
+import { useSpaceStore } from '../stores/spaceStore'
 import { getTerminalEntry } from '../services/terminalRegistry'
 import { getTabProjectPath, findProjectForTab } from './tabProject'
 import { pickInheritedCwd } from './pickInheritedCwd'
@@ -45,7 +46,12 @@ function inheritSourceGroup(groupId: string | undefined): EditorGroup | undefine
  * callers actually use when opening blank terminals.
  */
 export async function openInheritedTerminal(groupId?: string, shell?: string): Promise<string> {
+  // The cwd probe below is an async IPC round-trip; capture the Space in focus
+  // now so a switch during it routes the new terminal back to its origin (never
+  // into whatever Space happens to be active when the probe resolves).
+  const originSpaceId = useSpaceStore.getState().activeSpaceId
   const cwd = await resolveInheritedCwd(inheritSourceGroup(groupId))
+  useSpaceStore.getState().focusForDeferredWork(originSpaceId)
   return useTerminalStore.getState().createTerminal(groupId, undefined, undefined, shell, cwd)
 }
 
@@ -57,6 +63,8 @@ export async function openInheritedSplit(
   groupId: string,
   direction: 'horizontal' | 'vertical'
 ): Promise<string> {
+  const originSpaceId = useSpaceStore.getState().activeSpaceId
   const cwd = await resolveInheritedCwd(inheritSourceGroup(groupId))
+  useSpaceStore.getState().focusForDeferredWork(originSpaceId)
   return useTerminalStore.getState().splitGroup(groupId, direction, cwd)
 }

@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import type { Project, ProviderInfo, WorktreeDefaults } from '../../types'
 import { expandPattern } from '../../utils/worktreePath'
 import { useProjectStore } from '../../stores/projectStore'
+import { useSpaceStore } from '../../stores/spaceStore'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 
 interface NewWorktreeModalProps {
@@ -18,6 +19,9 @@ interface NewWorktreeModalProps {
     providerId: string | null
     branch: string
     setupScript: string
+    /** Space active when the user initiated creation, captured before the
+     *  create IPC so a switch during creation can't mis-route the tabs. */
+    originSpaceId: string | null
   }) => void
 }
 
@@ -99,6 +103,12 @@ export function NewWorktreeModal({
     if (!trimmedBranch || !location.trim()) return
     setSubmitting(true)
     setError(null)
+    // Capture the active Space BEFORE the create IPC: worktree creation (git
+    // worktree add + optional env copy) can take a moment, and if the user
+    // switches Spaces during it, the setup/afterCreate tabs must still route to
+    // where the worktree was initiated — not wherever focus happens to be when
+    // creation finishes.
+    const originSpaceId = useSpaceStore.getState().activeSpaceId
     try {
       const resp = await window.dplex.worktrees.create({
         repoRoot,
@@ -134,7 +144,8 @@ export function NewWorktreeModal({
         afterCreate,
         providerId: null,
         branch: trimmedBranch,
-        setupScript
+        setupScript,
+        originSpaceId
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

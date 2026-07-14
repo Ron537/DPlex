@@ -7,10 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.29.0] — 2026-07-09
+## [0.31.1] — 2026-07-14
+
+### Improvements
+
+- Spaces created automatically for work you start without picking one are now named "Untitled Space 1", "Untitled Space 2", and so on — a clear, neutral label you can rename anytime — while still linking the project you started from.
+
+## [0.31.0] — 2026-07-12
 
 ### Features
 
+- Start a session or terminal for any of a Space's projects right from the new **New session** button in the Space bar — no more detouring through the Projects tab. A brand-new Space now also greets you with its projects, ready to launch.
+- Find and switch to any Space from global search and the command palette (⌘/Ctrl+P) — by its name or a project it contains — and create a new Space or jump to the Overview without leaving the palette.
+- Drag the sidebar's activity-bar icons to reorder them — or right-click an icon to move it up or down — with **Spaces** leading the rail by default. Your arrangement is remembered across restarts.
+
+### Improvements
+
+- The Space bar across the top of the workspace is roomier and easier to read.
+- Starting work from the Overview now automatically wraps it in its own Space, linked to the project you started it from, so nothing is left unattached.
+- Starting a project's session or terminal from a Space now adds that project to the Space automatically, so its project list keeps up with the work running inside it.
+- The Spaces sidebar now mirrors the Projects and Sessions panels — your current Space sits in a dedicated Focused section at the top, the rest follow under All spaces (most-recently-used first), each row shows its projects and session count at a glance, and a tidy right-click/hover menu handles rename, resume, minimize, and delete.
+- The Space picker at the top of the workspace is lighter and cleaner — the current Space now reads as a simple breadcrumb (no boxy outline), the switch list drops its noisy status badges, and the current Space is marked with a checkmark.
+
+### Bug Fixes
+
+- A session you start for a project now reliably opens in the Space you launched it from, even if you switch Spaces while it's still starting up.
+- Clicking a session that's running in another Space now jumps to that Space and focuses it, instead of starting a second copy — and deleting such a session cleanly closes it wherever it's parked.
+- Fixed Space cards on the Overview overlapping each other, rendering at uneven heights, and clipping their action buttons on smaller screens — the grid now scrolls cleanly with evenly sized cards.
+
+## [0.30.0] — 2026-07-12
+
+### Features
+
+- **Spaces** — group everything a piece of work needs (its projects, AI sessions, terminals, and the exact tab and split layout) into a named, color-coded Space, and switch between Spaces without losing your place. Switching never restarts or interrupts a running session: the Space you leave keeps working in the background and still nudges you when one of its sessions needs your attention. Create, rename, recolor, reorder, and delete Spaces from the new Spaces sidebar, and jump straight to one with ⌘/Ctrl+Shift+1–9.
+- **Overview** — a home base showing all your Spaces at a glance: which are live, the projects each holds, and which ones need you right now. Step away from your current Space to land here, then resume any Space exactly as you left it.
+- A single Space can span **multiple projects**, so work that touches more than one repository stays together in one place. Your existing sessions and layout are carried over automatically into a starter "My Work" Space the first time you open this version.
 - Give any tab its own color: right-click a tab and pick a color (or clear it). The whole tab is tinted with the color — even when it's not the active one — and the active tab's breadcrumb header (project · path) and content area pick up a subtle matching tint (which you can turn off in Settings → Appearance if you prefer the tint on the tab only). Your choices are remembered across restarts. The right-click menu also offers quick Rename and Close.
 - Set a color for a whole project: right-click a project in the sidebar and pick a "Tab color" to tint every one of that project's tabs (across its worktrees too) and its avatar. Project avatars are now neutral grey by default and take on the color you choose, so color in the sidebar always means something you picked. Individual tabs can still override, and the choice is remembered across restarts.
 
@@ -645,7 +676,10 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.31.1...HEAD
+[0.31.1]: https://github.com/Ron537/DPlex/compare/v0.31.0...v0.31.1
+[0.31.0]: https://github.com/Ron537/DPlex/compare/v0.30.0...v0.31.0
+[0.30.0]: https://github.com/Ron537/DPlex/compare/v0.29.0...v0.30.0
 [0.29.0]: https://github.com/Ron537/DPlex/compare/v0.28.1...v0.29.0
 [0.28.1]: https://github.com/Ron537/DPlex/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/Ron537/DPlex/compare/v0.27.1...v0.28.0

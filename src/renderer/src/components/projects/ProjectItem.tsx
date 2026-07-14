@@ -37,6 +37,7 @@ import { WorktreeSection } from './WorktreeSection'
 import type { ProjectActivity } from '../../hooks/useProjectSessions'
 import { focusFirstTabForPaths } from '../../utils/sessionTabs'
 import { colorSourceProject } from '../../utils/tabProject'
+import { startProjectSession, openProjectTerminal } from '../../utils/spaceStart'
 import { TAB_COLORS } from '../../utils/tabColors'
 import { PopoverMenu } from '../common/PopoverMenu'
 import { NewWorktreeModal } from '../worktrees/NewWorktreeModal'
@@ -100,10 +101,8 @@ export function ProjectItem({
   const reorderProject = useProjectStore((s) => s.reorderProject)
   const setProjectTabColor = useProjectStore((s) => s.setProjectTabColor)
   const allProjectsForColor = useProjectStore((s) => s.projects)
-  const startAISession = useProjectStore((s) => s.startAISession)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
   const deleteSession = useSessionStore((s) => s.deleteSession)
   const globalDefaults = useSettingsStore((s) => s.settings.worktreeDefaults)
   const defaultAITool = useSettingsStore((s) => s.settings.defaultAITool)
@@ -434,7 +433,7 @@ export function ProjectItem({
               key={primaryProvider.id}
               onClick={(e) => {
                 e.stopPropagation()
-                startAISession(project, primaryProvider.id)
+                startProjectSession(project, primaryProvider.id)
               }}
               className="p-1 hover:bg-[var(--dplex-hover)] rounded transition-colors"
               style={{ color: 'var(--dplex-text-muted)' }}
@@ -506,7 +505,7 @@ export function ProjectItem({
               key={primaryProvider.id}
               onClick={(e) => {
                 e.stopPropagation()
-                startAISession(project, primaryProvider.id)
+                startProjectSession(project, primaryProvider.id)
                 setShowMenu(false)
               }}
               className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
@@ -518,7 +517,7 @@ export function ProjectItem({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              createTerminal(undefined, project.name, undefined, undefined, project.path)
+              openProjectTerminal(project)
               setShowMenu(false)
             }}
             className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
@@ -846,7 +845,8 @@ export function ProjectItem({
               afterCreate: result.afterCreate,
               providerId: result.providerId,
               setupScript: result.setupScript,
-              createdByDplexWorktree: true
+              createdByDplexWorktree: true,
+              originSpaceId: result.originSpaceId
             })
           }}
         />

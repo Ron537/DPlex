@@ -122,7 +122,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
     limit: number
   ): Promise<SessionPrompt[]>
 
-  abstract getResumeCommand(sessionId: string): string
+  abstract getResumeCommand(sessionId: string): string | null
   abstract getNewSessionCommand(): string
 
   // ── Default storage layout (Copilot convention) ──────────────────

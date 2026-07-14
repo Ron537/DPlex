@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { AppSettings, WorktreeDefaults } from '../types'
 import { getTheme } from '../services/themes'
+import { DEFAULT_ACTIVITY_BAR_ORDER } from '../utils/activityBarOrder'
 
 // Read cached theme from localStorage synchronously to avoid flash
 function getCachedTheme(): string {
@@ -184,6 +185,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   sidebarWidth: 260,
   sidebarVisible: true,
   sidebarActiveTab: 'projects',
+  activityBarOrder: [...DEFAULT_ACTIVITY_BAR_ORDER],
   sidebarPanelCollapsed: false,
   sessionPollIntervalMs: 5000,
   sessionMaxAgeDays: 7,

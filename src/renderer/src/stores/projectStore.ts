@@ -16,6 +16,19 @@ function folderName(folderPath: string): string {
   return parts[parts.length - 1] || folderPath
 }
 
+/**
+ * A provider-resolved AI session ready to be turned into a terminal tab. Split
+ * out from tab creation so the (async) provider lookup can complete before the
+ * (synchronous) `createTerminal`, letting the caller decide which workspace the
+ * tab lands in at creation time rather than at request time.
+ */
+export interface ResolvedAISession {
+  command: string
+  title: string
+  providerId: string
+  cwd: string
+}
+
 interface ProjectState {
   projects: Project[]
   expandedProjectIds: Set<string>
@@ -83,6 +96,20 @@ interface ProjectState {
   /** Set (hex) or clear (null) the project-wide tab color applied to all of
    *  this project's tabs. Persists with the project list. */
   setProjectTabColor: (id: string, color: string | null) => void
+  /**
+   * Resolve the provider + launch command for a project's AI session **without**
+   * touching the terminal store. Async (provider registry + new-session command
+   * are IPC round-trips). Returns null when no provider is registered. Pair with
+   * `createAISessionTab` when you need to control which workspace the tab lands
+   * in (see `utils/spaceStart`).
+   */
+  resolveAISession: (project: Project, providerId?: string) => Promise<ResolvedAISession | null>
+  /** Create the terminal tab for an already-resolved AI session. Synchronous, so
+   *  the tab is bound to whatever workspace is active at the moment of creation. */
+  createAISessionTab: (resolved: ResolvedAISession) => string | null
+  /** Convenience: resolve then immediately create in the active workspace. UI
+   *  entry points that must respect Spaces should prefer the space-aware
+   *  `startProjectSession` (utils/spaceStart) instead. */
   startAISession: (project: Project, providerId?: string) => Promise<string | null>
   updateProjectWorktreeOverrides: (
     projectId: string,
@@ -498,7 +525,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     get().persistProjects()
   },
 
-  startAISession: async (project, providerId?) => {
+  resolveAISession: async (project, providerId?) => {
     const settings = useSettingsStore.getState().settings
     const configuredPid = providerId ?? settings.defaultAITool
 
@@ -510,13 +537,32 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const pid = resolved.id
 
     const cmd = await window.dplex.sessions.getNewSessionCommand(pid)
-    const command = cmd || resolved.command || pid
-    const title = `${resolved.name} · ${folderName(project.path)}`
+    return {
+      command: cmd || resolved.command || pid,
+      title: `${resolved.name} · ${folderName(project.path)}`,
+      providerId: pid,
+      cwd: project.path
+    }
+  },
 
+  createAISessionTab: (resolved) => {
     const tabId = useTerminalStore
       .getState()
-      .createTerminal(undefined, title, command, undefined, project.path, pid)
+      .createTerminal(
+        undefined,
+        resolved.title,
+        resolved.command,
+        undefined,
+        resolved.cwd,
+        resolved.providerId
+      )
     return tabId ?? null
+  },
+
+  startAISession: async (project, providerId?) => {
+    const resolved = await get().resolveAISession(project, providerId)
+    if (!resolved) return null
+    return get().createAISessionTab(resolved)
   }
 }))
 

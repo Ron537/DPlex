@@ -256,7 +256,8 @@ export function ManageWorktreesModal({
               afterCreate: result.afterCreate,
               providerId: result.providerId,
               setupScript: result.setupScript,
-              createdByDplexWorktree: true
+              createdByDplexWorktree: true,
+              originSpaceId: result.originSpaceId
             })
             void refresh()
           }}

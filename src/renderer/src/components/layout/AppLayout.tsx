@@ -4,7 +4,7 @@ import { useTerminalStore } from '../../stores/terminalStore'
 import { persistWorkspaceNow } from '../../stores/terminalStore'
 import { useSettingsStore, applyCssVarsSync } from '../../stores/settingsStore'
 import { useAttentionStore } from '../../stores/attentionStore'
-import { useCommandPaletteStore } from '../../stores/commandPaletteStore'
+import { useSpaceStore } from '../../stores/spaceStore'
 import { SidePanel } from './SidePanel'
 import { ActivityBar } from './ActivityBar'
 import { StatusBar } from './StatusBar'
@@ -15,9 +15,15 @@ import { ExternalResumeConfirmModal } from '../common/ExternalResumeConfirmModal
 import { AttentionBellButton } from '../attention/AttentionBellButton'
 import { ProjectFocusControl } from './ProjectFocusControl'
 import { DPlexLogo } from '../common/DPlexLogo'
+import { SpaceSwitcher } from '../spaces/SpaceSwitcher'
+import { SpacesOverview } from '../spaces/SpacesOverview'
+import { SpaceWelcome } from '../spaces/SpaceWelcome'
+import { SpaceModal } from '../spaces/SpaceModal'
+import { SpaceDeleteConfirm } from '../spaces/SpaceDeleteConfirm'
+import { SpaceAttentionToasts } from '../spaces/SpaceAttentionToasts'
 import { useSessions } from '../../hooks/useSessions'
 import { getTheme } from '../../services/themes'
-import { MOD } from '../../utils/shortcuts'
+import { isMac } from '../../utils/shortcuts'
 import { focusSessionTab } from '../../utils/sessionTabs'
 import { wireGitPanelGlobals } from '../../stores/gitPanelStore'
 import { wireGitGraphGlobals } from '../../stores/gitGraphStore'
@@ -25,127 +31,14 @@ import { wireFileExplorerGlobals } from '../../stores/fileExplorerStore'
 import { wireFocusController, disableFocus } from '../../stores/tabFocusStore'
 import { useFocusFilter } from '../../hooks/useFocusFilter'
 import { pruneLayoutToGroups } from '../../utils/tabFocus'
-import type {
-  TerminalTab,
-  FileDiffTab,
-  FileEditorTab,
-  DashboardTab,
-  EditorTab,
-  EditorGroup,
-  LayoutNode
-} from '../../types'
 import { isTerminalTab } from '../../types'
-
-async function loadPersistedWorkspace(): Promise<{
-  groups: EditorGroup[]
-  layout: LayoutNode
-  activeGroupId: string | null
-} | null> {
-  try {
-    type PersistedTab =
-      | (TerminalTab & { kind?: 'terminal' })
-      | (FileDiffTab & { kind: 'fileDiff' })
-      | (FileEditorTab & { kind: 'fileEditor' })
-      | (DashboardTab & { kind: 'dashboard' })
-      | { kind: 'diff' } // Legacy repo-level diff tab — quietly dropped on restore.
-    const data = (await window.dplex.sessions.loadWorkspace()) as {
-      groups: Array<{
-        id: string
-        tabs: PersistedTab[]
-        activeTabId: string
-        previewTabId?: string
-      }>
-      layout: LayoutNode
-      activeGroupId: string | null
-    } | null
-    if (!data || !data.groups || !data.layout) return null
-
-    const restoredGroups: EditorGroup[] = []
-    for (const g of data.groups) {
-      // Keep fileDiff tabs as-is; AI terminal tabs (command present) get
-      // resume commands; plain shells are dropped (we never persisted them).
-      // Legacy `kind: 'diff'` repo-level diff tabs are quietly dropped — the
-      // Git panel replaces that experience.
-      const keepers = (g.tabs || []).filter((t) => {
-        if (t.kind === 'diff') return false
-        if (t.kind === 'fileDiff') return true
-        if (t.kind === 'fileEditor') return true
-        if (t.kind === 'dashboard') return true
-        return !!(t as TerminalTab).command
-      })
-      if (keepers.length === 0) continue
-
-      const preparedTabs: EditorTab[] = await Promise.all(
-        keepers.map(async (t): Promise<EditorTab> => {
-          if (t.kind === 'dashboard') {
-            return { ...(t as DashboardTab) }
-          }
-          if (t.kind === 'fileDiff') {
-            const ft = t as FileDiffTab
-            // Restored fileDiff tabs are always permanent — preview tabs
-            // weren't persisted. Defensive scrub in case of future schema drift.
-            return { ...ft, preview: false }
-          }
-          if (t.kind === 'fileEditor') {
-            const fe = t as FileEditorTab
-            // Permanent only; the editor lazy-loads content and renders a
-            // "file missing" state if the path no longer exists.
-            return { ...fe, preview: false, dirty: false }
-          }
-          const tt = t as TerminalTab
-          if (!tt.sessionId) return { ...tt }
-          if (tt.providerId) {
-            try {
-              const cmd = await window.dplex.sessions.getResumeCommand(tt.providerId, tt.sessionId)
-              if (cmd) return { ...tt, command: cmd }
-            } catch {
-              // Provider lookup failed transiently. Preserve the persisted
-              // command as-is rather than blindly applying Copilot's
-              // `--resume=<id>` shape, which is wrong for other providers.
-            }
-            return { ...tt }
-          }
-          if (tt.command && !tt.command.includes('--resume')) {
-            return { ...tt, command: `${tt.command} --resume=${tt.sessionId}` }
-          }
-          return { ...tt }
-        })
-      )
-
-      restoredGroups.push({
-        id: g.id,
-        tabs: preparedTabs,
-        activeTabId: preparedTabs.find((t) => t.id === g.activeTabId)?.id ?? preparedTabs[0].id
-        // previewTabId is intentionally not restored.
-      })
-    }
-
-    if (restoredGroups.length === 0) return null
-
-    // Prune layout to only include valid (non-empty) groups
-    const validIds = new Set(restoredGroups.map((g) => g.id))
-    const prunedLayout = pruneLayoutToGroups(data.layout, validIds)
-    if (!prunedLayout) return null
-
-    // Ensure activeGroupId references a valid group
-    const activeGroupId = validIds.has(data.activeGroupId ?? '')
-      ? data.activeGroupId
-      : restoredGroups[0].id
-
-    return {
-      groups: restoredGroups,
-      layout: prunedLayout,
-      activeGroupId
-    }
-  } catch {
-    return null
-  }
-}
 
 export function AppLayout(): React.JSX.Element {
   const groups = useTerminalStore((s) => s.groups)
   const layout = useTerminalStore((s) => s.layout)
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
+  const activeSpaceId = useSpaceStore((s) => s.activeSpaceId)
+  const spaces = useSpaceStore((s) => s.spaces)
+  const spaceLoaded = useSpaceStore((s) => s.loaded)
   const themeId = useSettingsStore((s) => s.settings.theme)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -163,6 +56,7 @@ export function AppLayout(): React.JSX.Element {
     () => (visibleGroupIds ? pruneLayoutToGroups(layout, visibleGroupIds) : layout),
     [visibleGroupIds, layout]
   )
+  const activeSpace = activeSpaceId ? (spaces.find((s) => s.id === activeSpaceId) ?? null) : null
 
   useEffect(() => {
     const handler = (): void => setSettingsOpen(true)
@@ -181,22 +75,23 @@ export function AppLayout(): React.JSX.Element {
 
   const initialized = useRef(false)
   const settingsLoaded = useSettingsStore((s) => s.loaded)
-  const restored = useTerminalStore((s) => s.restored)
 
+  // Boot: load + migrate Spaces, restore the active space's arrangement, and
+  // ensure a terminal exists if a space is in focus but empty (fresh install /
+  // migrated-empty). When no space is in focus we intentionally do nothing —
+  // the Overview is the home base and must not auto-spawn an orphan terminal.
   useEffect(() => {
-    if (!initialized.current && settingsLoaded && groups.length === 0 && !restored) {
-      initialized.current = true
-      // Try to restore persisted workspace, fall back to fresh terminal
-      loadPersistedWorkspace().then((workspace) => {
-        if (workspace) {
-          useTerminalStore
-            .getState()
-            .restoreWorkspace(workspace.groups, workspace.layout, workspace.activeGroupId)
-        } else {
-          createTerminal()
+    if (initialized.current || !settingsLoaded) return
+    initialized.current = true
+    void useSpaceStore
+      .getState()
+      .hydrate()
+      .then(() => {
+        const { activeSpaceId: activeId } = useSpaceStore.getState()
+        if (activeId && useTerminalStore.getState().groups.length === 0) {
+          useTerminalStore.getState().createTerminal()
         }
       })
-    }
   }, [settingsLoaded])
 
   // Save workspace before the window unloads
@@ -206,6 +101,37 @@ export function AppLayout(): React.JSX.Element {
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  // Cmd/Ctrl+Shift+1..9 quick-switches to the Nth space. Keyed off `e.code`
+  // (Digit1..Digit9) so it is layout- and shift-independent, and suppressed
+  // while typing. Cmd/Ctrl+1..9 alone is already bound to tab switching, so
+  // Spaces take the Shift modifier. On macOS, Cmd+Shift+3/4/5 are reserved by
+  // the OS for screenshots (the OS still delivers the event, but acting on it
+  // would fight the screenshot UI), so those three positions are skipped there.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod || !e.shiftKey || e.altKey) return
+      const m = /^Digit([1-9])$/.exec(e.code)
+      if (!m) return
+      if (!useSpaceStore.getState().loaded) return
+      const target = e.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return
+      }
+      const digit = parseInt(m[1], 10)
+      if (isMac && (digit === 3 || digit === 4 || digit === 5)) return
+      const idx = digit - 1
+      const spaces = useSpaceStore.getState().spaces
+      if (idx < spaces.length) {
+        e.preventDefault()
+        useSpaceStore.getState().switchSpace(spaces[idx].id)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   // Listen for settings open event from keyboard shortcut
@@ -296,7 +222,9 @@ export function AppLayout(): React.JSX.Element {
   // notification decisions tab-aware (only suppress when user is looking at
   // THIS session). Also auto-ack `finished` when that tab becomes active.
   useEffect(() => {
-    const computeActiveComposite = (state: ReturnType<typeof useTerminalStore.getState>) => {
+    const computeActiveComposite = (
+      state: ReturnType<typeof useTerminalStore.getState>
+    ): string | null => {
       const activeGroup = state.groups.find((g) => g.id === state.activeGroupId)
       if (!activeGroup) return null
       const tab = activeGroup.tabs.find((t) => t.id === activeGroup.activeTabId)
@@ -357,232 +285,56 @@ export function AppLayout(): React.JSX.Element {
         <SidePanel />
 
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex-1 min-w-0 min-h-0">
-            {groups.length > 0 ? (
-              effLayout ? (
-                <GroupLayout node={effLayout} />
-              ) : (
-                <div
-                  className="flex items-center justify-center h-full px-6 text-center"
-                  style={{ backgroundColor: 'var(--dplex-bg)' }}
-                >
-                  <div className="flex flex-col items-center gap-4 max-w-sm">
-                    <Focus size={28} style={{ color: 'var(--dplex-text-dim)' }} />
-                    <div className="flex flex-col gap-1">
-                      <p className="text-sm font-medium" style={{ color: 'var(--dplex-text)' }}>
-                        No tabs for this project
-                      </p>
-                      <p className="text-xs" style={{ color: 'var(--dplex-text-muted)' }}>
-                        Focus is isolating a project with no open tabs.
-                      </p>
+          {activeSpaceId === null ? (
+            <div className="flex-1 min-w-0 min-h-0 relative">
+              {/* Hold the Overview until Spaces have hydrated: rendering it
+                  (and its create/switch controls) mid-boot lets the user
+                  mutate state that the pending hydrate would then clobber. */}
+              {spaceLoaded ? <SpacesOverview /> : null}
+            </div>
+          ) : (
+            <>
+              <SpaceSwitcher />
+              <div className="flex-1 min-w-0 min-h-0">
+                {groups.length > 0 ? (
+                  effLayout ? (
+                    <GroupLayout node={effLayout} />
+                  ) : (
+                    <div
+                      className="flex items-center justify-center h-full px-6 text-center"
+                      style={{ backgroundColor: 'var(--dplex-bg)' }}
+                    >
+                      <div className="flex flex-col items-center gap-4 max-w-sm">
+                        <Focus size={28} style={{ color: 'var(--dplex-text-dim)' }} />
+                        <div className="flex flex-col gap-1">
+                          <p className="text-sm font-medium" style={{ color: 'var(--dplex-text)' }}>
+                            No tabs for this project
+                          </p>
+                          <p className="text-xs" style={{ color: 'var(--dplex-text-muted)' }}>
+                            Focus is isolating a project with no open tabs.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => disableFocus()}
+                          className="inline-flex items-center gap-1.5 px-3 rounded-full transition-colors"
+                          style={{
+                            height: 26,
+                            border: '1px solid var(--dplex-border)',
+                            color: 'var(--dplex-text)',
+                            backgroundColor: 'var(--dplex-bg-elev)'
+                          }}
+                        >
+                          Show all tabs
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => disableFocus()}
-                      className="inline-flex items-center gap-1.5 px-3 rounded-full transition-colors"
-                      style={{
-                        height: 26,
-                        border: '1px solid var(--dplex-border)',
-                        color: 'var(--dplex-text)',
-                        backgroundColor: 'var(--dplex-bg-elev)'
-                      }}
-                    >
-                      Show all tabs
-                    </button>
-                  </div>
-                </div>
-              )
-            ) : (
-              <div
-                className="flex items-center justify-center h-full px-6"
-                style={{
-                  backgroundImage:
-                    'radial-gradient(ellipse 800px 400px at 50% 30%, var(--dplex-accent-faint) 0%, transparent 70%)'
-                }}
-              >
-                <div className="flex flex-col items-center gap-7 text-center max-w-md">
-                  <div
-                    aria-hidden
-                    className="relative flex items-center justify-center"
-                    style={{
-                      filter: 'drop-shadow(0 16px 40px var(--dplex-accent-glow))'
-                    }}
-                  >
-                    <DPlexLogo size={72} />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <h1
-                      className="text-[28px] font-semibold tracking-tight"
-                      style={{ color: 'var(--dplex-text)', letterSpacing: '-0.02em' }}
-                    >
-                      Welcome to DPlex
-                    </h1>
-                    <p
-                      className="text-[14px] leading-relaxed"
-                      style={{ color: 'var(--dplex-text-muted)' }}
-                    >
-                      Your terminal multiplexer for AI-assisted development. Open a terminal, start
-                      an AI session, or jump straight into your projects.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-2 w-full">
-                    <button
-                      onClick={() => createTerminal()}
-                      className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all"
-                      style={{
-                        background: 'var(--dplex-bg-elev)',
-                        border: '1px solid var(--dplex-border)',
-                        color: 'var(--dplex-text)',
-                        textAlign: 'left',
-                        boxShadow: 'var(--dplex-shadow-sm)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'var(--dplex-bg-elev-2)'
-                        e.currentTarget.style.borderColor = 'var(--dplex-border-strong)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'var(--dplex-bg-elev)'
-                        e.currentTarget.style.borderColor = 'var(--dplex-border)'
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        className="grid place-items-center flex-shrink-0"
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 8,
-                          background: 'var(--dplex-accent-soft)',
-                          border: '1px solid var(--dplex-accent-ring)',
-                          color: 'var(--dplex-accent)'
-                        }}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <line x1="12" y1="5" x2="12" y2="19" />
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
-                      </span>
-                      <span className="flex-1 text-[13px] font-medium">Open a new terminal</span>
-                      <kbd
-                        className="text-[10.5px] font-medium"
-                        style={{
-                          fontFamily: 'var(--dplex-font-mono)',
-                          color: 'var(--dplex-text-dim)',
-                          background: 'var(--dplex-bg-elev-2)',
-                          border: '1px solid var(--dplex-border-subtle)',
-                          borderRadius: 4,
-                          padding: '2px 6px'
-                        }}
-                      >
-                        {MOD}T
-                      </kbd>
-                    </button>
-
-                    <button
-                      onClick={() => useCommandPaletteStore.getState().toggle('all')}
-                      className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all"
-                      style={{
-                        background: 'var(--dplex-bg-elev)',
-                        border: '1px solid var(--dplex-border)',
-                        color: 'var(--dplex-text)',
-                        textAlign: 'left',
-                        boxShadow: 'var(--dplex-shadow-sm)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'var(--dplex-bg-elev-2)'
-                        e.currentTarget.style.borderColor = 'var(--dplex-border-strong)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'var(--dplex-bg-elev)'
-                        e.currentTarget.style.borderColor = 'var(--dplex-border)'
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        className="grid place-items-center flex-shrink-0"
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 8,
-                          background: 'var(--dplex-accent-soft)',
-                          border: '1px solid var(--dplex-accent-ring)',
-                          color: 'var(--dplex-accent)'
-                        }}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <circle cx="11" cy="11" r="7" />
-                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                      </span>
-                      <span className="flex-1 text-[13px] font-medium">
-                        Search projects &amp; sessions
-                      </span>
-                      <kbd
-                        className="text-[10.5px] font-medium"
-                        style={{
-                          fontFamily: 'var(--dplex-font-mono)',
-                          color: 'var(--dplex-text-dim)',
-                          background: 'var(--dplex-bg-elev-2)',
-                          border: '1px solid var(--dplex-border-subtle)',
-                          borderRadius: 4,
-                          padding: '2px 6px'
-                        }}
-                      >
-                        {MOD}P
-                      </kbd>
-                    </button>
-                  </div>
-
-                  <p className="text-[11px]" style={{ color: 'var(--dplex-text-faint)' }}>
-                    Press{' '}
-                    <kbd
-                      style={{
-                        fontFamily: 'var(--dplex-font-mono)',
-                        background: 'var(--dplex-bg-elev)',
-                        border: '1px solid var(--dplex-border-subtle)',
-                        borderRadius: 3,
-                        padding: '1px 5px'
-                      }}
-                    >
-                      {MOD},
-                    </kbd>{' '}
-                    to open settings, or{' '}
-                    <kbd
-                      style={{
-                        fontFamily: 'var(--dplex-font-mono)',
-                        background: 'var(--dplex-bg-elev)',
-                        border: '1px solid var(--dplex-border-subtle)',
-                        borderRadius: 3,
-                        padding: '1px 5px'
-                      }}
-                    >
-                      {MOD}B
-                    </kbd>{' '}
-                    to toggle the sidebar
-                  </p>
-                </div>
+                  )
+                ) : activeSpace ? (
+                  <SpaceWelcome space={activeSpace} />
+                ) : null}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
           <StatusBar onOpenSettings={() => setSettingsOpen(true)} />
         </div>
@@ -591,6 +343,9 @@ export function AppLayout(): React.JSX.Element {
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <CloseConfirmModal />
       <ExternalResumeConfirmModal />
+      <SpaceModal />
+      <SpaceDeleteConfirm />
+      <SpaceAttentionToasts />
     </div>
   )
 }

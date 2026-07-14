@@ -4,6 +4,7 @@ import { loadMonaco, languageIdForPath } from '../../services/monacoLazy'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { registerFileEditor } from '../../services/fileEditorRegistry'
+import { takeParkedEditorBuffer, type ParkedEditorBuffer } from '../../services/parkedEditorBuffers'
 import { watchRootMatches } from '../../stores/fileWatchRoots'
 import { RotateCcw, Save, AlertTriangle } from 'lucide-react'
 
@@ -72,15 +73,26 @@ export function MonacoEditorPane({
   const lastSavedMtimeRef = useRef<number>(0)
   const autoSaveModeRef = useRef(autoSaveMode)
   const externallyDeletedRef = useRef(false)
+  const conflictRef = useRef(false)
+  const externallyChangedRef = useRef(false)
   const disposedRef = useRef(false)
 
   // Monotonic tokens to invalidate stale async work.
   const loadTokenRef = useRef(0)
   const verifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const saveStateRef = useRef<{ inFlight: boolean; queued: boolean }>({
+  const saveStateRef = useRef<{
+    inFlight: boolean
+    queued: boolean
+    // Captured at park-time when a save is already in-flight: the newest buffer
+    // that must still reach disk even though the pane is about to unmount. The
+    // in-flight write returns early on dispose and can't loop to pick these
+    // keystrokes up, so doSave's finally force-writes this instead.
+    parkFlush: { content: string; root: string; rel: string; eol: '\n' | '\r\n' } | null
+  }>({
     inFlight: false,
-    queued: false
+    queued: false,
+    parkFlush: null
   })
 
   // Stable indirection so the registry/command always call the freshest impl.
@@ -98,6 +110,20 @@ export function MonacoEditorPane({
   useEffect(() => {
     autoSaveModeRef.current = autoSaveMode
   }, [autoSaveMode])
+
+  // Conflict / external-change flags are mirrored into refs *synchronously* (not
+  // via a passive effect) so an async save reads the freshest value: a watcher
+  // detecting an external edit and a pending autosave firing can race within the
+  // same tick, and a lagging ref would let the autosave overwrite the external
+  // change. Always set both through these helpers.
+  const markConflict = (v: boolean): void => {
+    conflictRef.current = v
+    setConflict(v)
+  }
+  const markExternallyChanged = (v: boolean): void => {
+    externallyChangedRef.current = v
+    setExternallyChanged(v)
+  }
 
   const isDirtyNow = (): boolean => {
     const m = modelRef.current
@@ -120,6 +146,24 @@ export function MonacoEditorPane({
       clearTimeout(verifyTimerRef.current)
       verifyTimerRef.current = null
     }
+  }
+
+  // Debounced auto-save (onChange mode). Extracted so both the change listener
+  // and the park → resume restore path can (re)arm it: parking unmounts the
+  // editor, whose cleanup cancels any pending debounce, so a restored dirty
+  // buffer must reschedule its save or an autosave editor's stashed edits would
+  // never reach disk.
+  const scheduleAutoSave = (): void => {
+    if (autoSaveModeRef.current !== 'onChange') return
+    clearDebounce()
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null
+      // Re-check the mode: the user may have switched to manual save during the
+      // debounce window, in which case we must not save.
+      if (statusRef.current === 'ready' && autoSaveModeRef.current === 'onChange') {
+        void doSaveRef.current()
+      }
+    }, AUTO_SAVE_DEBOUNCE_MS)
   }
 
   // ---- Boot Monaco once -----------------------------------------------------
@@ -187,6 +231,45 @@ export function MonacoEditorPane({
     monaco.editor.setTheme(isLight ? 'vs' : 'vs-dark')
   }, [themeName, monacoReady])
 
+  /**
+   * Restore a parked buffer for a file that was deleted while its Space was
+   * parked: mount the unsaved edits as a dirty, externally-deleted editor so
+   * they survive and an explicit save recreates the file (mirrors the watcher's
+   * dirty-delete handling below). No auto-save fires for a missing file — the
+   * user saves deliberately. Declared before the load effect that calls it.
+   */
+  const restoreDeletedParkedBuffer = (parked: ParkedEditorBuffer): void => {
+    const monaco = monacoRef.current
+    const ed = editorRef.current
+    if (!monaco || !ed) return
+    changeListenerRef.current?.dispose()
+    changeListenerRef.current = null
+    const prevModel = modelRef.current
+    const model = monaco.editor.createModel(parked.content, languageIdForPath(relPathRef.current))
+    model.setEOL(
+      parked.eol === '\r\n'
+        ? monaco.editor.EndOfLineSequence.CRLF
+        : monaco.editor.EndOfLineSequence.LF
+    )
+    modelRef.current = model
+    ed.setModel(model)
+    prevModel?.dispose()
+    ed.updateOptions({ readOnly: false })
+    eolRef.current = parked.eol
+    lastSavedContentRef.current = parked.baseContent
+    lastSavedMtimeRef.current = parked.baseMtimeMs
+    externallyDeletedRef.current = true
+    setExternallyDeleted(true)
+    markConflict(false)
+    markExternallyChanged(false)
+    setStatus('ready')
+    setDirty(isDirtyNow())
+    changeListenerRef.current = model.onDidChangeContent(() => {
+      if (disposedRef.current) return
+      setDirty(isDirtyNow())
+    })
+  }
+
   // ---- Load (or retarget) on path/mount -------------------------------------
   // A relPath change while the buffer is dirty is a RENAME of the live file
   // (the explorer rewrites the tab's path); we must keep unsaved edits and
@@ -209,8 +292,8 @@ export function MonacoEditorPane({
     const token = ++loadTokenRef.current
     setStatus('loading')
     setErrorMsg(null)
-    setConflict(false)
-    setExternallyChanged(false)
+    markConflict(false)
+    markExternallyChanged(false)
     setExternallyDeleted(false)
     externallyDeletedRef.current = false
     clearDebounce()
@@ -226,8 +309,15 @@ export function MonacoEditorPane({
 
         if (!res.ok) {
           if (res.code === 'NOT_FOUND') {
-            setStatus('missing')
+            // The file was deleted while its Space was parked. If we stashed
+            // unsaved edits, restore them as a dirty, externally-deleted buffer
+            // (an explicit save recreates the file) rather than dropping them.
+            // Consuming the stash here also stops it leaking.
+            const parked = takeParkedEditorBuffer(tabId)
+            if (parked) restoreDeletedParkedBuffer(parked)
+            else setStatus('missing')
           } else {
+            // Leave any stash in place — a later successful remount recovers it.
             setStatus('error')
             setErrorMsg(res.message ?? res.code ?? 'Failed to read file')
           }
@@ -254,7 +344,53 @@ export function MonacoEditorPane({
         ed2.setModel(model)
         prevModel?.dispose()
         ed2.updateOptions({ readOnly })
-        setDirty(false)
+
+        // Restore an unsaved buffer stashed when this editor's Space was parked
+        // (switched away / minimized). Only for editable files — a file that
+        // turned binary/too-large while parked can't host the edits, so we leave
+        // its stash in place (rather than consuming and dropping it): the close
+        // guard still treats the tab as dirty, and it self-heals if the file
+        // becomes editable again. Runs before the change listener attaches
+        // below, so restoring doesn't spuriously trigger onChange auto-save.
+        const parked = readOnly ? null : takeParkedEditorBuffer(tabId)
+        if (parked) {
+          model.setValue(parked.content)
+          model.setEOL(
+            parked.eol === '\r\n'
+              ? monaco2.editor.EndOfLineSequence.CRLF
+              : monaco2.editor.EndOfLineSequence.LF
+          )
+          if (res.content === parked.content) {
+            // Disk already holds exactly our parked edit — an onChange editor
+            // flushed the pending autosave when its Space was parked (or an
+            // external write happened to land identical bytes). Adopt disk as the
+            // clean baseline: nothing to save, and crucially no false conflict.
+            lastSavedContentRef.current = res.content
+            lastSavedMtimeRef.current = res.mtimeMs
+            setDirty(false)
+          } else {
+            // Reinstate the baseline the edits were made against (keeping the OLD
+            // mtime) so a concurrent external write during the park window is
+            // surfaced as a conflict on save instead of being silently
+            // overwritten — the same protection a mounted dirty editor has.
+            lastSavedContentRef.current = parked.baseContent
+            lastSavedMtimeRef.current = parked.baseMtimeMs
+            // Disk diverged from our edit baseline while parked → a hard conflict:
+            // block autosave from overwriting the external change (the user must
+            // Reload or explicitly Overwrite). The mtime tolerance alone can miss
+            // a near-simultaneous external write, so don't rely on STALE here.
+            if (res.content !== parked.baseContent) markConflict(true)
+            setDirty(isDirtyNow())
+            // Parking unmounted the editor and cancelled any pending auto-save. If
+            // the disk still matches the edit baseline (no conflict), re-arm the
+            // autosave so a stashed onChange edit still reaches disk even if the
+            // park-time flush hadn't landed yet; a diverged disk raised a conflict
+            // above, which blocks writes until resolved.
+            if (res.content === parked.baseContent && isDirtyNow()) scheduleAutoSave()
+          }
+        } else {
+          setDirty(false)
+        }
 
         if (res.isBinary) setStatus('binary')
         else if (res.truncated) setStatus('too-large')
@@ -265,17 +401,7 @@ export function MonacoEditorPane({
             if (disposedRef.current) return
             const dirty = isDirtyNow()
             setDirty(dirty)
-            if (dirty && autoSaveModeRef.current === 'onChange') {
-              clearDebounce()
-              debounceTimerRef.current = setTimeout(() => {
-                debounceTimerRef.current = null
-                // Re-check the mode: the user may have switched to manual save
-                // during the debounce window, in which case we must not save.
-                if (statusRef.current === 'ready' && autoSaveModeRef.current === 'onChange') {
-                  void doSaveRef.current()
-                }
-              }, AUTO_SAVE_DEBOUNCE_MS)
-            }
+            if (dirty) scheduleAutoSave()
           })
         }
 
@@ -321,6 +447,17 @@ export function MonacoEditorPane({
       // Only saveable when ready, OR when the file was externally deleted while
       // dirty (save recreates it). Binary/too-large/loading are never saved.
       if (statusRef.current !== 'ready' && !externallyDeletedRef.current) return
+      // A known external change (hard conflict, or the softer watcher/verify
+      // "changed on disk" state) must never be silently overwritten by an
+      // autosave or ⌘S — only an explicit force (the banner's Overwrite / Keep
+      // mine) or a deleted-file recreate may write through it. Guarding on the
+      // watcher state too closes the mtime-tolerance hole where a near-
+      // simultaneous external edit slips past the optimistic-concurrency check.
+      if (
+        (conflictRef.current || externallyChangedRef.current) &&
+        !(opts?.force || externallyDeletedRef.current)
+      )
+        return
       if (saveStateRef.current.inFlight) {
         saveStateRef.current.queued = true
         return
@@ -328,6 +465,10 @@ export function MonacoEditorPane({
       saveStateRef.current.inFlight = true
       const curRoot = rootFsRef.current
       const curRel = relPathRef.current
+      // Our own last successful write's mtime this call, captured before the
+      // dispose bail-out (which skips the ref update below) so the park-flush can
+      // guard against a racing external edit instead of blind-forcing.
+      let lastOkMtimeMs: number | undefined
       try {
         // Loop so edits made mid-write are flushed (latest buffer always wins).
         // Converges once the model is unchanged across a completed write.
@@ -346,12 +487,19 @@ export function MonacoEditorPane({
             eolRef.current,
             expected
           )
-          if (disposedRef.current) return
           // A path switch/rename mid-save: abandon (the new target reloads).
+          // Checked before recording conflict so a stale write against the OLD
+          // target never flags the pane's NEW file.
           if (rootFsRef.current !== curRoot || relPathRef.current !== curRel) return
+          // Record a stale write synchronously — even if this pane has since been
+          // disposed (parked/unmounted) — so the park-flush in `finally` observes
+          // the conflict and never force-overwrites an external edit that landed
+          // during this in-flight write.
+          if (!res.ok && res.code === 'STALE_FILE') markConflict(true)
+          if (res.ok && typeof res.mtimeMs === 'number') lastOkMtimeMs = res.mtimeMs
+          if (disposedRef.current) return
           if (!res.ok) {
-            if (res.code === 'STALE_FILE') setConflict(true)
-            else {
+            if (res.code !== 'STALE_FILE') {
               setStatus('error')
               setErrorMsg(res.message ?? res.code ?? 'Save failed')
             }
@@ -361,8 +509,8 @@ export function MonacoEditorPane({
           if (typeof res.mtimeMs === 'number') lastSavedMtimeRef.current = res.mtimeMs
           externallyDeletedRef.current = false
           setExternallyDeleted(false)
-          setConflict(false)
-          setExternallyChanged(false)
+          markConflict(false)
+          markExternallyChanged(false)
           scheduleVerify(content)
           const stillSame =
             modelRef.current && modelRef.current.getAlternativeVersionId() === versionId
@@ -374,6 +522,31 @@ export function MonacoEditorPane({
         }
       } finally {
         saveStateRef.current.inFlight = false
+        const parkFlush = saveStateRef.current.parkFlush
+        saveStateRef.current.parkFlush = null
+        // The pane parked mid-write: write the captured final keystrokes to disk
+        // so they survive the unmount. Only when actually disposed — otherwise the
+        // loop above already re-wrote the newest content and this stale capture
+        // would regress the file. Guarded (below) by our own last successful
+        // write's mtime rather than forced: if an external edit raced in after
+        // that write, this fails STALE and is dropped instead of clobbering it.
+        // Also skipped on a known conflict/external change. Either way the dirty
+        // buffer was stashed to parkedEditorBuffers on park
+        // (stashAllDirtyFileEditors), so nothing is lost — it's reconciled on resume.
+        if (
+          parkFlush &&
+          disposedRef.current &&
+          !conflictRef.current &&
+          !externallyChangedRef.current
+        ) {
+          void window.dplex.files.writeFile(
+            parkFlush.root,
+            parkFlush.rel,
+            parkFlush.content,
+            parkFlush.eol,
+            lastOkMtimeMs
+          )
+        }
         if (saveStateRef.current.queued && !disposedRef.current) {
           saveStateRef.current.queued = false
           void doSaveRef.current()
@@ -403,7 +576,7 @@ export function MonacoEditorPane({
             return
           }
           // Disk diverged from what we wrote → genuine external edit.
-          if (isDirtyNow()) setExternallyChanged(true)
+          if (isDirtyNow()) markExternallyChanged(true)
           else applyExternalReload(res.content, res.eol, res.mtimeMs)
         })
         .catch(() => {})
@@ -414,16 +587,25 @@ export function MonacoEditorPane({
     const monaco = monacoRef.current
     const model = modelRef.current
     if (!monaco || !model) return
+    // Update the saved baseline BEFORE mutating the model: setValue/setEOL fire
+    // the synchronous onDidChangeContent listener, which reads these refs via
+    // isDirtyNow — a stale baseline would flag the reload as dirty and schedule
+    // a redundant (identical-bytes) autosave. Apply the new content BEFORE the
+    // EOL: setEOL also fires the change listener, and doing it while the model
+    // still holds the OLD content (but the baseline is already the NEW content)
+    // would read as dirty and arm a spurious autosave when both content and EOL
+    // changed. With the value applied first, every change event sees content
+    // that matches the baseline.
     eolRef.current = eol
+    lastSavedContentRef.current = content
+    lastSavedMtimeRef.current = mtimeMs
+    if (model.getValue() !== content) model.setValue(content)
     model.setEOL(
       eol === '\r\n' ? monaco.editor.EndOfLineSequence.CRLF : monaco.editor.EndOfLineSequence.LF
     )
-    if (model.getValue() !== content) model.setValue(content)
-    lastSavedContentRef.current = content
-    lastSavedMtimeRef.current = mtimeMs
     setDirty(false)
-    setExternallyChanged(false)
-    setConflict(false)
+    markExternallyChanged(false)
+    markConflict(false)
   }
 
   // ---- External change detection (watcher) ----------------------------------
@@ -462,7 +644,7 @@ export function MonacoEditorPane({
             lastSavedMtimeRef.current = res.mtimeMs
             return
           }
-          if (isDirtyNow()) setExternallyChanged(true)
+          if (isDirtyNow()) markExternallyChanged(true)
           else applyExternalReload(res.content, res.eol, res.mtimeMs)
         })
         .catch(() => {})
@@ -476,7 +658,51 @@ export function MonacoEditorPane({
   useEffect(() => {
     const unregister = registerFileEditor(tabId, {
       save: () => doSaveRef.current(),
-      isDirty: () => isDirtyNow()
+      isDirty: () => isDirtyNow(),
+      getDirtyBuffer: () =>
+        isDirtyNow() && modelRef.current
+          ? {
+              content: modelRef.current.getValue(),
+              eol: eolRef.current,
+              baseContent: lastSavedContentRef.current,
+              baseMtimeMs: lastSavedMtimeRef.current
+            }
+          : null,
+      // Called when this editor's Space is being parked (switch away / minimize).
+      // In onChange auto-save mode, dispatch the pending debounced save NOW —
+      // while the model is still mounted — so an edit made inside the debounce
+      // window reaches disk before the pane unmounts. Without this, quitting
+      // while parked (before the editor remounts and re-arms the timer on resume)
+      // would drop that edit. A known conflict / external change is deliberately
+      // left untouched for the user to resolve on resume; manual-save mode never
+      // auto-flushes. doSave captures content synchronously before its await, so
+      // this fire-and-forget dispatch reaches disk even though we unmount next.
+      flushIfAutoSave: () => {
+        const model = modelRef.current
+        if (
+          autoSaveModeRef.current === 'onChange' &&
+          statusRef.current === 'ready' &&
+          !conflictRef.current &&
+          !externallyChangedRef.current &&
+          !externallyDeletedRef.current &&
+          model &&
+          isDirtyNow()
+        ) {
+          if (saveStateRef.current.inFlight) {
+            // A save is mid-write and we're about to unmount: that write can't
+            // loop to pick up the newest keystrokes once disposed. Capture them
+            // now (model still mounted) so doSave's finally forces them to disk.
+            saveStateRef.current.parkFlush = {
+              content: model.getValue(),
+              root: rootFsRef.current,
+              rel: relPathRef.current,
+              eol: eolRef.current
+            }
+          } else {
+            void doSaveRef.current()
+          }
+        }
+      }
     })
     return unregister
   }, [tabId])

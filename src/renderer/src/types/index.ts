@@ -124,6 +124,47 @@ export interface LayoutNode {
   children?: LayoutNode[]
 }
 
+/**
+ * A lossless, in-memory snapshot of the editor workspace: the split layout,
+ * every group with its tabs (including plain shell terminals and preview
+ * tabs), and the active group. This is what a Space holds while it is in the
+ * background — the terminals themselves keep running in `terminalRegistry`;
+ * only this lightweight arrangement is copied. Distinct from the *persisted*
+ * (disk) form, which drops non-resumable tabs.
+ */
+export interface WorkspaceSnapshot {
+  layout: LayoutNode
+  groups: EditorGroup[]
+  activeGroupId: string | null
+}
+
+/**
+ * A Space groups a whole working environment (one or more projects, the AI
+ * sessions + terminals, the tab/split arrangement) so the developer can leave
+ * an activity and return to it without rebuilding their workspace. Exactly one
+ * Space is "in focus" at a time (or none — the Overview). Backgrounded Spaces
+ * keep their sessions running and keep receiving attention updates. DPlex only
+ * manages this arrangement; it never reads session content.
+ */
+export interface Space {
+  id: string
+  name: string
+  /** Accent color (hex) used across the switcher, cards, and status bar. */
+  color: string
+  /** Optional single-character / emoji glyph shown on the space's avatar. */
+  glyph?: string
+  /** Projects bound to this space. The primary project is `projectIds[0]`. */
+  projectIds: string[]
+  /** Live, lossless workspace arrangement for this space. */
+  workspace: WorkspaceSnapshot
+  createdAt: number
+  updatedAt: number
+  /** Last time this space was in focus. Drives "recently used" ordering. */
+  lastActiveAt: number
+  /** Reserved for a future archive/hide feature; not user-facing yet. */
+  archived?: boolean
+}
+
 export type SessionStatus =
   | 'idle'
   | 'thinking'
@@ -146,6 +187,13 @@ export interface AISession {
   toolCallCount?: number
   lastActivityTime?: number
 }
+
+/**
+ * The switchable views in the activity bar (the vertical icon rail). Also the
+ * set of values `sidebarActiveTab` can take. The visible order is
+ * user-reorderable and persisted via `AppSettings.activityBarOrder`.
+ */
+export type ActivityBarId = 'projects' | 'spaces' | 'sessions' | 'git' | 'search' | 'explorer'
 
 export interface AppSettings {
   defaultShell: string
@@ -170,7 +218,14 @@ export interface AppSettings {
   sidebarWidth: number
   sidebarVisible: boolean
   /** Which sidebar view is active in the activity bar. */
-  sidebarActiveTab: 'projects' | 'sessions' | 'git' | 'search' | 'explorer'
+  sidebarActiveTab: ActivityBarId
+  /**
+   * User-defined order of the activity-bar view icons (drag to reorder). Stored
+   * as the full list of {@link ActivityBarId}s; missing/unknown ids are
+   * reconciled against the canonical set at render time, so the app stays
+   * robust across added or removed views.
+   */
+  activityBarOrder: ActivityBarId[]
   /** When true, the panel portion of the sidebar is collapsed (activity bar still visible). */
   sidebarPanelCollapsed: boolean
   sessionPollIntervalMs: number

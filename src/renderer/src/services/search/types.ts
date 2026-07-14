@@ -1,4 +1,4 @@
-import type { Project, AISession, EditorGroup } from '../../types'
+import type { Project, AISession, EditorGroup, Space } from '../../types'
 
 /** Settings tab identifier. Mirrors the `SettingsTab` union used inside
  *  `SettingsModal`. Kept here so the search registry doesn't have to import
@@ -14,10 +14,11 @@ export type SettingsTab =
 
 /** Categories surfaced in the global search UI. Order here drives the
  *  default render order in the grouped result list. */
-export type SearchCategory = 'projects' | 'sessions' | 'tabs' | 'settings' | 'commands'
+export type SearchCategory = 'projects' | 'spaces' | 'sessions' | 'tabs' | 'settings' | 'commands'
 
 export const CATEGORY_LABELS: Record<SearchCategory, string> = {
   projects: 'Projects',
+  spaces: 'Spaces',
   sessions: 'Sessions',
   tabs: 'Open Tabs',
   settings: 'Settings',
@@ -27,6 +28,7 @@ export const CATEGORY_LABELS: Record<SearchCategory, string> = {
 export const CATEGORY_ORDER: SearchCategory[] = [
   'commands',
   'projects',
+  'spaces',
   'sessions',
   'tabs',
   'settings'
@@ -70,6 +72,10 @@ export interface SearchItem {
  *  directly so they stay easy to unit-test. */
 export interface SearchContext {
   projects: Project[]
+  spaces: Space[]
+  /** Id of the space currently in focus, or null on the Overview. Lets the
+   *  spaces source flag the active space and count its live sessions. */
+  activeSpaceId: string | null
   sessions: AISession[]
   groups: EditorGroup[]
   activeGroupId: string | null

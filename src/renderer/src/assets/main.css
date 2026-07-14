@@ -759,3 +759,105 @@ body {
   animation: dplex-setting-pulse 3s ease-out 1;
   border-radius: 6px;
 }
+
+/* ============================================================ Spaces feature
+   Shared presentation for the Spaces switcher, sidebar panel, mission-control
+   overview, create/rename modal, and background-attention toasts. */
+
+@keyframes dplex-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.dplex-pop {
+  animation: dplex-pop 0.16s ease;
+}
+
+@keyframes dplex-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dplex-slidein {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.dplex-slidein {
+  animation: dplex-slidein 0.3s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* Pulsing ring on a space avatar that is calling for attention. */
+@keyframes dplex-space-ping {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--dplex-status-approval) 60%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.dplex-space-ping {
+  animation: dplex-space-ping 2s ease-in-out infinite;
+}
+
+/* Mission-control card entrance — staggered via inline --dplex-card-i. */
+.dplex-space-card {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: dplex-rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  animation-delay: calc(var(--dplex-card-i, 0) * 55ms);
+}
+
+/* Uppercase field label used in the space modal. */
+.dplex-field-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dplex-text-faint);
+}
+
+/* Color swatch in the space modal. */
+.dplex-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  position: relative;
+  transition: transform 0.14s;
+}
+.dplex-swatch:hover {
+  transform: scale(1.1);
+}
+.dplex-swatch[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 12px;
+  border: 2px solid var(--dplex-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dplex-pop,
+  .dplex-slidein,
+  .dplex-space-ping,
+  .dplex-space-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

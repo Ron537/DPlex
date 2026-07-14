@@ -16,7 +16,9 @@ import {
   RefreshCw,
   Files,
   ChevronsDownUp,
-  LayoutDashboard
+  LayoutDashboard,
+  Layers,
+  LayoutGrid
 } from 'lucide-react'
 import type { SearchItem, SearchSource } from './types'
 import { useTerminalStore } from '../../stores/terminalStore'
@@ -25,6 +27,8 @@ import { openInheritedTerminal, openInheritedSplit } from '../../utils/inheritCw
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useProjectStore } from '../../stores/projectStore'
+import { useSpaceStore } from '../../stores/spaceStore'
+import { useSpacesUiStore } from '../../stores/spacesUiStore'
 import { useFileExplorerStore } from '../../stores/fileExplorerStore'
 import { dispatchOpenSettings } from '../../utils/openSettings'
 import { MOD, SHIFT } from '../../utils/shortcuts'
@@ -62,6 +66,48 @@ const COMMANDS: readonly CommandEntry[] = [
     Icon: FolderPlus,
     run: () => {
       void useProjectStore.getState().addProject()
+    }
+  },
+  {
+    id: 'new-space',
+    label: 'New Space',
+    description: 'Create a new space for a fresh activity',
+    keywords: ['create', 'add', 'workspace', 'context', 'activity'],
+    Icon: Layers,
+    run: () => {
+      useSpacesUiStore.getState().openCreate()
+    }
+  },
+  {
+    id: 'spaces-overview',
+    label: 'Go to Spaces Overview',
+    description: 'Step back to the overview; the current space keeps running',
+    keywords: [
+      'overview',
+      'spaces',
+      'home',
+      'mission control',
+      'switch',
+      'background',
+      'step away'
+    ],
+    Icon: LayoutGrid,
+    run: () => {
+      useSpaceStore.getState().sendToBackground()
+    }
+  },
+  {
+    id: 'show-spaces',
+    label: 'Show Spaces',
+    description: 'Reveal the Spaces view in the sidebar',
+    keywords: ['focus', 'view', 'workspace', 'context'],
+    Icon: Layers,
+    run: () => {
+      useSettingsStore.getState().updateSettings({
+        sidebarActiveTab: 'spaces',
+        sidebarPanelCollapsed: false,
+        sidebarVisible: true
+      })
     }
   },
   {

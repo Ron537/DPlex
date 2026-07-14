@@ -39,6 +39,11 @@ import {
   type PersistedWorkspace
 } from './services/sessionPersistence'
 import {
+  loadOrMigrateSpaces,
+  saveSpaces,
+  type PersistedSpacesFile
+} from './services/spacesPersistence'
+import {
   applyNotificationSettings,
   clearNotificationState,
   handleAttentionEvent,
@@ -564,6 +569,18 @@ function registerIpcHandlers(): void {
   // Sync version for reliable save on quit (blocks until written)
   ipcMain.on('sessions:saveWorkspaceSync', (event, data: PersistedWorkspace) => {
     saveWorkspace(data)
+    event.returnValue = true
+  })
+
+  // Spaces persistence (Projects · Spaces · Sessions). A Space bundles the
+  // whole workspace arrangement; spaces.json supersedes the flat sessions.json,
+  // migrating it on first run.
+  ipcMain.handle('spaces:load', () => loadOrMigrateSpaces())
+  ipcMain.handle('spaces:save', (_event, data: PersistedSpacesFile) => {
+    saveSpaces(data)
+  })
+  ipcMain.on('spaces:saveSync', (event, data: PersistedSpacesFile) => {
+    saveSpaces(data)
     event.returnValue = true
   })
   ipcMain.handle(

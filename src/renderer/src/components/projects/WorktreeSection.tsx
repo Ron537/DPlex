@@ -20,6 +20,7 @@ import { StatusPill } from '../common/StatusPill'
 import { type StatusVisual } from '../../utils/sessionStatusVisual'
 import { isMixedProviderList } from '../../utils/providerHelpers'
 import { pairTabsToSessions, type OpenTabWithGroup } from '../../utils/sessionPairing'
+import { startProjectSession, openProjectTerminal } from '../../utils/spaceStart'
 import { ProjectSessionList } from './ProjectSessionList'
 import { RemoveWorktreeProjectModal } from '../worktrees/RemoveWorktreeProjectModal'
 import { useWorktrees } from '../../hooks/useWorktrees'
@@ -67,8 +68,6 @@ export function WorktreeSection({
   const collapsedSections = useProjectStore((s) => s.collapsedWorktreeSections)
   const toggleWorktreeSection = useProjectStore((s) => s.toggleWorktreeSection)
   const setActiveProject = useProjectStore((s) => s.setActiveProject)
-  const startAISession = useProjectStore((s) => s.startAISession)
-  const createTerminal = useTerminalStore((s) => s.createTerminal)
   const setActiveGroup = useTerminalStore((s) => s.setActiveGroup)
   const setActiveTerminalInGroup = useTerminalStore((s) => s.setActiveTerminalInGroup)
   const deleteSession = useSessionStore((s) => s.deleteSession)
@@ -248,7 +247,7 @@ export function WorktreeSection({
             key={primaryProvider.id}
             onClick={(e) => {
               e.stopPropagation()
-              startAISession(project, primaryProvider.id)
+              startProjectSession(project, primaryProvider.id)
               setShowMenu(false)
             }}
             className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"
@@ -260,7 +259,7 @@ export function WorktreeSection({
         <button
           onClick={(e) => {
             e.stopPropagation()
-            createTerminal(undefined, project.name, undefined, undefined, project.path)
+            openProjectTerminal(project)
             setShowMenu(false)
           }}
           className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--dplex-hover)]"

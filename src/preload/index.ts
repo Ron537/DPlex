@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { AttentionSnapshot } from './attentionTypes'
 import type { UpdateState } from './updateTypes'
+import type { PersistedSpacesFile } from '../main/services/spacesPersistence'
 import type {
   CreateWorktreeOptions,
   CreateWorktreeResult,
@@ -165,6 +166,11 @@ export interface DplexAPI {
       }) => void
     ) => () => void
     onSessionRemoved: (callback: (sessionId: string, providerId: string) => void) => () => void
+  }
+  spaces: {
+    load: () => Promise<PersistedSpacesFile | null>
+    save: (data: PersistedSpacesFile) => Promise<void>
+    saveSync: (data: PersistedSpacesFile) => void
   }
   settings: {
     getAll: () => Promise<Record<string, unknown>>
@@ -357,6 +363,11 @@ const dplexAPI: DplexAPI = {
       ipcRenderer.on('sessions:removed', handler)
       return () => ipcRenderer.removeListener('sessions:removed', handler)
     }
+  },
+  spaces: {
+    load: () => ipcRenderer.invoke('spaces:load'),
+    save: (data) => ipcRenderer.invoke('spaces:save', data),
+    saveSync: (data) => ipcRenderer.sendSync('spaces:saveSync', data)
   },
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),
