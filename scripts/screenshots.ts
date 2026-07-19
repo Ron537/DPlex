@@ -15,10 +15,22 @@ import * as path from 'path'
 import * as os from 'os'
 import * as fs from 'fs/promises'
 import { execFileSync } from 'child_process'
+import {
+  PROJECT_COLORS,
+  DEMO_PROJECT_IDS,
+  buildDashboardMetrics,
+  buildDemoSpaces
+} from './demo-fixtures'
 
 const REPO = process.cwd()
 const OUT = path.join(REPO, 'docs', 'assets')
 const MAIN_ENTRY = path.join(REPO, 'out', 'main', 'index.js')
+
+// Supersample factor: size the window DPR× and zoom the renderer by DPR so the
+// captured PNGs render at 2× the design resolution for crisp text.
+const DPR = 2
+const VIEW_W = 1440
+const VIEW_H = 900
 
 // ── Mock data ───────────────────────────────────────────────────────────
 const FAKE_PROJECTS = [
@@ -41,6 +53,7 @@ interface SeededProject {
   path: string
   addedAt: string
   pinned?: boolean
+  tabColor?: string
   parentProjectId?: string
   parentRepoName?: string
   parentRepoPath?: string
@@ -58,7 +71,10 @@ async function makeRepo(root: string, name: string, mods: string[]): Promise<str
   run(['config', 'user.name', 'DPlex Demo'])
   run(['config', 'commit.gpgsign', 'false'])
   await fs.writeFile(path.join(dir, 'README.md'), `# ${name}\n\nDemo repo.\n`)
-  await fs.writeFile(path.join(dir, 'package.json'), JSON.stringify({ name, version: '1.0.0' }, null, 2))
+  await fs.writeFile(
+    path.join(dir, 'package.json'),
+    JSON.stringify({ name, version: '1.0.0' }, null, 2)
+  )
   run(['add', '.'])
   run(['commit', '-m', 'init'])
   // Make uncommitted modifications so the Source Control view has content.
@@ -136,7 +152,11 @@ async function main(): Promise<void> {
   }
   for (const w of FAKE_WORKTREES) {
     const parentDir = projectPaths[w.parentId]
-    const wtDir = path.join(parentDir, '..', `${path.basename(parentDir)}-${w.branch.replace(/\//g, '-')}`)
+    const wtDir = path.join(
+      parentDir,
+      '..',
+      `${path.basename(parentDir)}-${w.branch.replace(/\//g, '-')}`
+    )
     execFileSync('git', ['worktree', 'add', '-b', w.branch, wtDir, 'main'], {
       cwd: parentDir,
       stdio: 'ignore'
@@ -154,7 +174,8 @@ async function main(): Promise<void> {
       name: p.name,
       path: projectPaths[p.id],
       addedAt: nowIso(),
-      pinned: p.id === 'p-app' || p.id === 'p-api'
+      pinned: p.id === 'p-app' || p.id === 'p-api',
+      tabColor: PROJECT_COLORS[p.id]
     })
   }
   for (const w of FAKE_WORKTREES) {
@@ -217,8 +238,12 @@ async function main(): Promise<void> {
     () => Boolean(window.__dplex?.projectStore)
   )
 
-  // Resize app to a clean shape for screenshots.
-  await window.setViewportSize({ width: 1440, height: 900 })
+  // Size the window DPR× and zoom the renderer so the layout stays 1440×900
+  // (the design shape) while screenshots capture at 2× for crisp text.
+  await window.setViewportSize({ width: VIEW_W * DPR, height: VIEW_H * DPR })
+  await app.evaluate(({ BrowserWindow }, dpr) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(dpr)
+  }, DPR)
 
   // Wait for the underlying PTY shell to finish its initial render +
   // SIGWINCH-triggered re-render after the resize. Otherwise the shell
@@ -230,6 +255,26 @@ async function main(): Promise<void> {
     // @ts-expect-error injected
     window.__dplex.sessionStore.setState({ sessions, loading: false })
   }, fakeSessions(projectPaths))
+
+  // Bind the seeded projects to the active Space so the switcher reads "5 proj",
+  // and seed a few background spaces so the Spaces switcher has a real list.
+  await window.evaluate(
+    ({ projectIds, extraSpaces }) => {
+      // @ts-expect-error injected
+      const ss = window.__dplex.spaceStore.getState()
+      if (!ss.activeSpaceId) return
+      const patched = ss.spaces.map((s: { id: string; projectIds: string[] }) =>
+        s.id === ss.activeSpaceId ? { ...s, projectIds } : s
+      )
+      // @ts-expect-error injected
+      window.__dplex.spaceStore.setState({ spaces: [...patched, ...extraSpaces] })
+    },
+    { projectIds: DEMO_PROJECT_IDS, extraSpaces: buildDemoSpaces() }
+  )
+
+  // Deliberately do NOT seed space attention here: the screenshots should show
+  // the workspace at rest, with no "needs you" badges or Resume notification
+  // toasts overlaying the UI.
 
   // Helpers
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -383,12 +428,20 @@ async function main(): Promise<void> {
   await window.evaluate(() => {
     // @ts-expect-error injected
     const ps = window.__dplex.projectStore.getState()
-    const next = ps.projects.map((p: { id: string; path: string; name: string; parentProjectId?: string; parentRepoName?: string }) => ({
-      ...p,
-      path: p.parentProjectId
-        ? '~/Code/' + (p.parentRepoName ?? 'project') + '/.worktrees/' + p.name
-        : '~/Code/' + p.name
-    }))
+    const next = ps.projects.map(
+      (p: {
+        id: string
+        path: string
+        name: string
+        parentProjectId?: string
+        parentRepoName?: string
+      }) => ({
+        ...p,
+        path: p.parentProjectId
+          ? '~/Code/' + (p.parentRepoName ?? 'project') + '/.worktrees/' + p.name
+          : '~/Code/' + p.name
+      })
+    )
     // @ts-expect-error injected
     window.__dplex.projectStore.setState({ projects: next })
   })
@@ -523,6 +576,57 @@ async function main(): Promise<void> {
     await window.keyboard.press('Escape')
   }
   await sleep(400)
+
+  // 9. Overview dashboard — the bird's-eye view of every AI session. Live
+  //    cards read the seeded sessions; historical charts read a fabricated
+  //    snapshot (marked clean so the tab's on-mount refresh won't blank it).
+  //    Collapse any leftover split first so the dashboard renders full-width.
+  await window.evaluate(() => {
+    // @ts-expect-error injected
+    const ts = window.__dplex.terminalStore.getState()
+    const g = ts.getActiveGroup?.() ?? ts.groups[0]
+    if (!g) return
+    // @ts-expect-error injected
+    window.__dplex.terminalStore.setState({
+      groups: [g],
+      layout: { type: 'group', groupId: g.id },
+      activeGroupId: g.id
+    })
+  })
+  await sleep(300)
+  await window.evaluate((metrics) => {
+    // @ts-expect-error injected
+    window.__dplex.dashboardStore.setState({
+      metrics,
+      loading: false,
+      error: null,
+      dirty: false,
+      lastLoadedAt: Date.now()
+    })
+  }, buildDashboardMetrics())
+  const dashTab = window.getByTestId('activity-bar-dashboard')
+  if (await dashTab.count()) {
+    await dashTab.click()
+    await sleep(1200)
+  }
+  await shoot('09-overview-dashboard')
+
+  // 10. Spaces overview — mission control for your workspaces. Step back to
+  //     the overview grid showing the active space plus seeded background
+  //     spaces, each with its bound projects and color.
+  const overviewOk = await window
+    .evaluate(() => {
+      // @ts-expect-error injected demo hatch
+      const ss = window.__dplex?.spaceStore?.getState?.()
+      if (!ss) return false
+      ss.sendToBackground()
+      return true
+    })
+    .catch(() => false)
+  if (overviewOk) {
+    await sleep(700)
+    await shoot('10-spaces-overview')
+  }
 
   await app.close()
   await fs.rm(userDataDir, { recursive: true, force: true })

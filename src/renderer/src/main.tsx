@@ -7,6 +7,9 @@ import { applyCssVarsSync, useSettingsStore } from './stores/settingsStore'
 import { useProjectStore } from './stores/projectStore'
 import { useSessionStore } from './stores/sessionStore'
 import { useTerminalStore } from './stores/terminalStore'
+import { useSpaceStore } from './stores/spaceStore'
+import { useDashboardStore } from './stores/dashboardStore'
+import { useAttentionStore } from './stores/attentionStore'
 import * as terminalRegistry from './services/terminalRegistry'
 
 // Apply cached theme CSS vars synchronously before React renders — prevents flash
@@ -23,6 +26,9 @@ if (typeof window !== 'undefined' && localStorage.getItem('dplex-demo') === '1')
     projectStore: useProjectStore,
     sessionStore: useSessionStore,
     terminalStore: useTerminalStore,
+    spaceStore: useSpaceStore,
+    dashboardStore: useDashboardStore,
+    attentionStore: useAttentionStore,
     terminalRegistry,
     applyCssVarsSync
   }

@@ -20,7 +20,13 @@ DPlex **discovers** every **Copilot CLI** / **Claude Code** session you've ever 
 </div>
 
 <p align="center">
-  <img src="./docs/assets/demo.gif" alt="DPlex demo: switching between Projects and Source Control, then opening the Sessions panel, resuming a past AI session in one click, and chatting with the resumed Copilot session" width="900" />
+  <video src="https://raw.githubusercontent.com/Ron537/DPlex/main/docs/assets/demo.mp4" autoplay loop muted playsinline width="900" poster="./docs/assets/10-spaces-overview.png">
+    <img src="./docs/assets/demo.gif" alt="DPlex demo: opening the Spaces overview, creating a space for a multi-repo feature, launching parallel AI sessions across two projects in a split, resuming a related past session, scanning the insights dashboard, and reviewing Git changes side-by-side" width="900" />
+  </video>
+</p>
+
+<p align="center">
+  <sub><a href="./docs/assets/demo.mp4">▶ Watch the crisp MP4</a> · <a href="./docs/assets/demo.gif">GIF version</a></sub>
 </p>
 
 > **🚧 Pre-1.0.** DPlex is functional and used daily by its author, but
@@ -130,6 +136,18 @@ CI logs and SBOMs are attached to every release.
 ## Screenshots
 
 <table>
+  <tr>
+    <td align="center" colspan="2">
+      <a href="./docs/assets/09-overview-dashboard.png"><img src="./docs/assets/09-overview-dashboard.png" alt="Overview dashboard with live KPIs, session activity chart, status donut, and top repositories" /></a>
+      <br><sub><b>Overview dashboard.</b> A bird's-eye view of every AI session — what's running, what needs you, 30-day activity by provider, and the repos you work in most.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <a href="./docs/assets/10-spaces-overview.png"><img src="./docs/assets/10-spaces-overview.png" alt="Spaces overview grid showing multiple workspaces, each with its projects, sessions, and color" /></a>
+      <br><sub><b>Spaces.</b> Mission control for your workspaces — group projects into separate spaces for client work, open source, or experiments, each keeping its sessions running in the background, and jump between them in a keystroke.</sub>
+    </td>
+  </tr>
   <tr>
     <td align="center" width="50%">
       <a href="./docs/assets/01-hero-projects.png"><img src="./docs/assets/01-hero-projects.png" alt="Projects view with worktrees and a running AI session" /></a>
