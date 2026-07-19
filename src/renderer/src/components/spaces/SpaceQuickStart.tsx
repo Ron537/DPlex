@@ -167,6 +167,7 @@ function ProjectQuickRow({
       </span>
       <button
         type="button"
+        data-testid={`space-quickstart-start-${project.id}`}
         onClick={onStartSession}
         title={providerLabel ? `Start ${providerLabel}` : 'Start AI session'}
         className="flex-shrink-0 inline-flex items-center gap-1 rounded-md transition-colors hover:bg-[var(--dplex-accent-soft)]"
