@@ -20,9 +20,9 @@ DPlex **discovers** every **Copilot CLI** / **Claude Code** session you've ever 
 </div>
 
 <p align="center">
-  <video src="https://raw.githubusercontent.com/Ron537/DPlex/main/docs/assets/demo.mp4" autoplay loop muted playsinline width="900" poster="./docs/assets/10-spaces-overview.png">
+  <a href="./docs/assets/demo.mp4">
     <img src="./docs/assets/demo.gif" alt="DPlex demo: opening the Spaces overview, creating a space for a multi-repo feature, launching parallel AI sessions across two projects in a split, resuming a related past session, scanning the insights dashboard, and reviewing Git changes side-by-side" width="900" />
-  </video>
+  </a>
 </p>
 
 <p align="center">
