@@ -1,9 +1,14 @@
-import { type JSX } from 'react'
+import { useMemo, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { useAttentionStore } from '../../stores/attentionStore'
 import { useSpaceStore } from '../../stores/spaceStore'
 import { makeCompositeId, type AttentionKind } from '../../../../preload/attentionTypes'
-import { aggregateSpaceAttention, attentionKindLabel } from '../../utils/spaceAttention'
+import {
+  aggregateSpaceAttention,
+  attentionKindLabel,
+  spaceAttentionHighWater
+} from '../../utils/spaceAttention'
 import type { Space } from '../../types'
 import { SpaceAvatar } from './SpaceAvatar'
 import { attentionColorVar, isAiSessionTab, terminalTabs } from './spaceVisuals'
@@ -14,17 +19,37 @@ import { attentionColorVar, isAiSessionTab, terminalTabs } from './spaceVisuals'
  * elsewhere — this surfaces it and offers a one-click Resume. Derived purely
  * from attention state; a toast clears itself when its space no longer needs
  * you. DPlex reads only the attention signal, never session content.
+ *
+ * Toasts are dismissable: dismissing hides the ping without touching the
+ * underlying attention state, so activity-bar badges and rings stay intact. We
+ * remember a per-space "high-water mark" — the timestamp of the newest request
+ * dismissed — and re-show the toast only when that space raises a *newer*
+ * request. Existing requests persisting or partially resolving keep it hidden.
  */
 export function SpaceAttentionToasts(): JSX.Element | null {
   const spaces = useSpaceStore((s) => s.spaces)
   const activeSpaceId = useSpaceStore((s) => s.activeSpaceId)
   const events = useAttentionStore((s) => s.active)
+  // Per-space dismissal: the newest request timestamp the user has cleared.
+  const [dismissed, setDismissed] = useState<Record<string, number>>({})
 
-  const pings = spaces
-    .filter((s) => s.id !== activeSpaceId)
-    .map((s) => ({ space: s, attention: aggregateSpaceAttention(s, events) }))
-    .filter((p) => p.attention.total > 0)
-    .slice(0, 3)
+  const candidates = useMemo(
+    () =>
+      spaces
+        .filter((s) => s.id !== activeSpaceId)
+        .map((s) => ({
+          space: s,
+          total: aggregateSpaceAttention(s, events).total,
+          highWater: spaceAttentionHighWater(s, events)
+        }))
+        .filter((p) => p.total > 0),
+    [spaces, activeSpaceId, events]
+  )
+
+  // Show a space's ping unless every request up to its newest has been
+  // dismissed. A newer request lifts the high-water mark above the dismissed
+  // value and the toast returns; persistence or partial resolution never does.
+  const pings = candidates.filter((c) => c.highWater > (dismissed[c.space.id] ?? 0)).slice(0, 3)
 
   if (pings.length === 0) return null
 
@@ -33,8 +58,25 @@ export function SpaceAttentionToasts(): JSX.Element | null {
       className="fixed z-[2400] flex flex-col items-end"
       style={{ right: 20, bottom: 44, gap: 10 }}
     >
-      {pings.map(({ space }) => (
-        <Toast key={space.id} space={space} events={events} />
+      {pings.map(({ space, highWater }) => (
+        <Toast
+          key={space.id}
+          space={space}
+          events={events}
+          onDismiss={() =>
+            // Record this space's high-water mark and, in the same pass, drop
+            // marks for spaces that no longer need attention — keeping the map
+            // bounded to currently-pinging spaces without a cleanup effect.
+            setDismissed((prev) => {
+              const next: Record<string, number> = {}
+              for (const c of candidates) {
+                const mark = c.space.id === space.id ? highWater : prev[c.space.id]
+                if (mark !== undefined) next[c.space.id] = mark
+              }
+              return next
+            })
+          }
+        />
       ))}
     </div>,
     document.body
@@ -43,10 +85,12 @@ export function SpaceAttentionToasts(): JSX.Element | null {
 
 function Toast({
   space,
-  events
+  events,
+  onDismiss
 }: {
   space: Space
   events: ReturnType<typeof useAttentionStore.getState>['active']
+  onDismiss: () => void
 }): JSX.Element {
   // Find the first pending session in this space to describe the ping.
   const tabs = terminalTabs(space.workspace)
@@ -107,6 +151,16 @@ function Toast({
         }}
       >
         Resume ▸
+      </button>
+      <button
+        type="button"
+        aria-label={`Dismiss ${space.name} notification`}
+        data-testid={`space-toast-dismiss-${space.id}`}
+        onClick={onDismiss}
+        className="flex-shrink-0 p-1 rounded transition-colors hover:bg-[var(--dplex-hover)]"
+        style={{ color: 'var(--dplex-text-dim)' }}
+      >
+        <X size={13} />
       </button>
     </div>
   )

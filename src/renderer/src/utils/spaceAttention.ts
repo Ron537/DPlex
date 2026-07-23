@@ -106,6 +106,26 @@ export function aggregateSpaceAttention(
 }
 
 /**
+ * High-water mark for a space's pending (non-suppressed) attention: the newest
+ * `createdAt` among the events currently needing attention on this space's
+ * sessions, or 0 when nothing pends. Each raised request carries a fresh
+ * timestamp, so this rises only when a genuinely new request arrives — letting
+ * a dismissed toast stay hidden while existing requests persist or partially
+ * resolve, and reappear the moment something new pings.
+ */
+export function spaceAttentionHighWater(space: Space, events: readonly AttentionEvent[]): number {
+  const ids = collectSessionCompositeIds(space.workspace)
+  if (ids.size === 0) return 0
+  let max = 0
+  for (const e of events) {
+    if (e.suppressed) continue
+    if (!ids.has(e.compositeId)) continue
+    if (e.createdAt > max) max = e.createdAt
+  }
+  return max
+}
+
+/**
  * Roll up attention for a space, preferring the live terminal groups for the
  * space in focus (so a brand-new session counts immediately, before the next
  * snapshot is stashed) and the stashed snapshot for background spaces. Pass the

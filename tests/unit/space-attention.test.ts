@@ -7,7 +7,8 @@ import {
   attentionKindLabel,
   collectSessionCompositeIds,
   EMPTY_SPACE_ATTENTION,
-  pickTopKind
+  pickTopKind,
+  spaceAttentionHighWater
 } from '../../src/renderer/src/utils/spaceAttention'
 import { makeCompositeId, type AttentionEvent } from '../../src/preload/attentionTypes'
 import type {
@@ -201,5 +202,56 @@ describe('attentionKindLabel', () => {
     expect(attentionKindLabel('finished')).toBe('Finished')
     expect(attentionKindLabel('waitingForApproval', true)).toBe('needs approval')
     expect(attentionKindLabel('finished', true)).toBe('finished')
+  })
+})
+
+describe('spaceAttentionHighWater', () => {
+  it('is 0 when the space has no sessions or nothing pending', () => {
+    const empty = space('sp', [group('g', [])])
+    expect(spaceAttentionHighWater(empty, [])).toBe(0)
+    const s = space('sp', [group('g', [aiTab('t1', 's1')])])
+    expect(spaceAttentionHighWater(s, [])).toBe(0)
+  })
+
+  it('returns the newest pending createdAt, ignoring suppressed and foreign events', () => {
+    const s = space('sp', [group('g', [aiTab('t1', 's1'), aiTab('t2', 's2')])])
+    const mark = spaceAttentionHighWater(s, [
+      event('copilot-cli', 's1', 'waitingForApproval', { createdAt: 10 }),
+      event('copilot-cli', 's2', 'waitingForInput', { createdAt: 20 }),
+      event('copilot-cli', 's1', 'finished', { createdAt: 99, suppressed: true }),
+      event('copilot-cli', 'other', 'finished', { createdAt: 99 })
+    ])
+    expect(mark).toBe(20)
+  })
+
+  it('rises when a new request arrives but not when a newer one merely resolves', () => {
+    const s = space('sp', [group('g', [aiTab('t1', 's1'), aiTab('t2', 's2')])])
+    const base = spaceAttentionHighWater(s, [
+      event('copilot-cli', 's1', 'waitingForApproval', { createdAt: 10 })
+    ])
+    const added = spaceAttentionHighWater(s, [
+      event('copilot-cli', 's1', 'waitingForApproval', { createdAt: 10 }),
+      event('copilot-cli', 's2', 'finished', { createdAt: 25 })
+    ])
+    // The newer request (s2@25) resolves, the older (s1@10) remains — the mark
+    // does not rise, so a toast dismissed at 25 stays hidden.
+    const partiallyResolved = spaceAttentionHighWater(s, [
+      event('copilot-cli', 's1', 'waitingForApproval', { createdAt: 10 })
+    ])
+    expect(base).toBe(10)
+    expect(added).toBe(25)
+    expect(partiallyResolved).toBe(10)
+    expect(partiallyResolved).toBeLessThan(added)
+  })
+
+  it('rises when the same session resolves and raises a fresh request', () => {
+    const s = space('sp', [group('g', [aiTab('t1', 's1')])])
+    const first = spaceAttentionHighWater(s, [
+      event('copilot-cli', 's1', 'waitingForApproval', { createdAt: 100 })
+    ])
+    const reRaised = spaceAttentionHighWater(s, [
+      event('copilot-cli', 's1', 'waitingForApproval', { createdAt: 200 })
+    ])
+    expect(reRaised).toBeGreaterThan(first)
   })
 })

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] — 2026-07-23
+
+### Features
+
+- Dismiss a Space's attention notification: the bottom-right pings for backgrounded Spaces now have an ✕ to clear them. Dismissing hides just that ping — the Space's badge stays — and it returns the moment that Space raises a new request.
+
 ## [0.32.0] — 2026-07-14
 
 ### Features
@@ -682,7 +688,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/Ron537/DPlex/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/Ron537/DPlex/compare/v0.31.1...v0.32.0
 [0.31.1]: https://github.com/Ron537/DPlex/compare/v0.31.0...v0.31.1
 [0.31.0]: https://github.com/Ron537/DPlex/compare/v0.30.0...v0.31.0
