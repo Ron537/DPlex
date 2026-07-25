@@ -2,9 +2,9 @@
 
 # DPlex
 
-**A desktop workspace for the AI CLI sessions you run every day.**
+**Mission control for your AI coding agents.**
 
-DPlex **discovers** every **Copilot CLI** / **Claude Code** session you've ever started, lets you **resume** any of them in one click, and **auto-restores every open session tab** the next time you open the app — splits, order, working directory, and resume command preserved. On top of that: the multiplexer essentials — split panes, tabs, projects, worktrees, and a built-in VSCode-style Source Control view.
+DPlex runs **Copilot CLI**, **Claude Code**, and any provider you add across **many repos in parallel** — in one window. Group everything a task needs into a named, multi-repo **Space**; watch a **dashboard** that tells you which of your running agents is blocked on *you* right now; resume any past session in a click; and reopen the app after a reboot with every tab, split, and working directory exactly where you left it. Underneath it's a full workspace too — split panes, tabs, worktrees, a file editor, and a VSCode-style Source Control view.
 
 [![Tests](https://github.com/Ron537/DPlex/actions/workflows/tests.yml/badge.svg)](https://github.com/Ron537/DPlex/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/Ron537/DPlex/actions/workflows/codeql.yml/badge.svg)](https://github.com/Ron537/DPlex/actions/workflows/codeql.yml)
@@ -15,7 +15,7 @@ DPlex **discovers** every **Copilot CLI** / **Claude Code** session you've ever 
 [![Discussions](https://img.shields.io/github/discussions/Ron537/DPlex)](https://github.com/Ron537/DPlex/discussions)
 
 
-[Quick install](#quick-install) · [Features](#features) · [Screenshots](#screenshots) · [How DPlex compares](#how-dplex-compares) · [Architecture](./docs/architecture.md) · [Add a provider](./docs/providers.md) · [Privacy](./PRIVACY.md) · [Contributing](./CONTRIBUTING.md)
+[Quick install](#quick-install) · [Features](#features) · [Screenshots](#screenshots) · [Where DPlex fits](#where-dplex-fits) · [Architecture](./docs/architecture.md) · [Add a provider](./docs/providers.md) · [Privacy](./PRIVACY.md) · [Contributing](./CONTRIBUTING.md)
 
 </div>
 
@@ -38,18 +38,25 @@ DPlex **discovers** every **Copilot CLI** / **Claude Code** session you've ever 
 
 ## Why DPlex?
 
-When working with AI CLI tools across multiple projects, you end up with a mess of terminal windows — a Copilot session here, a Claude session there, plus regular shells scattered everywhere, and not a single one of them survives a reboot. DPlex gives you one home for all of it, with **AI session management as the headline feature**:
+When you're driving several AI coding agents across several repos, you end up with a mess of terminal windows — a Copilot session here, a Claude session there, regular shells scattered everywhere — no single view of which one is waiting on you, and not one of them survives a reboot. DPlex gives you one home for the whole fleet:
 
-- **🗂️ Discover every past session.** DPlex reads each provider's data directory and surfaces every Copilot CLI / Claude Code session you've ever started — searchable by name, ID, summary, or workspace.
-- **▶️ Resume in one click.** Click any past session and it opens in a new tab with the correct resume command and original CWD. No copy-pasting session IDs from `~/.copilot/...`.
-- **⏹️ Close active sessions from the sidebar.** Stop running AI sessions without hunting for their terminal — closing a tab fully terminates the underlying process.
-- **🗑️ Delete from disk.** Remove a session's stored data when you're done, with confirmation.
-- **♻️ Auto-restore session tabs across restarts.** Quit the app, reopen it tomorrow — every AI session tab snaps back exactly where it was, with the right resume command, CWD, splits, and tab order preserved.
-- **One window** for everything: split panes, tabs, and an activity bar (Projects · Sessions · Source Control).
-- **Project-aware workflow** — group sessions by project, start a new AI session in any folder with one click.
-- **Worktree-friendly** — first-class Git worktree support so concurrent feature work doesn't pollute your main checkout.
-- **Built-in Source Control** — VSCode-style changes view scoped to whichever project (or worktree) you pick.
-- **No telemetry. No analytics.** Read [PRIVACY.md](./PRIVACY.md) — it's a one-page promise, backed by `grep`-able source.
+- **🚀 Multi-repo Spaces.** Group everything a task needs — its projects, AI sessions, terminals, and exact split layout — into a named, color-coded Space, and switch between Spaces without restarting anything. The Space you leave keeps working in the background and still nudges you when one of its sessions needs you.
+- **⚡ Parallel agents, side by side.** Run many AI sessions at once in splits and tabs — resume a past one straight into a split next to the agent you already have open.
+- **🔔 Attention inbox across every session.** One aggregated bell tells you which sessions are *waiting for approval*, *waiting for input*, or *finished* — across every repo and provider — so you never babysit a terminal to catch the moment an agent needs you.
+- **📊 Insights dashboard.** A bird's-eye view of your fleet: what's running, what's blocked on you, the oldest request still waiting, stale and longest-running sessions, uncommitted changes across all your repos, activity trends, and your Copilot/Claude mix.
+- **🗂️ Every past session, unified.** Discover every Copilot CLI / Claude Code session you've ever started — from every repo, in one searchable sidebar — and resume any of it in one click, in a new tab with the right working directory.
+- **♻️ Comes back after a reboot.** Quit the app, reopen it tomorrow — every AI session tab snaps back exactly where it was, with the right resume command, CWD, splits, and tab order preserved.
+- **🧰 A full workspace too.** Split panes, tabs, first-class Git worktrees, a file explorer/editor, and a VSCode-style Source Control view with a commit graph — scoped to whichever project or worktree you pick.
+- **🧩 Provider-agnostic.** Copilot CLI and Claude Code out of the box, and any other AI CLI you add via one TypeScript interface.
+- **🔒 No telemetry. No analytics.** Read [PRIVACY.md](./PRIVACY.md) — it's a one-page promise, backed by `grep`-able source.
+
+### "My AI CLI already has a built-in resume picker, though"
+
+- **One list for everything.** Every session across every AI CLI you use — Copilot CLI, Claude Code, and any provider you add — from *every* repo, in one searchable sidebar. No launching a tool and paging through its own picker, project by project.
+- **One click, zero context-switch.** Click a session and it resumes in a new tab — or drop it into a split next to the agent you're already running. A built-in picker makes you stop what you're doing; DPlex doesn't.
+- **It's the front door, not the whole house.** Resuming is just the entry point to parallel agents in splits, multi-repo **Spaces**, a dashboard that shows which of your running sessions is blocked on *you*, and a workspace that comes back after a reboot with every tab in place.
+
+A built-in picker reopens *one* session in *one* tool. DPlex orchestrates your whole agent fleet — across every provider, every repo, in one window.
 
 ## Quick install
 
@@ -314,20 +321,14 @@ CI logs and SBOMs are attached to every release.
 
 (`⌘` = `Ctrl` on Linux/Windows.)
 
-## How DPlex compares
+## Where DPlex fits
 
-There are great tools in adjacent niches. DPlex isn't trying to replace any of them — it's optimizing for one specific workflow: **running multiple AI CLI sessions across multiple projects without losing your place.**
+DPlex isn't a terminal emulator, and it isn't an AI-native editor — it's the **orchestration layer above the AI CLIs you already use.** If you're happy driving a single agent in a single terminal, you may not need it. It earns its place the moment you're running **several agents, across several repos, at once** and need one surface to launch them, resume them, group them into Spaces, and see which one is waiting on you.
 
-| Tool                       | Niche                                  | Where it differs from DPlex                                                                            |
-| -------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| **tmux** / **Zellij**      | Terminal multiplexer, server-side      | Powerful but generic; no AI-tool awareness, no project sidebar, no session discovery.                  |
-| **Warp**                   | AI-augmented terminal                  | Beautiful, but the AI is *theirs*, not the CLI tool you already use. Closed source.                    |
-| **iTerm2** / **WezTerm**   | Best-in-class terminal emulators       | More polished as terminals; no orchestration of external AI sessions.                                  |
-| **VS Code terminal panel** | Embedded terminals in the IDE          | Fine for ad-hoc shells; not designed for managing many concurrent AI sessions across many repos.       |
-| **Wave Terminal**          | AI-focused terminal                    | Adjacent vision; broader scope, more opinionated UI. DPlex is narrower and Electron-portable today.    |
-| **Zed / Cursor**           | AI-native editors                      | They embed the AI in the editor; DPlex orchestrates the AI you already use from the terminal.          |
+- **vs. a plain terminal or multiplexer** — those move characters around; DPlex understands *sessions*, *projects*, and *providers*, and remembers them across restarts.
+- **vs. an AI-native editor or terminal** — those embed *their* AI; DPlex orchestrates the CLI agents *you* choose, and stays out of their way.
 
-If your goal is "I want to start a Claude session in repo A today, a Copilot session in repo B tomorrow, find yesterday's sessions whenever I need them, resume any of them in one click, and reopen the app next week with every tab right where I left it" — that's DPlex.
+If your goal is "I want a Claude session in repo A and a Copilot session in repo B running side by side, grouped into a Space I can switch to instantly, with one glance telling me which agent is blocked on me — and the whole thing back exactly where I left it after a reboot" — that's DPlex.
 
 ## FAQ / Troubleshooting
 
