@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0b0c0f" />
 <meta name="color-scheme" content="dark" />
 
-<title>DPlex — AI session management for Copilot CLI &amp; Claude Code</title>
-<meta name="description" content="DPlex is an open-source desktop app for AI session management: discover, resume, and auto-restore every GitHub Copilot CLI and Claude Code session you've ever started — across projects, in one window. MIT-licensed, no telemetry, macOS/Windows/Linux." />
+<title>DPlex — mission control for your AI coding agents (Copilot CLI &amp; Claude Code)</title>
+<meta name="description" content="DPlex is an open-source desktop control center for AI coding agents: run Copilot CLI, Claude Code, and more across many repos in parallel, grouped into multi-repo Spaces, with a dashboard that shows which sessions need you, one-click resume, and every tab restored after a reboot. MIT-licensed, no telemetry, macOS/Windows/Linux." />
 <meta name="keywords" content="DPlex, AI session management, Copilot CLI session manager, Claude Code session manager, AI coding agent multiplexer, resume Copilot CLI session, manage Claude Code sessions, Copilot CLI GUI, Claude Code GUI, terminal multiplexer AI, AI session tabs" />
 <meta name="author" content="Ron Borysowski" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
@@ -16,8 +16,8 @@
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="DPlex" />
-<meta property="og:title" content="DPlex — AI session management for Copilot CLI &amp; Claude Code" />
-<meta property="og:description" content="Discover, resume, and auto-restore every Copilot CLI and Claude Code session you've ever started, in one window. Open source, MIT, no telemetry." />
+<meta property="og:title" content="DPlex — mission control for your AI coding agents" />
+<meta property="og:description" content="Run Copilot CLI, Claude Code, and more across many repos in parallel — grouped into multi-repo Spaces, with a dashboard that shows which sessions need you and every tab restored after a reboot. Open source, MIT, no telemetry." />
 <meta property="og:url" content="https://ron537.github.io/DPlex/" />
 <meta property="og:image" content="https://ron537.github.io/DPlex/assets/01-hero-projects.png" />
 <meta property="og:image:width" content="1600" />
@@ -27,8 +27,8 @@
 
 <!-- Twitter / X -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="DPlex — AI session management for Copilot CLI &amp; Claude Code" />
-<meta name="twitter:description" content="Discover, resume, and auto-restore every Copilot CLI and Claude Code session you've ever started. Open source · MIT · No telemetry." />
+<meta name="twitter:title" content="DPlex — mission control for your AI coding agents" />
+<meta name="twitter:description" content="Run Copilot CLI, Claude Code &amp; more across many repos in parallel, grouped into Spaces, with a dashboard showing which sessions need you. Open source · MIT · No telemetry." />
 <meta name="twitter:image" content="https://ron537.github.io/DPlex/assets/01-hero-projects.png" />
 
 <!-- Performance hints -->
@@ -54,7 +54,7 @@
   "applicationCategory": "DeveloperApplication",
   "applicationSubCategory": "Terminal multiplexer for AI coding agents",
   "operatingSystem": "macOS, Windows, Linux",
-  "description": "DPlex is an open-source desktop app for AI session management. It discovers every GitHub Copilot CLI and Claude Code session you've ever started, lets you resume any of them in one click, and auto-restores every session tab across app restarts.",
+  "description": "DPlex is an open-source desktop control center for AI coding agents. It runs GitHub Copilot CLI, Claude Code, and other AI CLIs across many repos in parallel — grouped into multi-repo Spaces, with a dashboard that surfaces which sessions need you, one-click resume of any past session, and every tab restored across app restarts.",
   "url": "https://ron537.github.io/DPlex/",
   "downloadUrl": "https://github.com/Ron537/DPlex/releases/latest",
   "softwareVersion": "latest",
@@ -144,10 +144,10 @@
     },
     {
       "@type": "Question",
-      "name": "How is DPlex different from tmux, Zellij, or Warp?",
+      "name": "How is DPlex different from a terminal, multiplexer, or AI editor?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "tmux and Zellij are generic terminal multiplexers — they have no concept of AI sessions, projects, or session discovery. Warp embeds its own AI in a closed-source terminal. DPlex orchestrates the AI CLI tools you already use (Copilot CLI, Claude Code, …) and adds project sidebar, session history, resume in one click, and workspace persistence."
+        "text": "DPlex isn't a terminal emulator or an AI-native editor — it's the orchestration layer above the AI CLIs you already use. A plain terminal or multiplexer just moves characters around; DPlex understands sessions, projects, and providers, and remembers them across restarts. AI-native editors and terminals embed their own AI; DPlex orchestrates the CLI agents you choose (Copilot CLI, Claude Code, and any you add), runs many in parallel across repos, and shows which one is waiting on you."
       }
     },
     {
@@ -179,7 +179,7 @@
       <a href="#screenshots">Screenshots</a>
       <a href="#whats-new">What's new</a>
       <a href="#install">Install</a>
-      <a href="#compare">Compare</a>
+      <a href="#compare">Where it fits</a>
       <a href="#faq">FAQ</a>
       <a href="./changelog/">Changelog</a>
       <a href="https://github.com/Ron537/DPlex/blob/main/docs/architecture.md" rel="noopener">Docs</a>
@@ -196,9 +196,9 @@
       <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><circle cx="6" cy="6" r="5"/></svg>
       Open source · MIT · <span id="version-badge">latest</span>
     </div>
-    <h1>AI session management for <span class="accent">Copilot CLI &amp; Claude Code</span>.</h1>
+    <h1>Mission control for your <span class="accent">AI coding agents</span>.</h1>
     <p class="lede">
-      DPlex is the desktop workspace that discovers every <strong>Copilot CLI</strong> and <strong>Claude Code</strong> session you've ever started, lets you <strong>resume any of them in one click</strong>, and <strong>auto-restores every session tab</strong> the next time you open the app — splits, order, working directory, and resume command preserved.
+      DPlex runs <strong>Copilot CLI</strong>, <strong>Claude Code</strong>, and any provider you add across <strong>many repos in parallel</strong> — grouped into multi-repo <strong>Spaces</strong>, with a <strong>dashboard</strong> that shows which of your running agents is blocked on you right now. Resume any past session in a click, and reopen the app after a reboot with every tab, split, and working directory exactly where you left it.
     </p>
     <div class="cta-row">
       <a href="#install" class="btn btn-primary">
@@ -216,8 +216,8 @@
 
 <section id="features" aria-labelledby="features-heading">
   <div class="container">
-    <h2 id="features-heading">Built around AI session management.</h2>
-    <p class="section-lede">DPlex's headline capability is full-lifecycle control over your AI coding sessions — discover them, resume them, close them, delete them, and never lose your place across restarts.</p>
+    <h2 id="features-heading">One home for your whole agent fleet.</h2>
+    <p class="section-lede">Group work into multi-repo Spaces, run many agents in parallel, and let one dashboard and attention inbox tell you which session needs you — then pick up exactly where you left off after every restart.</p>
     <div class="features">
       <div class="feature">
         <div class="feature-icon" aria-hidden="true">
@@ -414,20 +414,16 @@ npm run dev</code></pre>
 
 <section id="compare" aria-labelledby="compare-heading">
   <div class="container">
-    <h2 id="compare-heading">How DPlex compares.</h2>
-    <p class="section-lede">DPlex isn't trying to replace any of these — it's optimized for one specific workflow: managing AI coding sessions across many projects.</p>
+    <h2 id="compare-heading">Where DPlex fits.</h2>
+    <p class="section-lede">DPlex isn't a terminal emulator, and it isn't an AI-native editor — it's the orchestration layer above the AI CLIs you already use. If you're happy driving a single agent in a single terminal, you may not need it. It earns its place the moment you're running several agents, across several repos, at once.</p>
     <div class="compare">
       <table>
         <thead>
-          <tr><th scope="col">Tool</th><th scope="col">Where it differs from DPlex</th></tr>
+          <tr><th scope="col">Compared to…</th><th scope="col">How DPlex is different</th></tr>
         </thead>
         <tbody>
-          <tr><td>tmux / Zellij</td><td>Powerful but generic; no AI-tool awareness, no project sidebar, no session discovery.</td></tr>
-          <tr><td>Warp</td><td>Beautiful, but the AI is theirs, not the CLI tool you already use. Closed source.</td></tr>
-          <tr><td>iTerm2 / WezTerm</td><td>More polished as terminals; no orchestration of external AI sessions.</td></tr>
-          <tr><td>VS Code terminal panel</td><td>Fine for ad-hoc shells; not designed for managing many concurrent AI sessions across many repos.</td></tr>
-          <tr><td>Wave Terminal</td><td>Adjacent vision; broader scope, more opinionated UI. DPlex is narrower and Electron-portable today.</td></tr>
-          <tr><td>Zed / Cursor</td><td>They embed the AI in the editor; DPlex orchestrates the AI you already use from the terminal.</td></tr>
+          <tr><td>A plain terminal or multiplexer</td><td>Those move characters around. DPlex understands <em>sessions</em>, <em>projects</em>, and <em>providers</em> — and remembers them across restarts.</td></tr>
+          <tr><td>An AI-native editor or terminal</td><td>Those embed <em>their</em> AI. DPlex orchestrates the CLI agents <em>you</em> choose, in parallel, and stays out of their way.</td></tr>
         </tbody>
       </table>
     </div>
@@ -477,9 +473,9 @@ npm run dev</code></pre>
         </div>
       </details>
       <details>
-        <summary>How does DPlex compare to tmux, Warp, or Wave Terminal?</summary>
+        <summary>How is DPlex different from a terminal or AI editor?</summary>
         <div class="faq-body">
-          <p>tmux and Zellij are generic terminal multiplexers — they have no concept of AI sessions, projects, or session history. Warp ships a closed-source terminal with its own embedded AI, not the CLI tools you already use. Wave has an adjacent vision with broader scope and a more opinionated UI; DPlex stays narrow and Electron-portable today.</p>
+          <p>DPlex isn't a terminal emulator or an AI-native editor — it's the orchestration layer above the AI CLIs you already use. A plain terminal or multiplexer just moves characters around; DPlex understands sessions, projects, and providers, and remembers them across restarts. AI-native editors and terminals embed <em>their</em> AI; DPlex orchestrates the CLI agents <em>you</em> choose, runs many in parallel across repos, and shows which one is waiting on you.</p>
         </div>
       </details>
       <details>

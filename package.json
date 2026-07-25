@@ -1,7 +1,7 @@
 {
   "name": "dplex",
   "version": "0.33.0",
-  "description": "A terminal multiplexer built for AI-assisted development. Manage multiple AI CLI sessions (Copilot, Claude, and more) alongside regular terminals in one window.",
+  "description": "Mission control for your AI coding agents. Run Copilot CLI, Claude Code, and more across many repos in parallel — grouped into multi-repo Spaces, with a dashboard that shows which sessions need you, one-click resume, and every tab restored after a reboot.",
   "main": "./out/main/index.js",
   "author": {
     "name": "Ron Borysowski",
