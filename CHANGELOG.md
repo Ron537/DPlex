@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.1] — 2026-07-27
+
+### Performance
+
+- Busy terminals now render on the GPU — a heavy AI session no longer freezes the rest of the app.
+- Background tabs stop rendering while hidden, so several heavy sessions at once stay smooth.
+- Faster switching back to a busy session tab.
+- Rapidly switching between sessions that are still starting up no longer stalls the UI.
+- Smoother pane and window resizing with large scrollback.
+
 ## [0.33.0] — 2026-07-23
 
 ### Features
@@ -688,7 +698,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.33.1...HEAD
+[0.33.1]: https://github.com/Ron537/DPlex/compare/v0.33.0...v0.33.1
 [0.33.0]: https://github.com/Ron537/DPlex/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/Ron537/DPlex/compare/v0.31.1...v0.32.0
 [0.31.1]: https://github.com/Ron537/DPlex/compare/v0.31.0...v0.31.1

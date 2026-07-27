@@ -1,7 +1,11 @@
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { WebglAddon } from '@xterm/addon-webgl'
 import { getTheme } from './themes'
+import { MAX_WEBGL_CONTEXTS, WebglRendererPool } from './webglRenderer'
+import { RenderLoadTracker } from './terminalRenderLoad'
+import { WebglAttachScheduler } from './webglAttachScheduler'
 import { FlowController } from './flowControl'
 import { isMac } from '../utils/shortcuts'
 import {
@@ -33,6 +37,129 @@ export interface TerminalEntry {
 
 // Global registry — lives outside React lifecycle
 const registry = new Map<string, TerminalEntry>()
+
+/**
+ * Whether a terminal currently has a layout box. Guards against measuring an
+ * entry that is mid-teardown or not yet in the document.
+ *
+ * Note this is deliberately *not* a visibility check: hidden tabs use
+ * `content-visibility: hidden` (see EditorGroup), which keeps their layout box
+ * and resolved dimensions intact. Visibility is tracked explicitly by
+ * TerminalView instead.
+ */
+function isTerminalRendered(entry: TerminalEntry): boolean {
+  return entry.wrapperEl.isConnected && entry.wrapperEl.getClientRects().length > 0
+}
+
+/**
+ * Fit a terminal to its container, but only while it's on screen with a box.
+ *
+ * The box check is not an optimization — it's required for correctness. FitAddon
+ * sizes the terminal from `getComputedStyle(parent)`, and for an element with
+ * no box Chromium returns the *computed* value rather than the used one: our
+ * wrapper's `height: 100%` comes back as the string `"100%"`, which parses to
+ * the number 100. Fitting then resizes the terminal to roughly 10×5 cells and
+ * forwards that to the PTY, wrecking the layout of the AI CLI running inside.
+ *
+ * Hidden tabs are skipped too. They still have a box, so they'd otherwise be
+ * refitted on every pane, window and sidebar resize — and each fit queues a
+ * resize xterm can only flush as a full re-render of a 10k-line scrollback the
+ * moment that tab is shown. TerminalView refits on show instead.
+ */
+function fitIfVisible(terminalId: string, entry: TerminalEntry): void {
+  if (!visibleTerminals.has(terminalId) || !isTerminalRendered(entry)) return
+  try {
+    entry.fitAddon.fit()
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Tabs currently shown by their group, as reported by TerminalView.
+ *
+ * Tracked explicitly rather than sniffed from the DOM: hidden tabs use
+ * `content-visibility: hidden`, which pauses their rendering but *keeps* their
+ * layout box, so geometry can't tell a hidden tab from a shown one.
+ */
+const visibleTerminals = new Set<string>()
+
+// GPU rendering. Attached lazily (on first display) rather than at creation, so
+// restoring a workspace with dozens of tabs doesn't allocate dozens of WebGL
+// contexts up front — see webglRenderer.ts for the LRU/eviction rationale.
+// On-screen terminals are pinned so a background tab can never steal the
+// context out from under a visible split pane.
+const webglPool = new WebglRendererPool(
+  () => new WebglAddon(),
+  MAX_WEBGL_CONTEXTS,
+  (terminalId) => visibleTerminals.has(terminalId),
+  // A context lost mid-session (GPU reset, driver update) drops the terminal
+  // back to the DOM renderer. If it's still the tab on screen, queue a fresh
+  // one instead of waiting for the user to switch away and back. The pool's
+  // per-terminal loss budget stops this from becoming a retry loop.
+  (terminalId) => webglAttach.schedule(terminalId)
+)
+
+// Only terminals that actually push a lot of output get a GPU context — see
+// terminalRenderLoad.ts for why handing one to every terminal is a net loss.
+const renderLoad = new RenderLoadTracker()
+
+/**
+ * Defers and rate-limits GPU-context creation — see webglAttachScheduler.ts for
+ * why an unmanaged attach is felt as a freeze.
+ */
+const webglAttach = new WebglAttachScheduler({
+  canAttach: (terminalId) => {
+    if (webglPool.isUnavailable || webglPool.hasContext(terminalId)) return false
+    if (!visibleTerminals.has(terminalId)) return false
+    const entry = registry.get(terminalId)
+    return Boolean(entry && isTerminalRendered(entry))
+  },
+  attach: (terminalId) => {
+    const entry = registry.get(terminalId)
+    if (!entry) return
+    webglPool.attach(terminalId, (addon) => entry.term.loadAddon(addon))
+  }
+})
+
+/**
+ * Tell the registry whether a terminal is the tab currently on screen.
+ *
+ * Only visible terminals may claim a GPU context: several sessions resuming at
+ * once all flood output and all earn one, but the user is looking at exactly
+ * one of them. Hidden terminals are also skipped when fitting, since xterm has
+ * paused them and TerminalView refits on show anyway.
+ */
+export function setTerminalVisible(terminalId: string, visible: boolean): void {
+  if (visible) {
+    visibleTerminals.add(terminalId)
+    return
+  }
+  visibleTerminals.delete(terminalId)
+  webglAttach.cancel(terminalId)
+}
+
+/**
+ * Move a terminal onto the WebGL renderer if it has earned one. Call when it
+ * becomes visible; it is cheap and idempotent. Terminals that have never pushed
+ * a heavy render load stay on xterm's DOM renderer, which is already smooth for
+ * them and costs nothing to set up.
+ */
+export function enableWebglRenderer(terminalId: string): void {
+  if (!renderLoad.isBusy(terminalId)) return
+  webglAttach.schedule(terminalId)
+}
+
+/**
+ * Account for PTY output that reached a terminal outside the central dispatcher
+ * — currently the early-buffer flush in `useTerminal`, which replays bytes that
+ * arrived before `pty.create()` resolved. An AI CLI's first full-screen paint
+ * often lands there, and it's exactly the kind of load that should promote a
+ * terminal to the GPU renderer.
+ */
+export function recordTerminalRenderLoad(terminalId: string, bytes: number): void {
+  if (renderLoad.record(terminalId, bytes)) webglAttach.schedule(terminalId)
+}
 
 // ── Centralized PTY Data Dispatcher ─────────────────────────────────────
 // Single global IPC listener routes data to the correct terminal via O(1)
@@ -107,6 +234,12 @@ function ensureGlobalListeners(): void {
     if (!handler) return
 
     handler.flowController.write(handler.entry.truecolorNormalizer.write(data))
+
+    // A terminal that starts flooding output is one the DOM renderer can't keep
+    // up with — promote it to the GPU renderer (during idle, off this frame).
+    if (renderLoad.record(handler.terminalId, data.length)) {
+      webglAttach.schedule(handler.terminalId)
+    }
 
     if (!handler.entry.ready) {
       handler.entry.ready = true
@@ -408,6 +541,12 @@ export function destroyTerminal(terminalId: string): void {
   if (entry.cleanupIpc) entry.cleanupIpc()
   if (entry.disposeExtras) entry.disposeExtras()
   if (entry.ptyId) window.dplex.pty.destroy(entry.ptyId)
+  // Free the GPU context before disposing the terminal, so it's returned to the
+  // pool for another tab rather than leaked until the browser reclaims it.
+  webglAttach.cancel(terminalId)
+  visibleTerminals.delete(terminalId)
+  webglPool.forget(terminalId)
+  renderLoad.forget(terminalId)
   entry.term.dispose()
   entry.wrapperEl.remove()
   registry.delete(terminalId)
@@ -427,11 +566,7 @@ export function isTerminalRegistered(terminalId: string): boolean {
 export function fitTerminal(terminalId: string): void {
   const entry = registry.get(terminalId)
   if (!entry) return
-  try {
-    entry.fitAddon.fit()
-  } catch {
-    // ignore
-  }
+  fitIfVisible(terminalId, entry)
 }
 
 export function updateTerminalFont(terminalId: string, fontSize: number, fontFamily: string): void {
@@ -439,11 +574,7 @@ export function updateTerminalFont(terminalId: string, fontSize: number, fontFam
   if (!entry) return
   entry.term.options.fontSize = fontSize
   entry.term.options.fontFamily = fontFamily
-  try {
-    entry.fitAddon.fit()
-  } catch {
-    // ignore
-  }
+  fitIfVisible(terminalId, entry)
 }
 
 export function updateTerminalMacOptionIsMeta(terminalId: string, macOptionIsMeta: boolean): void {
@@ -452,10 +583,21 @@ export function updateTerminalMacOptionIsMeta(terminalId: string, macOptionIsMet
   entry.term.options.macOptionIsMeta = macOptionIsMeta
 }
 
-export function applyThemeToAll(themeId: string): void {
+function applyThemeToAll(themeId: string): void {
   const appTheme = getTheme(themeId)
   for (const [, entry] of registry) {
     entry.term.options.theme = appTheme.terminal
     entry.wrapperEl.style.backgroundColor = appTheme.terminal.background || '#000'
   }
 }
+
+// Keep every registered terminal's palette in sync with the app theme from a
+// single subscription. Each mounted terminal used to run its own effect calling
+// applyThemeToAll, which iterates the whole registry — O(N²) work per theme
+// change in a many-tab workspace. Living here also covers terminals whose hook
+// isn't mounted (tabs parked in a background Space).
+useSettingsStore.subscribe((state, prev) => {
+  if (state.settings.theme !== prev.settings.theme) {
+    applyThemeToAll(state.settings.theme)
+  }
+})

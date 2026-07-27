@@ -1,38 +1,56 @@
 import { useRef, useEffect } from 'react'
 import { useTerminal } from '../../hooks/useTerminal'
-import { fitTerminal, getTerminalEntry } from '../../services/terminalRegistry'
+import {
+  enableWebglRenderer,
+  fitTerminal,
+  getTerminalEntry,
+  setTerminalVisible
+} from '../../services/terminalRegistry'
 import { Loader2 } from 'lucide-react'
 
 interface TerminalViewProps {
   terminalId: string
-  isActive: boolean
+  /** True when this is the tab currently displayed by its group (regardless of
+   *  which group has focus). Drives fitting and GPU-context acquisition. */
+  isVisible: boolean
+  /** True when this tab is displayed AND its group is the focused one. */
+  isFocused: boolean
   onFocus: () => void
 }
 
 export function TerminalView({
   terminalId,
-  isActive,
+  isVisible,
+  isFocused,
   onFocus
 }: TerminalViewProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const { ready } = useTerminal({ terminalId, containerRef })
 
-  // Fit and focus when this terminal becomes active
+  // Becoming visible: claim a WebGL context (hidden terminals don't get one)
+  // and refit, since the pane may have been resized while this tab was hidden.
+  // Deferred a frame so the visibility flip has been laid out — measuring a
+  // still-hidden element yields no usable dimensions.
   useEffect(() => {
-    if (isActive) {
+    setTerminalVisible(terminalId, isVisible)
+    if (!isVisible) return
+    const raf = requestAnimationFrame(() => {
+      enableWebglRenderer(terminalId)
       fitTerminal(terminalId)
-      const entry = getTerminalEntry(terminalId)
-      if (entry) entry.term.focus()
+    })
+    return () => {
+      cancelAnimationFrame(raf)
+      setTerminalVisible(terminalId, false)
     }
-  }, [isActive, terminalId])
+  }, [isVisible, terminalId])
 
-  // Focus when terminal becomes ready (first data received)
+  // Focus the terminal once it's the focused tab and has started producing
+  // output (focusing a not-yet-started terminal is a no-op users can't see).
   useEffect(() => {
-    if (ready && isActive) {
-      const entry = getTerminalEntry(terminalId)
-      if (entry) entry.term.focus()
-    }
-  }, [ready, isActive, terminalId])
+    if (!isFocused || !isVisible) return
+    const entry = getTerminalEntry(terminalId)
+    if (entry) entry.term.focus()
+  }, [isFocused, isVisible, ready, terminalId])
 
   return (
     <div
@@ -44,7 +62,7 @@ export function TerminalView({
         // rows × cell-height) shows the same color, not the parent's
         // darker chrome.
         backgroundColor: 'var(--dplex-bg)',
-        ...(isActive
+        ...(isFocused
           ? {
               // Three-sided active ring — top edge is intentionally
               // omitted so the active tab and the terminal area read as
