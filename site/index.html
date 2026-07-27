@@ -376,7 +376,11 @@
       <button class="install-tab" data-tab="src" type="button" aria-pressed="false">From source</button>
     </div>
     <div id="tab-mac" class="install-block active">
-<pre><code># Apple Silicon
+<pre><code># Homebrew (recommended) — auto-handles quarantine &amp; upgrades
+brew install --cask ron537/tap/dplex
+
+# — or download the DMG directly —
+# Apple Silicon
 curl -L https://github.com/Ron537/DPlex/releases/latest/download/DPlex-arm64.dmg -o DPlex.dmg
 # Intel
 curl -L https://github.com/Ron537/DPlex/releases/latest/download/DPlex-x64.dmg -o DPlex.dmg
@@ -384,7 +388,7 @@ curl -L https://github.com/Ron537/DPlex/releases/latest/download/DPlex-x64.dmg -
 # Drag DPlex to /Applications, then on first launch:
 xattr -dr com.apple.quarantine /Applications/DPlex.app
 open /Applications/DPlex.app</code></pre>
-      <p class="install-note">The <code>xattr</code> line removes the macOS quarantine flag — equivalent to right-click → Open, but cleaner from the terminal. Builds are <a href="https://github.com/Ron537/DPlex/blob/main/.github/workflows/release.yml" rel="noopener">ad-hoc signed</a> and carry <a href="https://docs.github.com/en/actions/security-guides/using-artifact-attestations" rel="noopener">Sigstore provenance</a>.</p>
+      <p class="install-note">Homebrew is the easiest path — it clears the quarantine flag for you and <code>brew upgrade --cask dplex</code> keeps you current. The <code>xattr</code> line does the same for a manual DMG install. Builds are <a href="https://github.com/Ron537/DPlex/blob/main/.github/workflows/release.yml" rel="noopener">ad-hoc signed</a> and carry <a href="https://docs.github.com/en/actions/security-guides/using-artifact-attestations" rel="noopener">Sigstore provenance</a>.</p>
     </div>
     <div id="tab-win" class="install-block" hidden>
 <pre><code># Download the latest installer

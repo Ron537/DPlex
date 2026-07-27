@@ -67,6 +67,16 @@ A built-in picker reopens *one* session in *one* tool. DPlex orchestrates your w
 
 ### macOS
 
+**Homebrew (recommended)** — handles the quarantine flag for you and keeps DPlex up to date:
+
+```bash
+brew install --cask ron537/tap/dplex
+```
+
+Upgrade later with `brew upgrade --cask dplex`.
+
+**Manual DMG:**
+
 ```bash
 # Apple Silicon
 curl -L https://github.com/Ron537/DPlex/releases/latest/download/DPlex-arm64.dmg -o DPlex.dmg
