@@ -8,8 +8,9 @@ import {
   getOrCreateTerminal,
   updateTerminalFont,
   updateTerminalMacOptionIsMeta,
-  applyThemeToAll,
+  fitTerminal,
   fireExitHandler,
+  recordTerminalRenderLoad,
   registerPtyDataHandler,
   subscribeTerminalReady,
   markTerminalReady,
@@ -168,11 +169,7 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
 
     // Fit after attaching (needs dimensions from container)
     requestAnimationFrame(() => {
-      try {
-        entry.fitAddon.fit()
-      } catch {
-        // ignore
-      }
+      fitTerminal(terminalId)
     })
 
     // Reflect terminal readiness even when this hook mounted AFTER the PTY was
@@ -254,6 +251,9 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
           for (const item of earlyBuffer) {
             if (item.id === ptyId) {
               entry.term.write(entry.truecolorNormalizer.write(item.data))
+              // Counts toward render load like any other output — an AI CLI's
+              // first full-screen paint usually arrives in this buffer.
+              recordTerminalRenderLoad(terminalId, item.data.length)
               hadData = true
             }
           }
@@ -328,19 +328,26 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
         })
     }
 
-    // ResizeObserver for container size changes
+    // ResizeObserver for container size changes. Coalesced to one fit per
+    // frame: a fit forces a synchronous layout read and, when cols/rows change,
+    // a buffer reflow across the 10k-line scrollback. Sidebar drags and window
+    // resizes fire the observer far faster than that work can complete.
+    // `fitTerminal` ignores hidden tabs — the observer also fires when a tab is
+    // hidden, and fitting then would resize the PTY to a garbage size.
+    let fitFrame: number | null = null
     const resizeObserver = new ResizeObserver(() => {
-      try {
-        entry.fitAddon.fit()
-      } catch {
-        // ignore
-      }
+      if (fitFrame !== null) return
+      fitFrame = requestAnimationFrame(() => {
+        fitFrame = null
+        fitTerminal(terminalId)
+      })
     })
     resizeObserver.observe(container)
 
     return () => {
       // Only detach the DOM element — do NOT destroy the terminal or PTY
       resizeObserver.disconnect()
+      if (fitFrame !== null) cancelAnimationFrame(fitFrame)
       unsubReady()
       if (container.contains(entry.wrapperEl)) {
         container.removeChild(entry.wrapperEl)
@@ -357,11 +364,6 @@ export function useTerminal({ terminalId, containerRef }: UseTerminalOptions): {
   useEffect(() => {
     updateTerminalMacOptionIsMeta(terminalId, settings.macOptionIsMeta)
   }, [terminalId, settings.macOptionIsMeta])
-
-  // Apply theme changes to this terminal
-  useEffect(() => {
-    applyThemeToAll(settings.theme)
-  }, [settings.theme])
 
   return { ready }
 }

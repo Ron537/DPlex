@@ -128,28 +128,48 @@ export function EditorGroup({ group }: EditorGroupProps): React.JSX.Element {
         onDrop={handleDrop}
         onDragLeave={handleDragLeave}
       >
-        {/* Render all tabs — active on top, inactive hidden but laid out */}
+        {/* Render all tabs; only the group's current tab is displayed.
+            `content-visibility: hidden` is deliberate. `visibility: hidden`
+            doesn't work: xterm pauses its render loop via an
+            IntersectionObserver, and a `visibility: hidden` element still
+            intersects — so every background AI session kept re-rendering and
+            starved the main thread. `display: none` does pause it, but throws
+            away the subtree's rendering state, so returning to a tab costs a
+            full repaint (measured ~34% slower tab switching).
+            `content-visibility: hidden` skips the content — which pauses xterm
+            just the same — while *preserving* that rendering state, so
+            switching back is cheap. Hidden tabs keep their layout box, hence
+            the explicit pointer-events guard below. */}
         {visibleTabs.map((tab) => {
-          const isActive = tab.id === effectiveActiveId
+          const isVisible = tab.id === effectiveActiveId
+          const isFocused = isActiveGroup && isVisible
           return (
             <div
               key={tab.id}
               className="absolute inset-0"
               style={{
-                visibility: isActive ? 'visible' : 'hidden',
-                zIndex: isActive ? 1 : 0
+                contentVisibility: isVisible ? 'visible' : 'hidden',
+                // A hidden tab still occupies its box, so without this a tab
+                // later in DOM order would swallow clicks meant for the
+                // visible one.
+                pointerEvents: isVisible ? undefined : 'none',
+                // Establishes a stacking context so content overlays inside a
+                // tab (e.g. Monaco's z-20 conflict banner) stay below this
+                // group's own overlays at z-index 5/10/20.
+                zIndex: 1
               }}
             >
               {isFileDiffTab(tab) ? (
                 <FileDiffTabView tab={tab} />
               ) : isFileEditorTab(tab) ? (
-                <FileEditorTabView tab={tab} isActive={isActiveGroup && isActive} />
+                <FileEditorTabView tab={tab} isActive={isVisible} />
               ) : isDashboardTab(tab) ? (
-                <DashboardTabView isActive={isActiveGroup && isActive} />
+                <DashboardTabView isActive={isVisible} />
               ) : (
                 <TerminalView
                   terminalId={tab.id}
-                  isActive={isActiveGroup && isActive}
+                  isVisible={isVisible}
+                  isFocused={isFocused}
                   onFocus={activateGroup}
                 />
               )}

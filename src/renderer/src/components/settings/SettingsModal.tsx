@@ -14,7 +14,6 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useUpdateStore } from '../../stores/updateStore'
 import { getThemesByVariant, getTheme } from '../../services/themes'
-import { applyThemeToAll } from '../../services/terminalRegistry'
 import { Switch } from '../common/Switch'
 import type { ShellInfo, AppSettings } from '../../types'
 import { MOD, SHIFT, isMac } from '../../utils/shortcuts'
@@ -322,7 +321,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
   const applyNow = (partial: Partial<AppSettings>): void => {
     updateSettings(partial)
-    if (partial.theme) applyThemeToAll(partial.theme)
   }
 
   const applyDebounced = (partial: Partial<AppSettings>): void => {
