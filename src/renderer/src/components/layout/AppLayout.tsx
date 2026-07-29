@@ -243,7 +243,7 @@ export function AppLayout(): React.JSX.Element {
       if (current) {
         const attention = useAttentionStore.getState()
         const event = attention.active.find((e) => e.compositeId === current)
-        if (event && event.kind === 'finished') {
+        if (event && (event.kind === 'finished' || event.kind === 'error')) {
           attention.acknowledge(current)
         }
       }

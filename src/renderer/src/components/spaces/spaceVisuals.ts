@@ -41,13 +41,15 @@ export function glyphFor(space: Pick<Space, 'name' | 'glyph'>): string {
   return g.length > 0 ? g : spaceInitials(space.name)
 }
 
-/** CSS var for an attention kind's color (approval > input > finished). */
+/** CSS var for an attention kind's color (approval > input > error > finished). */
 export function attentionColorVar(kind: AttentionKind | null): string {
   switch (kind) {
     case 'waitingForApproval':
       return 'var(--dplex-status-approval)'
     case 'waitingForInput':
       return 'var(--dplex-status-waiting)'
+    case 'error':
+      return 'var(--dplex-status-approval)'
     case 'finished':
       return 'var(--dplex-status-success)'
     default:
@@ -58,9 +60,9 @@ export function attentionColorVar(kind: AttentionKind | null): string {
 /** Short human label for a space's rolled-up attention, e.g. "3 to review". */
 export function attentionLabel(a: SpaceAttention): string {
   if (a.total === 0) return ''
-  if (a.waitingForApproval > 0 || a.waitingForInput > 0) {
-    const n = a.waitingForApproval + a.waitingForInput
-    return `${n} to review`
+  const needsReview = a.waitingForApproval + a.waitingForInput + a.error
+  if (needsReview > 0) {
+    return `${needsReview} to review`
   }
   return `${a.finished} done`
 }

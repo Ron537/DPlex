@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] — 2026-07-29
+
+### Features
+
+- New "Session error" notification: if an AI session stops because of an error (auth, quota, rate limit, or a dropped connection), you now get a distinct alert instead of a misleading "finished" one.
+
+### Improvements
+
+- Desktop notifications now show a clear, color-coded icon for each kind — a bell for approval requests, a chat bubble for input, a green check when an agent finishes, and a red warning for errors — and the titles are cleaner.
+- Fewer false "Agent finished" alerts: notifications now wait a moment to confirm a session has truly stopped, so an agent that keeps working no longer pings you prematurely.
+- Cancelling a session (Ctrl-C) no longer pops a "finished" notification.
+- Sessions that hand off to background helpers no longer notify "finished" until all the work is actually done.
+- Focusing a session's tab now clears its finished or error alert automatically.
+
+### Bug Fixes
+
+- Notifications no longer show the app logo twice on macOS.
+
 ## [0.33.1] — 2026-07-27
 
 ### Performance
@@ -698,7 +716,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.33.1...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/Ron537/DPlex/compare/v0.33.1...v0.34.0
 [0.33.1]: https://github.com/Ron537/DPlex/compare/v0.33.0...v0.33.1
 [0.33.0]: https://github.com/Ron537/DPlex/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/Ron537/DPlex/compare/v0.31.1...v0.32.0

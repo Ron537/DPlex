@@ -14,10 +14,11 @@ export interface SpaceAttention {
   waitingForApproval: number
   waitingForInput: number
   finished: number
-  /** Sum of the three counts above. */
+  error: number
+  /** Sum of the counts above. */
   total: number
-  /** Highest-priority kind present (approval > input > finished), for the
-   *  ring / badge color. Null when the space needs no attention. */
+  /** Highest-priority kind present (approval > input > error > finished), for
+   *  the ring / badge color. Null when the space needs no attention. */
   topKind: AttentionKind | null
 }
 
@@ -25,6 +26,7 @@ export const EMPTY_SPACE_ATTENTION: SpaceAttention = {
   waitingForApproval: 0,
   waitingForInput: 0,
   finished: 0,
+  error: 0,
   total: 0,
   topKind: null
 }
@@ -34,7 +36,8 @@ export const EMPTY_SPACE_ATTENTION: SpaceAttention = {
 const ATTENTION_KIND_LABEL: Record<AttentionKind, string> = {
   waitingForApproval: 'Needs approval',
   waitingForInput: 'Waiting for you',
-  finished: 'Finished'
+  finished: 'Finished',
+  error: 'Error'
 }
 
 export function attentionKindLabel(kind: AttentionKind, lower = false): string {
@@ -42,15 +45,17 @@ export function attentionKindLabel(kind: AttentionKind, lower = false): string {
   return lower ? label.toLowerCase() : label
 }
 
-/** Highest-priority attention kind present, approval > input > finished.
+/** Highest-priority attention kind present, approval > input > error > finished.
  *  Null when nothing needs attention. Single source of the ordering ladder. */
 export function pickTopKind(
   waitingForApproval: number,
   waitingForInput: number,
-  finished: number
+  finished: number,
+  error: number
 ): AttentionKind | null {
   if (waitingForApproval > 0) return 'waitingForApproval'
   if (waitingForInput > 0) return 'waitingForInput'
+  if (error > 0) return 'error'
   if (finished > 0) return 'finished'
   return null
 }
@@ -82,16 +87,18 @@ export function aggregateAttention(
   let waitingForApproval = 0
   let waitingForInput = 0
   let finished = 0
+  let error = 0
   for (const e of events) {
     if (e.suppressed) continue
     if (!ids.has(e.compositeId)) continue
     if (e.kind === 'waitingForApproval') waitingForApproval += 1
     else if (e.kind === 'waitingForInput') waitingForInput += 1
     else if (e.kind === 'finished') finished += 1
+    else if (e.kind === 'error') error += 1
   }
-  const total = waitingForApproval + waitingForInput + finished
-  const topKind = pickTopKind(waitingForApproval, waitingForInput, finished)
-  return { waitingForApproval, waitingForInput, finished, total, topKind }
+  const total = waitingForApproval + waitingForInput + finished + error
+  const topKind = pickTopKind(waitingForApproval, waitingForInput, finished, error)
+  return { waitingForApproval, waitingForInput, finished, error, total, topKind }
 }
 
 /** Roll up attention for a single space from its own session tabs. Reads the

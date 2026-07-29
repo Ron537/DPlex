@@ -14,16 +14,18 @@ import type { AttentionEvent, AttentionKind } from '../../../../preload/attentio
 const KIND_LABEL: Record<AttentionKind, string> = {
   waitingForApproval: 'Waiting for approval',
   waitingForInput: 'Waiting for input',
-  finished: 'Finished'
+  finished: 'Finished',
+  error: 'Error'
 }
 
 const KIND_COLOR: Record<AttentionKind, string> = {
   waitingForApproval: 'var(--dplex-status-approval)',
   waitingForInput: 'var(--dplex-status-waiting)',
-  finished: 'var(--dplex-status-thinking)'
+  finished: 'var(--dplex-status-thinking)',
+  error: 'var(--dplex-status-approval)'
 }
 
-const KIND_ORDER: AttentionKind[] = ['waitingForApproval', 'waitingForInput', 'finished']
+const KIND_ORDER: AttentionKind[] = ['waitingForApproval', 'waitingForInput', 'error', 'finished']
 
 function formatAge(since: number): string {
   const ms = Date.now() - since
@@ -64,6 +66,7 @@ export function AttentionBellButton(): React.JSX.Element {
   const grouped: Record<AttentionKind, AttentionEvent[]> = {
     waitingForApproval: [],
     waitingForInput: [],
+    error: [],
     finished: []
   }
   for (const e of visible) grouped[e.kind].push(e)

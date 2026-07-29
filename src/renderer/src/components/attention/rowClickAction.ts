@@ -22,7 +22,7 @@ export function decideRowClickAction(
   kind: AttentionKind,
   clickClearsWaiting: boolean
 ): RowClickAction {
-  if (kind === 'finished') return 'acknowledge'
+  if (kind === 'finished' || kind === 'error') return 'acknowledge'
   if (clickClearsWaiting) return 'dismiss'
   return 'none'
 }

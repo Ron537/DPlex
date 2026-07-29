@@ -49,6 +49,7 @@ export function useBackgroundAttention(): BackgroundAttention {
     let approval = 0
     let input = 0
     let finished = 0
+    let error = 0
     let spacesNeedingAttention = 0
     for (const s of spaces) {
       if (s.id === activeSpaceId) continue
@@ -57,9 +58,10 @@ export function useBackgroundAttention(): BackgroundAttention {
       approval += a.waitingForApproval
       input += a.waitingForInput
       finished += a.finished
+      error += a.error
     }
-    const total = approval + input + finished
-    const topKind = pickTopKind(approval, input, finished)
+    const total = approval + input + finished + error
+    const topKind = pickTopKind(approval, input, finished, error)
     return { total, topKind, spacesNeedingAttention }
   }, [events, spaces, activeSpaceId])
 }

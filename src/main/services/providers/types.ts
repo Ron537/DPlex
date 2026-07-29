@@ -13,12 +13,22 @@ export type SessionStatus =
   | 'awaitingApproval'
   | 'waitingForUser'
 
+/**
+ * Why a session most recently became idle. Lets the attention layer tell a
+ * genuine completion apart from a user cancel (Ctrl-C) or a model/API error,
+ * without inventing extra `SessionStatus` values that would ripple through the
+ * session-list visuals. `undefined` while the session is not idle.
+ */
+export type TerminalReason = 'completed' | 'aborted' | 'error'
+
 /** Data extracted from incremental event parsing. */
 export interface ParsedSessionData {
   detailedStatus: SessionStatus
   messageCount: number
   toolCallCount: number
   lastActivityTime: number
+  /** Set when `detailedStatus` is `idle`; describes how the turn ended. */
+  terminalReason?: TerminalReason
 }
 
 /** A single user prompt extracted from a session. */
@@ -45,6 +55,8 @@ export interface DiscoveredSession {
   cwd?: string
   summary?: string
   detailedStatus?: SessionStatus
+  /** How the turn ended, when `detailedStatus` is `idle` (completed/aborted/error). */
+  terminalReason?: TerminalReason
   branch?: string
   messageCount?: number
   toolCallCount?: number

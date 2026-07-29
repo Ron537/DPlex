@@ -14,7 +14,10 @@ vi.mock('electron', () => ({
 
 import * as attentionService from '../../src/main/services/attentionService'
 
-function session(status: SessionStatus): DiscoveredSession {
+function session(
+  status: SessionStatus,
+  terminalReason?: DiscoveredSession['terminalReason']
+): DiscoveredSession {
   return {
     id: 'session-1',
     aiTool: 'copilot-cli',
@@ -22,7 +25,8 @@ function session(status: SessionStatus): DiscoveredSession {
     detailedStatus: status,
     displayName: 'Session 1',
     createdAt: '2024-01-01T00:00:00.000Z',
-    updatedAt: '2024-01-01T00:00:00.000Z'
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    terminalReason
   }
 }
 
@@ -65,12 +69,18 @@ describe('attentionService', () => {
     expect(snapshot.active[0].suppressed).toBe(false)
   })
 
-  it('emits finished events and acknowledgeAll clears them', () => {
+  it('emits finished events after the settle window and acknowledgeAll clears them', () => {
     attentionService.ingestSessionUpdate(session('idle'))
     attentionService.ingestSessionUpdate(session('thinking'))
     attentionService.ingestSessionUpdate(session('idle'))
 
+    // Finished is deferred by the settle window — nothing yet.
     let snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(0)
+
+    vi.advanceTimersByTime(4000)
+
+    snapshot = attentionService.currentSnapshot()
     expect(snapshot.active).toHaveLength(1)
     expect(snapshot.active[0].kind).toBe('finished')
 
@@ -79,6 +89,112 @@ describe('attentionService', () => {
     snapshot = attentionService.currentSnapshot()
     expect(snapshot.active).toHaveLength(0)
     expect(snapshot.unreadCount).toBe(0)
+  })
+
+  it('cancels a pending finished event when the session resumes work', () => {
+    attentionService.ingestSessionUpdate(session('idle'))
+    attentionService.ingestSessionUpdate(session('thinking'))
+    attentionService.ingestSessionUpdate(session('idle'))
+
+    // Resume work before the settle window elapses.
+    attentionService.ingestSessionUpdate(session('thinking'))
+    vi.advanceTimersByTime(4000)
+
+    const snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(0)
+    expect(snapshot.unreadCount).toBe(0)
+  })
+
+  it('suppresses finished when the turn ended via a user abort', () => {
+    attentionService.ingestSessionUpdate(session('idle'))
+    attentionService.ingestSessionUpdate(session('thinking'))
+    attentionService.ingestSessionUpdate(session('idle', 'aborted'))
+
+    vi.advanceTimersByTime(4000)
+
+    const snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(0)
+    expect(snapshot.unreadCount).toBe(0)
+  })
+
+  it('emits an error event after the settle window when the turn ended with an error', () => {
+    attentionService.ingestSessionUpdate(session('idle'))
+    attentionService.ingestSessionUpdate(session('thinking'))
+    attentionService.ingestSessionUpdate(session('idle', 'error'))
+
+    // Deferred like "finished" — nothing until the settle window elapses.
+    let snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(0)
+
+    vi.advanceTimersByTime(4000)
+
+    snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(1)
+    expect(snapshot.active[0].kind).toBe('error')
+    expect(snapshot.unreadCount).toBe(1)
+  })
+
+  it('cancels a pending error when the session recovers and keeps working', () => {
+    attentionService.ingestSessionUpdate(session('idle'))
+    attentionService.ingestSessionUpdate(session('thinking'))
+    attentionService.ingestSessionUpdate(session('idle', 'error'))
+    // CLI recovers and resumes work before the settle window elapses.
+    attentionService.ingestSessionUpdate(session('executingTool'))
+
+    vi.advanceTimersByTime(4000)
+
+    const snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(0)
+    expect(snapshot.unreadCount).toBe(0)
+  })
+
+  it('cancels a pending finished when a late abort arrives while already idle', () => {
+    attentionService.ingestSessionUpdate(session('idle'))
+    attentionService.ingestSessionUpdate(session('thinking'))
+    // Working → idle(completed) schedules a finished event.
+    attentionService.ingestSessionUpdate(session('idle', 'completed'))
+    // A late abort arrives while still idle — must cancel the pending finished.
+    attentionService.ingestSessionUpdate(session('idle', 'aborted'))
+
+    vi.advanceTimersByTime(4000)
+
+    const snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(0)
+    expect(snapshot.unreadCount).toBe(0)
+  })
+
+  it('emits an error event when a late error arrives while already idle', () => {
+    attentionService.ingestSessionUpdate(session('idle'))
+    attentionService.ingestSessionUpdate(session('thinking'))
+    attentionService.ingestSessionUpdate(session('idle', 'completed'))
+    attentionService.ingestSessionUpdate(session('idle', 'error'))
+
+    vi.advanceTimersByTime(4000)
+
+    const snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(1)
+    expect(snapshot.active[0].kind).toBe('error')
+  })
+
+  it('surfaces an error and clears a stale waiting event on waiting → idle+error', () => {
+    attentionService.ingestSessionUpdate(session('idle'))
+    attentionService.ingestSessionUpdate(session('waitingForUser'))
+
+    let snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active[0].kind).toBe('waitingForInput')
+
+    // Session errors out while still showing a waiting event.
+    attentionService.ingestSessionUpdate(session('idle', 'error'))
+
+    // The stale waiting event must be gone immediately (not left on the bell).
+    snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(0)
+
+    // And the error must still surface after the settle window.
+    vi.advanceTimersByTime(4000)
+    snapshot = attentionService.currentSnapshot()
+    expect(snapshot.active).toHaveLength(1)
+    expect(snapshot.active[0].kind).toBe('error')
   })
 
   it('escalates stale waiting events when idle sweeper runs past threshold', () => {
