@@ -630,6 +630,7 @@ export abstract class BaseSessionProvider implements SessionProvider {
   private hasSessionChanged(prev: DiscoveredSession, next: DiscoveredSession): boolean {
     return (
       prev.detailedStatus !== next.detailedStatus ||
+      prev.terminalReason !== next.terminalReason ||
       prev.status !== next.status ||
       prev.messageCount !== next.messageCount ||
       prev.toolCallCount !== next.toolCallCount ||

@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import type { DiscoveredSession, SessionStatus } from './providers/types'
+import type { DiscoveredSession, SessionStatus, TerminalReason } from './providers/types'
 import type { AttentionEvent, AttentionKind, AttentionSnapshot } from '../../preload/attentionTypes'
 import { makeCompositeId } from '../../preload/attentionTypes'
 
@@ -17,6 +17,8 @@ interface SessionState {
   sessionId: string
   displayName: string
   currentStatus: SessionStatus
+  /** Last terminal reason seen while idle (completed/aborted/error). */
+  currentTerminalReason: TerminalReason | undefined
   activeEvent: AttentionEvent | null
   activeSince: number
   escalated: boolean
@@ -30,6 +32,16 @@ const HISTORY_CAP = 50
 
 let version = 0
 let idleThresholdMs = 5 * 60 * 1000
+
+/**
+ * Grace period before a working→idle transition is surfaced as "finished".
+ * Copilot CLI autonomous flows flap turn_end→turn_start (~90% of turn_end
+ * events continue within milliseconds), so we defer the notification and cancel
+ * it if the session resumes work. The filesystem-watch debounce absorbs most
+ * sub-second flapping; this catches the longer-tail continuations.
+ */
+let finishedSettleMs = 4000
+const finishedTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
 type SnapshotListener = (snapshot: AttentionSnapshot) => void
 type NewEventListener = (event: AttentionEvent) => void
@@ -67,6 +79,55 @@ export function onEscalation(cb: NewEventListener): () => void {
 export function setIdleThresholdMinutes(minutes: number): void {
   const ms = Math.max(1, Math.floor(minutes)) * 60 * 1000
   idleThresholdMs = ms
+}
+
+/** Configurable "finished" settle window (milliseconds). 0 disables it. */
+export function setFinishedSettleMs(ms: number): void {
+  finishedSettleMs = Math.max(0, Math.floor(ms))
+}
+
+function clearFinishedTimer(compositeId: string): void {
+  const t = finishedTimers.get(compositeId)
+  if (t) {
+    clearTimeout(t)
+    finishedTimers.delete(compositeId)
+  }
+}
+
+/** Emit a fresh terminal (finished/error) event for a session. */
+function emitTerminalEvent(s: SessionState, kind: 'finished' | 'error'): void {
+  if (s.activeEvent) clearActiveEvent(s, /* keepInHistory */ true)
+  const evt = makeEvent(s, kind, false)
+  s.activeEvent = evt
+  s.activeSince = evt.createdAt
+  s.escalated = false
+  bump()
+  for (const cb of newEventListeners) cb(evt)
+}
+
+/**
+ * Defer a terminal (finished/error) emission by the settle window. Cancelled by
+ * {@link clearFinishedTimer} if the session leaves idle before it fires — so a
+ * turn that flaps back to work (or a `session.error` the CLI immediately
+ * recovers from) never surfaces a false notification.
+ */
+function scheduleTerminal(compositeId: string, kind: 'finished' | 'error'): void {
+  clearFinishedTimer(compositeId)
+  if (finishedSettleMs <= 0) {
+    const s = state.get(compositeId)
+    if (s) emitTerminalEvent(s, kind)
+    return
+  }
+  const timer = setTimeout(() => {
+    finishedTimers.delete(compositeId)
+    const s = state.get(compositeId)
+    // Only fire if still idle and no higher-priority (waiting) event took the slot.
+    if (!s || s.currentStatus !== 'idle') return
+    if (s.activeEvent && !isTerminalKind(s.activeEvent.kind)) return
+    emitTerminalEvent(s, kind)
+  }, finishedSettleMs)
+  if (timer.unref) timer.unref()
+  finishedTimers.set(compositeId, timer)
 }
 
 function statusToKind(status: SessionStatus): AttentionKind | null {
@@ -158,6 +219,7 @@ export function ingestSessionUpdate(session: DiscoveredSession): void {
       sessionId,
       displayName: session.displayName || sessionId,
       currentStatus: newStatus,
+      currentTerminalReason: newStatus === 'idle' ? session.terminalReason : undefined,
       activeEvent: null,
       activeSince: now(),
       escalated: false,
@@ -173,7 +235,13 @@ export function ingestSessionUpdate(session: DiscoveredSession): void {
   s.displayName = session.displayName || s.displayName
 
   const prevStatus = s.currentStatus
-  if (prevStatus === newStatus) return
+  const prevTerminalReason = s.currentTerminalReason
+  const terminalReason = newStatus === 'idle' ? session.terminalReason : undefined
+  s.currentTerminalReason = terminalReason
+  // Ignore no-op updates. A terminal-reason change while already idle (e.g. a
+  // late abort/error arriving after a "completed" that scheduled a finished
+  // timer) is a real transition we must still process.
+  if (prevStatus === newStatus && prevTerminalReason === terminalReason) return
   s.currentStatus = newStatus
 
   const newKind = statusToKind(newStatus)
@@ -182,30 +250,51 @@ export function ingestSessionUpdate(session: DiscoveredSession): void {
   const hadSuppression = s.suppressedUntilTransition
   s.suppressedUntilTransition = false
 
-  // Idle/finished → working again: clear any lingering "finished" event so
-  // the bell/badge don't show stale attention for a session that resumed work.
+  // Leaving idle cancels a pending "finished" settle timer.
+  if (newStatus !== 'idle') clearFinishedTimer(compositeId)
+
+  // Idle/finished → working again: clear any lingering terminal (finished/error)
+  // event so the bell/badge don't show stale attention for a resumed session.
   if (!isWorkingStatus(prevStatus) && isWorkingStatus(newStatus)) {
-    if (s.activeEvent && s.activeEvent.kind === 'finished') {
+    if (s.activeEvent && (s.activeEvent.kind === 'finished' || s.activeEvent.kind === 'error')) {
       clearActiveEvent(s, /* keepInHistory */ true)
       bump()
     }
     return
   }
 
-  // Working → idle: emit "finished" unless currently showing a waiting event
-  // (shouldn't happen because waiting states are not "working", but guard).
-  if (isWorkingStatus(prevStatus) && newStatus === 'idle') {
-    // Clear any stale waiting event first (shouldn't exist, but be safe).
-    if (s.activeEvent && s.activeEvent.kind !== 'finished') {
-      clearActiveEvent(s, /* keepInHistory */ true)
+  // Transition INTO idle — classify how the turn ended.
+  if (newStatus === 'idle') {
+    if (terminalReason === 'aborted') {
+      // User-initiated cancel (Ctrl-C / denied approval): no notification.
+      clearFinishedTimer(compositeId)
+      if (s.activeEvent) {
+        clearActiveEvent(s, /* keepInHistory */ true)
+        bump()
+      }
+      return
     }
-    const evt = makeEvent(s, 'finished', false)
-    s.activeEvent = evt
-    s.activeSince = evt.createdAt
-    s.escalated = false
-    bump()
-    for (const cb of newEventListeners) cb(evt)
-    return
+    if (terminalReason === 'error') {
+      // Defer like "finished": if the CLI recovers and keeps working, the
+      // leaving-idle transition cancels this before it surfaces a false error.
+      // Clear any stale non-terminal (waiting) event first — otherwise the
+      // settle timer's higher-priority guard would see it and drop the error,
+      // leaving the bell stuck on "waiting" for an idle, errored session.
+      if (s.activeEvent && !isTerminalKind(s.activeEvent.kind)) {
+        clearActiveEvent(s, /* keepInHistory */ true)
+        bump()
+      }
+      scheduleTerminal(compositeId, 'error')
+      return
+    }
+    // Genuine completion from a working state → "finished" (after settle).
+    if (isWorkingStatus(prevStatus)) {
+      if (s.activeEvent && s.activeEvent.kind !== 'finished') {
+        clearActiveEvent(s, /* keepInHistory */ true)
+      }
+      scheduleTerminal(compositeId, 'finished')
+      return
+    }
   }
 
   // Transition INTO a waiting state
@@ -221,9 +310,9 @@ export function ingestSessionUpdate(session: DiscoveredSession): void {
     return
   }
 
-  // Transition OUT OF a waiting state (any → non-waiting, non-finished path)
+  // Transition OUT OF a waiting state (any → non-waiting, non-terminal path)
   if (statusToKind(prevStatus) && !newKind) {
-    if (s.activeEvent && s.activeEvent.kind !== 'finished') {
+    if (s.activeEvent && s.activeEvent.kind !== 'finished' && s.activeEvent.kind !== 'error') {
       clearActiveEvent(s, /* keepInHistory */ true)
       bump()
     }
@@ -253,6 +342,7 @@ export function seedDiscoveredSession(session: DiscoveredSession): void {
     sessionId,
     displayName: session.displayName || sessionId,
     currentStatus,
+    currentTerminalReason: currentStatus === 'idle' ? session.terminalReason : undefined,
     activeEvent: null,
     activeSince: now(),
     escalated: false,
@@ -291,6 +381,7 @@ export function addDiscoveredSession(session: DiscoveredSession): void {
     sessionId,
     displayName: session.displayName || sessionId,
     currentStatus,
+    currentTerminalReason: currentStatus === 'idle' ? session.terminalReason : undefined,
     activeEvent: null,
     activeSince: now(),
     escalated: false,
@@ -308,20 +399,25 @@ export function addDiscoveredSession(session: DiscoveredSession): void {
   }
 }
 
-/** Acknowledge the active event for a composite id (only clears `finished`). */
+/** Terminal event kinds cleared by an explicit acknowledge (click). */
+function isTerminalKind(kind: AttentionKind): boolean {
+  return kind === 'finished' || kind === 'error'
+}
+
+/** Acknowledge the active event for a composite id (only clears terminal kinds). */
 export function acknowledge(compositeId: string): void {
   const s = state.get(compositeId)
   if (!s || !s.activeEvent) return
-  if (s.activeEvent.kind !== 'finished') return
+  if (!isTerminalKind(s.activeEvent.kind)) return
   clearActiveEvent(s, /* keepInHistory */ true)
   bump()
 }
 
-/** Acknowledge all `finished` events (the only kind auto-ack applies to). */
+/** Acknowledge all terminal (finished/error) events — the only auto-ack kinds. */
 export function acknowledgeAll(): void {
   let changed = false
   for (const s of state.values()) {
-    if (s.activeEvent && s.activeEvent.kind === 'finished') {
+    if (s.activeEvent && isTerminalKind(s.activeEvent.kind)) {
       clearActiveEvent(s, /* keepInHistory */ true)
       changed = true
     }
@@ -345,6 +441,7 @@ export function dismiss(compositeId: string): void {
 export function forgetSession(compositeId: string): void {
   const s = state.get(compositeId)
   if (!s) return
+  clearFinishedTimer(compositeId)
   if (s.activeEvent) pushHistory(s.activeEvent)
   state.delete(compositeId)
   bump()
@@ -358,6 +455,7 @@ export function forgetSessionsByBareId(sessionId: string): string[] {
   const removed: string[] = []
   for (const [cid, s] of state.entries()) {
     if (s.sessionId === sessionId) {
+      clearFinishedTimer(cid)
       if (s.activeEvent) pushHistory(s.activeEvent)
       state.delete(cid)
       removed.push(cid)
@@ -412,6 +510,9 @@ export function __resetForTests(): void {
   history.length = 0
   version = 0
   idleThresholdMs = 5 * 60 * 1000
+  finishedSettleMs = 4000
+  for (const t of finishedTimers.values()) clearTimeout(t)
+  finishedTimers.clear()
   snapshotListeners.clear()
   newEventListeners.clear()
   escalationListeners.clear()

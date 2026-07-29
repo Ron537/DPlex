@@ -203,4 +203,193 @@ describe('copilotEventsParser', () => {
     const result = await parseCopilotEvents(eventsFile)
     expect(result.detailedStatus).toBe('awaitingApproval')
   })
+
+  it('suppresses idle while a sub-agent is outstanding and resumes on completion', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      { type: 'user.message', data: { content: 'go' }, timestamp: '2024-01-01T00:00:01.000Z' },
+      {
+        type: 'subagent.started',
+        data: { toolCallId: 'sub-1' },
+        timestamp: '2024-01-01T00:00:02.000Z'
+      },
+      { type: 'assistant.turn_end', timestamp: '2024-01-01T00:00:03.000Z' }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    // Main turn ended but the sub-agent is still running → not idle yet.
+    const gated = await parseCopilotEvents(eventsFile)
+    expect(gated.detailedStatus).toBe('thinking')
+    expect(gated.terminalReason).toBeUndefined()
+
+    await fsp.appendFile(
+      eventsFile,
+      JSON.stringify({
+        type: 'subagent.completed',
+        data: { toolCallId: 'sub-1' },
+        timestamp: '2024-01-01T00:00:04.000Z'
+      }) + '\n',
+      'utf-8'
+    )
+
+    const done = await parseCopilotEvents(eventsFile)
+    expect(done.detailedStatus).toBe('idle')
+    expect(done.terminalReason).toBe('completed')
+  })
+
+  it('treats session.shutdown as authoritative even with an outstanding sub-agent', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      { type: 'user.message', data: { content: 'go' }, timestamp: '2024-01-01T00:00:01.000Z' },
+      {
+        type: 'subagent.started',
+        data: { toolCallId: 'orphan-3' },
+        timestamp: '2024-01-01T00:00:02.000Z'
+      },
+      // Session ends while the sub-agent never reported completion.
+      { type: 'session.shutdown', timestamp: '2024-01-01T00:00:03.000Z' }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    const result = await parseCopilotEvents(eventsFile)
+    expect(result.detailedStatus).toBe('idle')
+    expect(result.terminalReason).toBe('completed')
+  })
+
+  it('self-heals when a sub-agent never reports completion', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      { type: 'user.message', data: { content: 'go' }, timestamp: '2024-01-01T00:00:01.000Z' },
+      {
+        type: 'subagent.started',
+        data: { toolCallId: 'orphan-1' },
+        timestamp: '2024-01-01T00:00:02.000Z'
+      },
+      // Main turn ends while the (never-completing) sub-agent is outstanding.
+      { type: 'assistant.turn_end', timestamp: '2024-01-01T00:00:03.000Z' }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    const gated = await parseCopilotEvents(eventsFile)
+    expect(gated.detailedStatus).toBe('thinking')
+
+    // A later turn-end more than the age bound (10 min) after the orphan start
+    // must evict it and let the session report idle again.
+    await fsp.appendFile(
+      eventsFile,
+      JSON.stringify({
+        type: 'assistant.turn_end',
+        timestamp: '2024-01-01T00:15:00.000Z'
+      }) + '\n',
+      'utf-8'
+    )
+
+    const healed = await parseCopilotEvents(eventsFile)
+    expect(healed.detailedStatus).toBe('idle')
+    expect(healed.terminalReason).toBe('completed')
+  })
+
+  it('clears outstanding sub-agents when the session restarts', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      { type: 'user.message', data: { content: 'go' }, timestamp: '2024-01-01T00:00:01.000Z' },
+      {
+        type: 'subagent.started',
+        data: { toolCallId: 'orphan-2' },
+        timestamp: '2024-01-01T00:00:02.000Z'
+      },
+      { type: 'assistant.turn_end', timestamp: '2024-01-01T00:00:03.000Z' }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    const gated = await parseCopilotEvents(eventsFile)
+    expect(gated.detailedStatus).toBe('thinking')
+
+    // A resume clears the orphan; the next turn-end then reports idle normally.
+    await fsp.appendFile(
+      eventsFile,
+      [
+        { type: 'session.resume', timestamp: '2024-01-01T00:01:00.000Z' },
+        { type: 'user.message', data: { content: 'again' }, timestamp: '2024-01-01T00:01:01.000Z' },
+        { type: 'assistant.turn_end', timestamp: '2024-01-01T00:01:02.000Z' }
+      ]
+        .map((event) => `${JSON.stringify(event)}\n`)
+        .join(''),
+      'utf-8'
+    )
+
+    const healed = await parseCopilotEvents(eventsFile)
+    expect(healed.detailedStatus).toBe('idle')
+    expect(healed.terminalReason).toBe('completed')
+  })
+
+  it('marks the turn as aborted when the user cancels', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      { type: 'user.message', data: { content: 'go' }, timestamp: '2024-01-01T00:00:01.000Z' },
+      {
+        type: 'tool.execution_start',
+        data: { toolName: 'bash' },
+        timestamp: '2024-01-01T00:00:02.000Z'
+      },
+      { type: 'abort', data: { reason: 'user_initiated' }, timestamp: '2024-01-01T00:00:03.000Z' }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    const result = await parseCopilotEvents(eventsFile)
+    expect(result.detailedStatus).toBe('idle')
+    expect(result.terminalReason).toBe('aborted')
+  })
+
+  it('keeps the aborted reason when session.shutdown trails the abort', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      { type: 'user.message', data: { content: 'go' }, timestamp: '2024-01-01T00:00:01.000Z' },
+      { type: 'abort', data: { reason: 'user_initiated' }, timestamp: '2024-01-01T00:00:02.000Z' },
+      { type: 'session.shutdown', timestamp: '2024-01-01T00:00:03.000Z' }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    const result = await parseCopilotEvents(eventsFile)
+    expect(result.detailedStatus).toBe('idle')
+    expect(result.terminalReason).toBe('aborted')
+  })
+
+  it('marks the turn as errored on session.error', async () => {
+    const events = [
+      { type: 'session.start', timestamp: '2024-01-01T00:00:00.000Z' },
+      { type: 'user.message', data: { content: 'go' }, timestamp: '2024-01-01T00:00:01.000Z' },
+      {
+        type: 'session.error',
+        data: { error: 'rate_limit' },
+        timestamp: '2024-01-01T00:00:02.000Z'
+      }
+    ]
+      .map((event) => `${JSON.stringify(event)}\n`)
+      .join('')
+
+    await fsp.writeFile(eventsFile, events, 'utf-8')
+
+    const result = await parseCopilotEvents(eventsFile)
+    expect(result.detailedStatus).toBe('idle')
+    expect(result.terminalReason).toBe('error')
+  })
 })

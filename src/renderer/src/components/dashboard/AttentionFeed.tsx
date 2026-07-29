@@ -26,14 +26,20 @@ const KIND_META: Record<
     Icon: CheckCircle2,
     color: 'var(--dplex-status-success)',
     verb: 'finished its turn'
+  },
+  error: {
+    Icon: AlertTriangle,
+    color: 'var(--dplex-status-approval)',
+    verb: 'stopped due to an error'
   }
 }
 
-/** Sort order: approval → input → finished, then most-recent first. */
+/** Sort order: approval → input → error → finished, then most-recent first. */
 const KIND_RANK: Record<AttentionKind, number> = {
   waitingForApproval: 0,
   waitingForInput: 1,
-  finished: 2
+  error: 2,
+  finished: 3
 }
 
 /** Live feed of sessions that need the user, straight from the attention inbox. */

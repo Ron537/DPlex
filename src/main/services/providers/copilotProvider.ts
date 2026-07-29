@@ -80,6 +80,7 @@ export class CopilotProvider extends BaseSessionProvider {
         summary: displayName,
         branch: workspace.branch,
         detailedStatus: parsed?.detailedStatus ?? 'idle',
+        terminalReason: parsed?.terminalReason,
         messageCount: parsed?.messageCount ?? 0,
         toolCallCount: parsed?.toolCallCount ?? 0,
         lastActivityTime: parsed?.lastActivityTime ?? eventsMtimeMs
@@ -386,6 +387,7 @@ export class CopilotProvider extends BaseSessionProvider {
       return {
         ...base,
         detailedStatus: parsed?.detailedStatus ?? 'idle',
+        terminalReason: parsed?.terminalReason,
         messageCount: Math.max(parsed?.messageCount ?? 0, base.messageCount ?? 0),
         toolCallCount: parsed?.toolCallCount ?? 0,
         lastActivityTime: parsed?.lastActivityTime ?? base.lastActivityTime,

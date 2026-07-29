@@ -1,7 +1,10 @@
 import { BrowserWindow, Notification, nativeImage } from 'electron'
 import type { NativeImage } from 'electron'
 import type { AttentionEvent, AttentionKind } from '../../preload/attentionTypes'
-import iconAsset from '../../../resources/icon.png?asset'
+import approvalIcon from '../../../resources/notifications/approval.png?asset'
+import inputIcon from '../../../resources/notifications/input.png?asset'
+import finishedIcon from '../../../resources/notifications/finished.png?asset'
+import errorIcon from '../../../resources/notifications/error.png?asset'
 
 /**
  * Thin Electron-Notification renderer driven by attentionService events.
@@ -18,16 +21,30 @@ function cooldownKey(compositeId: string, kind: AttentionKind): string {
   return `${compositeId}:${kind}`
 }
 
-let cachedIcon: NativeImage | null = null
-function getNotificationIcon(): NativeImage | undefined {
-  if (!cachedIcon) {
+/**
+ * Concrete, color-coded badge per notification kind. On macOS this is shown as
+ * the notification's content image (right side; the app's bundle icon still
+ * shows on the left); on Windows/Linux it's the main notification icon.
+ */
+const KIND_ICON_PATH: Record<AttentionKind, string> = {
+  waitingForApproval: approvalIcon,
+  waitingForInput: inputIcon,
+  finished: finishedIcon,
+  error: errorIcon
+}
+
+const kindIconCache = new Map<AttentionKind, NativeImage>()
+function getKindIcon(kind: AttentionKind): NativeImage | undefined {
+  let img = kindIconCache.get(kind)
+  if (!img) {
     try {
-      cachedIcon = nativeImage.createFromPath(iconAsset)
+      img = nativeImage.createFromPath(KIND_ICON_PATH[kind])
     } catch {
       return undefined
     }
+    kindIconCache.set(kind, img)
   }
-  return cachedIcon.isEmpty() ? undefined : cachedIcon
+  return img.isEmpty() ? undefined : img
 }
 
 interface NotificationSettings {
@@ -103,6 +120,9 @@ function isKindEnabled(kind: AttentionKind): boolean {
       return settings.notifyOnInput
     case 'finished':
       return settings.notifyOnFinished
+    case 'error':
+      // Errors are important and rare — always surfaced when notifications are on.
+      return true
   }
 }
 
@@ -164,11 +184,13 @@ export function setActiveCompositeId(id: string | null): void {
 function kindTitle(kind: AttentionKind, escalated: boolean): string {
   switch (kind) {
     case 'waitingForApproval':
-      return escalated ? 'DPlex: Still waiting for approval' : 'DPlex: Approval requested'
+      return escalated ? 'Still waiting for approval' : 'Approval requested'
     case 'waitingForInput':
-      return escalated ? 'DPlex: Still waiting for input' : 'DPlex: Waiting for input'
+      return escalated ? 'Still waiting for input' : 'Waiting for input'
     case 'finished':
-      return 'DPlex: Agent finished'
+      return 'Agent finished'
+    case 'error':
+      return 'Session error'
   }
 }
 
@@ -181,6 +203,8 @@ function kindBody(ev: AttentionEvent): string {
       return `"${name}" is waiting for your input`
     case 'finished':
       return `"${name}" has finished responding`
+    case 'error':
+      return `"${name}" stopped due to an error`
   }
 }
 
@@ -222,7 +246,10 @@ export function handleAttentionEvent(ev: AttentionEvent): void {
     title: kindTitle(ev.kind, ev.escalated),
     body: kindBody(ev),
     silent: !settings.sound,
-    icon: getNotificationIcon()
+    // Concrete per-kind badge. On macOS this is the right-side content image
+    // (the app's bundle icon still shows on the left); on Windows/Linux it's
+    // the main notification icon.
+    icon: getKindIcon(ev.kind)
   })
 
   // Replace any prior live notification for this session — only one at a time.
