@@ -18,6 +18,8 @@ abide by its terms.
   not just the proposed solution.
 - **New AI provider plugins** — DPlex is designed to be extensible.
   See the [Adding a new provider](#adding-a-new-ai-provider) section.
+- **Themes** — follow the [theme contribution guide](./docs/themes.md)
+  to add a coordinated UI and terminal palette.
 - **Pull requests** — for non-trivial changes, please open an issue to
   discuss the approach first so nobody does wasted work.
 - **Docs, typos, examples** — always welcome.
