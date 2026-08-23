@@ -45,7 +45,7 @@ jobs:
         os: [macos-latest, windows-2022, ubuntu-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -142,7 +142,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Generate categorized notes
         id: notes
