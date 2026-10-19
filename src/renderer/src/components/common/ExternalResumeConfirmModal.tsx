@@ -105,8 +105,11 @@ export function ExternalResumeConfirmModal(): React.JSX.Element | null {
           <button
             ref={confirmRef}
             type="button"
-            className="px-3 py-1.5 text-[12px] rounded text-white"
-            style={{ backgroundColor: 'var(--dplex-accent, #2563eb)' }}
+            className="px-3 py-1.5 text-[12px] rounded"
+            style={{
+              backgroundColor: 'var(--dplex-accent)',
+              color: 'var(--dplex-accent-fg)'
+            }}
             onClick={confirm}
             data-testid="external-resume-confirm"
           >

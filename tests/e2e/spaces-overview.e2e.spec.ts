@@ -15,7 +15,7 @@ import { closeApp, launchApp } from './support/electronApp'
  *
  * The fix moves scrolling to a wrapper (the grid is now natural-height, so rows
  * size to content), restores per-row equal heights via the default stretch, and
- * renders the hover actions as a right-pinned overlay that never overflows.
+ * keeps footer actions in normal flow so they wrap rather than being clipped.
  *
  * These tests assert, against the real rendered app, that no two cards overlap,
  * that every card's Resume button stays within the card bounds, and that cards
@@ -204,5 +204,127 @@ test.describe('Spaces Overview layout', () => {
     expect(unequalRows, `rows with unequal card heights: ${JSON.stringify(unequalRows)}`).toEqual(
       []
     )
+  })
+
+  test('card actions are visible at rest and keyboard management does not resume the space', async () => {
+    if (!window) throw new Error('Window not available')
+    const card = window.getByTestId('space-card-a')
+    const resume = window.getByTestId('card-resume-a')
+    await expect(card).toBeVisible()
+    await window.mouse.move(0, 0)
+    expect(await resume.evaluate((el) => el.checkVisibility({ checkOpacity: true }))).toBe(true)
+    const rename = card.getByRole('button', { name: 'Rename Refactor auth' })
+    const remove = card.getByRole('button', { name: 'Delete Refactor auth' })
+    expect(await rename.evaluate((el) => el.checkVisibility({ checkOpacity: true }))).toBe(true)
+    expect(await remove.evaluate((el) => el.checkVisibility({ checkOpacity: true }))).toBe(true)
+
+    await window.keyboard.press('Tab')
+    await card.focus()
+    await expect(card).toHaveCSS('outline-style', 'solid')
+    await expect(rename).toHaveCSS('opacity', '1')
+    await rename.focus()
+    await window.keyboard.press('Enter')
+    await expect(
+      window.getByPlaceholder('e.g. Ship OAuth, Fix flaky tests, Perf pass')
+    ).toHaveValue('Refactor auth')
+    await expect(window.getByTestId('space-switcher-button')).toHaveCount(0)
+    await window.keyboard.press('Escape')
+    await expect(card).toBeVisible()
+  })
+
+  test('workspace search and attention filters show matching spaces without switching', async () => {
+    if (!window) throw new Error('Window not available')
+    const search = window.getByRole('textbox', { name: 'Find a space' })
+    await search.fill('  REFACTOR  ')
+    await expect(window.getByTestId('space-card-a')).toBeVisible()
+    await expect(window.locator('[data-testid^="space-card-"]')).toHaveCount(1)
+    await search.fill('No such workspace')
+    await expect(window.getByRole('status')).toContainText('No spaces match your search.')
+    await window.getByRole('button', { name: 'Show all spaces' }).click()
+    await expect(search).toHaveValue('')
+    await expect(window.locator('[data-testid^="space-card-"]')).toHaveCount(6)
+    await window.getByRole('button', { name: 'Needs attention 0', exact: true }).click()
+    await expect(window.getByRole('status')).toContainText('No spaces need your attention.')
+    await expect(window.getByTestId('space-switcher-button')).toHaveCount(0)
+    await window.getByRole('button', { name: 'Show all spaces' }).click()
+    await expect(window.getByTestId('space-card-a')).toBeVisible()
+  })
+
+  test('attention filter follows pending requests and excludes finished notifications', async () => {
+    if (!window) throw new Error('Window not available')
+    await window.evaluate(() => localStorage.setItem('dplex-demo', '1'))
+    await window.reload()
+    await expect(window.getByTestId('space-card-a')).toBeVisible()
+    await window.evaluate(() => {
+      const hatch = (
+        window as unknown as {
+          __dplex: {
+            attentionStore: { setState: (state: { active: unknown[] }) => void }
+          }
+        }
+      ).__dplex
+      hatch.attentionStore.setState({
+        active: [
+          {
+            compositeId: 'copilot-cli:sess-2',
+            providerId: 'copilot-cli',
+            sessionId: 'sess-2',
+            displayName: 'Session 2',
+            kind: 'waitingForApproval',
+            createdAt: Date.now(),
+            suppressed: false
+          }
+        ]
+      })
+    })
+    const filter = window.getByRole('button', { name: 'Needs attention 1', exact: true })
+    await filter.click()
+    await expect(window.locator('[data-testid^="space-card-"]')).toHaveCount(1)
+    await expect(window.getByTestId('space-card-a')).toBeVisible()
+    await window.evaluate(() => {
+      const hatch = (
+        window as unknown as {
+          __dplex: {
+            attentionStore: {
+              getState: () => { active: Array<Record<string, unknown>> }
+              setState: (state: { active: unknown[] }) => void
+            }
+          }
+        }
+      ).__dplex
+      hatch.attentionStore.setState({
+        active: hatch.attentionStore
+          .getState()
+          .active.map((event) => ({ ...event, kind: 'finished' }))
+      })
+    })
+    await expect(window.getByRole('status')).toContainText('No spaces need your attention.')
+    await window.getByRole('button', { name: 'Show all spaces' }).click()
+    await expect(window.getByTestId('space-card-a')).toContainText('1 done')
+  })
+
+  test('cards stay within a narrow workspace and respect reduced motion', async () => {
+    if (!window || !app) throw new Error('Window not available')
+    await window.emulateMedia({ reducedMotion: 'reduce' })
+    await resize(app, 800, 600)
+    // Widen the sidebar so the workspace is narrower than the usual card minimum.
+    await window.evaluate(async () => {
+      // @ts-expect-error: dplex is exposed by preload
+      await window.dplex.settings.merge({ sidebarWidth: 480 })
+    })
+    await window.reload()
+    const card = window.getByTestId('space-card-a')
+    await expect(card).toBeVisible()
+    await expect(card).toHaveCSS('animation-name', 'none')
+    const bounds = await card.boundingBox()
+    const viewportWidth = await window.evaluate(() => innerWidth)
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewportWidth)
+    const { overlaps, cards } = await measureLayout(window)
+    expect(overlaps).toEqual([])
+    expect(cards.filter((c) => c.resumeCut)).toEqual([])
+    await card.scrollIntoViewIfNeeded()
+    const before = await card.boundingBox()
+    await card.hover()
+    expect(await card.boundingBox()).toEqual(before)
   })
 })

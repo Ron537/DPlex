@@ -1,63 +1,64 @@
 @import 'tailwindcss';
 @import '@xterm/xterm/css/xterm.css';
+@import './mission-control.css';
 
-/* ============================================================
-   DPlex v2 — Design system root
-   - Token API stays backwards-compatible: every var name that
-     existed before still exists; new vars are added alongside.
-   - Real values are pushed at runtime by `applyCssVarsSync`
-     (settingsStore.ts) for the active theme. The `:root` block
-     below carries the v2 dark defaults so the app paints
-     correctly on the very first frame, before settings load.
-   - We deliberately avoid loading remote font files: the
-     Electron renderer's CSP doesn't permit it, and offline
-     usage must always work. The system font stack below picks
-     up Inter / SF Pro / Segoe UI when available and falls back
-     gracefully everywhere else.
-============================================================ */
+/* Bundled for consistent, offline typography. License: resources/licenses/IBM-Plex-Sans-OFL.txt. */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('./fonts/IBMPlexSans-Variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@theme inline {
+  --font-sans: var(--dplex-font-sans);
+}
+
+/* Initial paint matches the default theme; applyCssVarsSync supplies runtime values. */
 
 :root {
   color-scheme: dark;
 
-  /* Surfaces — v2 ramp */
-  --dplex-bg: #0a0a0c;
-  --dplex-bg-alt: #0f0f12;
-  --dplex-bg-panel: #0f0f12;
-  --dplex-bg-elev: #16161b;
-  --dplex-bg-elev-2: #1c1c23;
-  --dplex-bg-elev-3: #232329;
-  --dplex-bg-activity: #0f0f12;
-  --dplex-bg-input: #16161b;
-  --dplex-elevated: #16161b;
-  --dplex-elevated-2: #1c1c23;
-  --dplex-elevated-3: #232329;
+  /* Surfaces */
+  --dplex-bg: #101114;
+  --dplex-bg-alt: #15171b;
+  --dplex-bg-panel: #15171b;
+  --dplex-bg-elev: #1b1e23;
+  --dplex-bg-elev-2: #23272e;
+  --dplex-bg-elev-3: #2c3139;
+  --dplex-bg-activity: #101114;
+  --dplex-bg-input: #101216;
+  --dplex-elevated: #1b1e23;
+  --dplex-elevated-2: #23272e;
+  --dplex-elevated-3: #2c3139;
 
   /* Borders */
-  --dplex-border: rgba(255, 255, 255, 0.08);
-  --dplex-border-strong: rgba(255, 255, 255, 0.12);
-  --dplex-border-subtle: rgba(255, 255, 255, 0.05);
+  --dplex-border: rgba(173, 185, 204, 0.12);
+  --dplex-border-strong: rgba(173, 185, 204, 0.22);
+  --dplex-border-subtle: rgba(173, 185, 204, 0.075);
 
   /* Text ramp */
-  --dplex-text: #fafafa;
-  --dplex-text-2: #d4d4d8;
-  --dplex-text-muted: #a1a1aa;
-  --dplex-text-dim: #71717a;
-  --dplex-text-faint: #52525b;
+  --dplex-text: #eceef2;
+  --dplex-text-2: #cdd3dd;
+  --dplex-text-muted: #a2a9b6;
+  --dplex-text-dim: #8992a2;
+  --dplex-text-faint: #747e8e;
 
   /* Royal Blue accent (v2) */
-  --dplex-accent: #3b82f6;
+  --dplex-accent: #6698fa;
   --dplex-accent-2: #2563eb;
   --dplex-accent-3: #1d4ed8;
   --dplex-accent-alt: #22d3ee;
-  --dplex-accent-soft: rgba(59, 130, 246, 0.14);
-  --dplex-accent-softer: rgba(59, 130, 246, 0.07);
-  --dplex-accent-faint: rgba(59, 130, 246, 0.05);
-  --dplex-accent-ring: rgba(59, 130, 246, 0.32);
-  --dplex-accent-glow: rgba(59, 130, 246, 0.3);
-  --dplex-gradient: linear-gradient(135deg, #3b82f6 0%, #22d3ee 100%);
+  --dplex-accent-soft: rgba(102, 152, 250, 0.12);
+  --dplex-accent-softer: rgba(102, 152, 250, 0.06);
+  --dplex-accent-faint: rgba(102, 152, 250, 0.04);
+  --dplex-accent-ring: rgba(102, 152, 250, 0.28);
+  --dplex-accent-glow: rgba(102, 152, 250, 0.25);
+  --dplex-gradient: linear-gradient(135deg, #6698fa 0%, #22d3ee 100%);
   --dplex-gradient-soft: linear-gradient(
     135deg,
-    rgba(59, 130, 246, 0.15) 0%,
+    rgba(102, 152, 250, 0.15) 0%,
     rgba(34, 211, 238, 0.15) 100%
   );
 
@@ -75,20 +76,15 @@
   --dplex-status-error: #f87171;
   --dplex-status-info: #60a5fa;
   --dplex-status-error-strong: #dc2626;
-  --dplex-accent-fg: #0a0a0c;
+  --dplex-accent-fg: #101114;
 
   /* Hover / scrollbar */
   --dplex-hover: rgba(255, 255, 255, 0.05);
   --dplex-scrollbar: rgba(255, 255, 255, 0.1);
   --dplex-scrollbar-hover: rgba(255, 255, 255, 0.2);
 
-  /* Typography stacks. We use system fonts so the app stays fully
-     offline-capable. Inter / SF Pro will be picked up automatically
-     when present (they're shipped with macOS, modern Windows, and
-     most Linux desktops); the rest are graceful fallbacks. */
-  --dplex-font-sans:
-    'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Segoe UI Variable',
-    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* UI typography does not override the user's terminal/editor font. */
+  --dplex-font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --dplex-font-mono:
     'JetBrains Mono', 'SF Mono', 'SFMono-Regular', ui-monospace, Menlo, Consolas, 'Liberation Mono',
     monospace;
@@ -103,10 +99,12 @@
   --dplex-r-pill: 999px;
 
   /* Shadows */
-  --dplex-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.1);
-  --dplex-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
-  --dplex-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
-  --dplex-shadow-xl: 0 32px 80px rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.4);
+  --dplex-shadow-color: rgba(0, 0, 0, 0.32);
+  --dplex-shadow-sm: 0 2px 4px -2px var(--dplex-shadow-color);
+  --dplex-shadow-md: 0 8px 24px -8px var(--dplex-shadow-color);
+  --dplex-shadow-lg: 0 16px 48px -12px var(--dplex-shadow-color);
+  --dplex-shadow-xl: 0 24px 80px -16px var(--dplex-shadow-color);
+  --dplex-overlay: rgba(6, 8, 12, 0.64);
 }
 
 input[type='checkbox'],
@@ -167,9 +165,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.005em;
-  /* Enable Inter's stylistic alternates when present; harmless otherwise. */
-  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  letter-spacing: 0;
 }
 
 #root {
@@ -183,6 +179,85 @@ body {
 
 .no-drag {
   -webkit-app-region: no-drag;
+}
+
+:where(button, a, [role='button'], [role='tab']):focus-visible {
+  outline: 2px solid var(--dplex-accent);
+  outline-offset: 2px;
+}
+
+.dplex-input:focus,
+.dplex-settings :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--dplex-accent);
+  outline-offset: 2px;
+}
+
+.dplex-input::placeholder {
+  color: var(--dplex-text-dim);
+}
+
+.dplex-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 7px;
+  min-height: 34px;
+  padding: 6px 13px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: var(--dplex-accent);
+  color: var(--dplex-accent-fg);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px -4px var(--dplex-accent-ring);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.dplex-primary-button:hover {
+  background: color-mix(in srgb, var(--dplex-accent) 88%, var(--dplex-text));
+}
+
+.dplex-primary-button:focus-visible {
+  outline-offset: 3px;
+}
+
+.dplex-surface {
+  border: 1px solid var(--dplex-border);
+  border-radius: var(--dplex-r-lg);
+  background: var(--dplex-bg-elev);
+  box-shadow: var(--dplex-shadow-sm);
+}
+
+.dplex-activity-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+  border-radius: var(--dplex-r-md);
+  color: var(--dplex-text-dim);
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.dplex-activity-button:hover {
+  background: var(--dplex-hover);
+  color: var(--dplex-text);
+}
+
+.dplex-activity-button[aria-selected='true'] {
+  color: var(--dplex-accent);
+  background: var(--dplex-accent-soft);
+}
+
+.dplex-kpi:enabled:hover {
+  background: linear-gradient(var(--dplex-hover), var(--dplex-hover)), var(--dplex-bg-elev);
+  border-color: var(--dplex-border-strong);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -211,7 +286,6 @@ body {
 .split-view-view .sash-container .sash:hover {
   background-color: var(--dplex-accent);
   opacity: 0.6;
-  box-shadow: 0 0 8px var(--dplex-accent-glow);
 }
 
 /* Custom scrollbar styling */
@@ -269,7 +343,7 @@ body {
    which renders too dark on dark themes. Anchor it to a token so it
    remains visible on every theme without losing contrast hierarchy. */
 .dplex-palette-input::placeholder {
-  color: var(--dplex-text-faint);
+  color: var(--dplex-text-dim);
   opacity: 1;
 }
 
@@ -639,8 +713,7 @@ body {
   font-weight: 500;
 }
 
-/* Flat tab — VS Code-style. 36 px tall, 2 px accent stripe on active with
-   a soft glow that ties it into the v2 visual identity. */
+/* Flat tab with a precise active indicator. */
 .dplex-tab {
   display: flex;
   align-items: center;
@@ -673,7 +746,6 @@ body {
   right: 0;
   height: 2px;
   background: var(--dplex-accent);
-  box-shadow: 0 0 8px var(--dplex-accent-glow);
 }
 
 /* File-status badge used in the Git/Changes inspector. */
@@ -727,12 +799,13 @@ body {
    knows it's clickable. Kept here so the opacity transition can use
    `:hover` (Tailwind v4 arbitrary opacity-hover combos are clunky). */
 .recent-session-row {
-  opacity: 0.55;
+  opacity: 0.75;
   transition:
     opacity 120ms ease,
     background-color 120ms ease;
 }
-.recent-session-row:hover {
+.recent-session-row:hover,
+.recent-session-row:focus-within {
   opacity: 1;
   background: var(--dplex-hover);
 }
@@ -779,9 +852,11 @@ body {
 }
 
 @keyframes dplex-rise {
+  from {
+    opacity: 0;
+  }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
@@ -813,12 +888,41 @@ body {
   animation: dplex-space-ping 2s ease-in-out infinite;
 }
 
-/* Mission-control card entrance — staggered via inline --dplex-card-i. */
+/* Cards remain in place on hover; identity is carried by the avatar, not a glow. */
 .dplex-space-card {
-  opacity: 0;
-  transform: translateY(14px);
-  animation: dplex-rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
-  animation-delay: calc(var(--dplex-card-i, 0) * 55ms);
+  animation: dplex-rise 160ms ease-out;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+.dplex-space-card:hover,
+.dplex-space-card:focus-within {
+  border-color: var(--dplex-border-strong);
+}
+.dplex-space-card-new:hover {
+  background: var(--dplex-hover);
+}
+
+.dplex-settings-body {
+  container: settings / inline-size;
+}
+
+.dplex-settings-themes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@container settings (max-width: 540px) {
+  .dplex-settings-themes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container settings (max-width: 400px) {
+  .dplex-settings-themes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Uppercase field label used in the space modal. */
@@ -855,9 +959,16 @@ body {
   .dplex-pop,
   .dplex-slidein,
   .dplex-space-ping,
-  .dplex-space-card {
+  .dplex-space-card,
+  .dplex-status-dot-pulse,
+  .dplex-pill .dplex-pill-led,
+  .dplex-setting-pulse {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+  :is(.dplex-space-card, .dplex-activity-button, .dplex-primary-button, .dplex-switch),
+  .dplex-switch::after {
+    transition: none;
   }
 }

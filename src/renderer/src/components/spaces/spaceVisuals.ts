@@ -8,22 +8,6 @@ import {
 } from '../../types'
 import type { SpaceAttention } from '../../utils/spaceAttention'
 
-/** Darken (amt<0) or lighten (amt>0) a hex color by a flat channel offset. */
-export function shade(hex: string, amt: number): string {
-  let c = hex.replace('#', '')
-  if (c.length === 3)
-    c = c
-      .split('')
-      .map((x) => x + x)
-      .join('')
-  const n = parseInt(c, 16)
-  const clamp = (v: number): number => Math.max(0, Math.min(255, v))
-  const r = clamp((n >> 16) + amt)
-  const g = clamp(((n >> 8) & 255) + amt)
-  const b = clamp((n & 255) + amt)
-  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')
-}
-
 /** Up to two uppercase initials from a space name (for the avatar fallback). */
 export function spaceInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean)

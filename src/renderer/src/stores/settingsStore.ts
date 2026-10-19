@@ -97,6 +97,11 @@ export function applyCssVarsSync(themeId: string): void {
   // v2 palette: violet (thinking), cyan (executing), amber (approval),
   // orange (waiting), emerald (success/active), red (error).
   const isLight = theme.variant === 'light'
+  root.style.setProperty(
+    '--dplex-shadow-color',
+    isLight ? 'rgba(24,39,62,0.14)' : 'rgba(0,0,0,0.32)'
+  )
+  root.style.setProperty('--dplex-overlay', isLight ? 'rgba(24,32,48,0.28)' : 'rgba(6,8,12,0.64)')
   root.style.setProperty('--dplex-status-idle', isLight ? '#A1A1AA' : '#52525B')
   root.style.setProperty('--dplex-status-thinking', isLight ? '#7C3AED' : '#A78BFA')
   root.style.setProperty('--dplex-status-executing', isLight ? '#0891B2' : '#22D3EE')

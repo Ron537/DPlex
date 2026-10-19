@@ -21,19 +21,20 @@ export function EmptyState({
 }: EmptyStateProps): React.JSX.Element {
   return (
     <div
-      className="flex flex-col items-center justify-center text-center gap-2 px-4"
+      className="flex flex-col items-center justify-center text-center gap-3 px-4"
       style={{ minHeight }}
     >
       <span
         className="grid place-items-center rounded-xl"
         style={{
-          width: 38,
-          height: 38,
-          backgroundColor: 'var(--dplex-bg-elev-2)',
-          border: '1px solid var(--dplex-border)'
+          width: 48,
+          height: 48,
+          backgroundColor: 'var(--dplex-accent-softer)',
+          border: '1px solid var(--dplex-accent-ring)',
+          boxShadow: '0 0 0 7px var(--dplex-accent-faint)'
         }}
       >
-        <Icon size={18} style={{ color: 'var(--dplex-text-dim)' }} />
+        <Icon size={20} strokeWidth={1.4} style={{ color: 'var(--dplex-accent)' }} />
       </span>
       <div className="text-[13px] font-medium" style={{ color: 'var(--dplex-text-2)' }}>
         {title}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   X,
+  Check,
   Palette,
   Terminal,
   Bot,
@@ -137,12 +138,15 @@ function SettingItem({
   settingId?: string
 }): React.JSX.Element {
   return (
-    <div className="mb-5 last:mb-0" data-setting-id={settingId}>
-      <span className="block text-[11px] font-medium mb-0.5" style={{ color: 'var(--dplex-text)' }}>
+    <div className="mb-6 last:mb-0" data-setting-id={settingId}>
+      <span className="block text-[12px] font-medium mb-1" style={{ color: 'var(--dplex-text)' }}>
         {label}
       </span>
       {description && (
-        <p className="text-[10px] mb-2" style={{ color: 'var(--dplex-text-muted)' }}>
+        <p
+          className="text-[12px] leading-relaxed mb-2.5"
+          style={{ color: 'var(--dplex-text-muted)' }}
+        >
           {description}
         </p>
       )}
@@ -174,7 +178,7 @@ function ToggleRow({
       style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
     >
       <span
-        className="text-[11px] flex-1"
+        className="text-[12px] flex-1"
         style={{ color: 'var(--dplex-text)', opacity: disabled ? 0.5 : 1 }}
       >
         {label}
@@ -185,10 +189,7 @@ function ToggleRow({
 }
 
 /**
- * Compact theme swatch used in the Appearance picker. Shows a small
- * bg / bgAlt / accent / text preview strip and the theme name — deliberately
- * short so several rows of themes fit without pushing the settings below the
- * fold. Selected state uses the accent border + soft ring.
+ * Miniature workspace preview so users can compare surfaces and text contrast.
  */
 function ThemeTile({
   themeId,
@@ -206,7 +207,8 @@ function ThemeTile({
     <button
       onClick={onSelect}
       title={name}
-      className="flex flex-col p-1.5 rounded-lg transition-colors text-left"
+      aria-pressed={selected}
+      className="flex flex-col min-w-0 p-1.5 rounded-lg transition-colors text-left"
       style={{
         backgroundColor: 'var(--dplex-bg-alt)',
         border: '1px solid',
@@ -215,19 +217,49 @@ function ThemeTile({
       }}
     >
       <div
-        className="h-7 rounded-md flex overflow-hidden mb-1.5"
-        style={{ border: '1px solid var(--dplex-border)' }}
+        aria-hidden
+        className="h-12 rounded flex overflow-hidden mb-2"
+        style={{ border: `1px solid ${theme.ui.border}`, backgroundColor: theme.ui.bg }}
       >
-        <span className="flex-1" style={{ backgroundColor: theme.ui.bg }} />
-        <span className="flex-1" style={{ backgroundColor: theme.ui.bgAlt }} />
-        <span className="flex-1" style={{ backgroundColor: theme.ui.accent }} />
-        <span className="flex-1" style={{ backgroundColor: theme.ui.text }} />
+        <span
+          className="w-1/4 flex flex-col gap-1.5 p-2"
+          style={{ backgroundColor: theme.ui.bgAlt, borderRight: `1px solid ${theme.ui.border}` }}
+        >
+          <span className="h-1 rounded-sm" style={{ backgroundColor: theme.ui.accent }} />
+          <span
+            className="h-1 rounded-sm opacity-40"
+            style={{ backgroundColor: theme.ui.textMuted }}
+          />
+          <span
+            className="h-1 rounded-sm opacity-40"
+            style={{ backgroundColor: theme.ui.textMuted }}
+          />
+        </span>
+        <span className="flex-1 flex flex-col items-start gap-1.5 p-2.5">
+          <span className="w-2/3 h-1 rounded-sm" style={{ backgroundColor: theme.ui.accent }} />
+          <span
+            className="w-full h-1 rounded-sm opacity-60"
+            style={{ backgroundColor: theme.ui.text }}
+          />
+          <span
+            className="w-1/2 h-1 rounded-sm opacity-40"
+            style={{ backgroundColor: theme.ui.textMuted }}
+          />
+        </span>
       </div>
       <span
-        className="text-[11px] font-medium truncate px-0.5"
+        className="flex items-center justify-between gap-1 text-[11px] font-medium px-0.5"
         style={{ color: 'var(--dplex-text)' }}
       >
-        {name}
+        <span className="truncate">{name}</span>
+        {selected && (
+          <Check
+            size={12}
+            aria-hidden
+            className="flex-shrink-0"
+            style={{ color: 'var(--dplex-accent)' }}
+          />
+        )}
       </span>
     </button>
   )
@@ -345,33 +377,39 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="dplex-settings fixed inset-0 z-50 flex items-center justify-center p-6"
       data-testid="settings-modal"
-      style={{ backgroundColor: 'rgba(10,10,12,0.65)', backdropFilter: 'blur(8px)' }}
+      style={{ backgroundColor: 'var(--dplex-overlay)', backdropFilter: 'blur(4px)' }}
     >
       <div
-        className="rounded-2xl flex flex-col"
+        className="rounded-xl flex flex-col max-w-full max-h-full"
         style={{
           width: 900,
-          height: 560,
-          backgroundColor: 'var(--dplex-bg-panel)',
+          height: 620,
+          backgroundColor: 'var(--dplex-bg-elev)',
           border: '1px solid var(--dplex-border-strong)',
-          boxShadow: 'var(--dplex-shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04)'
+          boxShadow: 'var(--dplex-shadow-xl)'
         }}
       >
-        <div className="flex flex-1 min-h-0 overflow-hidden rounded-2xl">
+        <div className="flex flex-1 min-h-0 overflow-hidden rounded-xl">
           {/* Left rail — grouped navigation. Mirrors the preview's modal-side. */}
           <div
-            className="w-[220px] flex-shrink-0 px-3 py-4 flex flex-col gap-0.5"
+            className="w-[188px] flex-shrink-0 px-3 py-5 flex flex-col gap-0.5 overflow-y-auto"
             style={{
               backgroundColor: 'var(--dplex-bg-alt)',
               borderRight: '1px solid var(--dplex-border)'
             }}
           >
+            <div
+              className="px-2.5 mb-5 text-[15px] font-semibold"
+              style={{ color: 'var(--dplex-text)' }}
+            >
+              Settings
+            </div>
             {TAB_GROUPS.map((group, gi) => (
               <div key={group.title} className={gi > 0 ? 'mt-3' : ''}>
                 <h3
-                  className="text-[11px] font-semibold uppercase tracking-[0.08em] px-2.5 mb-1.5"
+                  className="text-[10px] font-medium uppercase tracking-[0.08em] px-2.5 mb-1.5"
                   style={{ color: 'var(--dplex-text-dim)' }}
                 >
                   {group.title}
@@ -385,11 +423,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                     <button
                       key={tabId}
                       onClick={() => setActiveTab(tabId)}
-                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors text-left"
+                      aria-pressed={isActive}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[12px] transition-colors text-left"
                       style={{
                         backgroundColor: isActive ? 'var(--dplex-accent-soft)' : 'transparent',
-                        color: isActive ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)',
-                        boxShadow: isActive ? 'inset 0 0 0 1px var(--dplex-accent-ring)' : undefined
+                        color: isActive ? 'var(--dplex-accent)' : 'var(--dplex-text-muted)'
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
@@ -416,12 +454,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
           {/* Right pane — head, body, foot. */}
           <div className="flex-1 min-w-0 flex flex-col">
             <div
-              className="flex items-start justify-between px-6 py-4 flex-shrink-0"
+              className="flex items-start justify-between gap-3 px-6 py-5 flex-shrink-0"
               style={{ borderBottom: '1px solid var(--dplex-border)' }}
             >
               <div>
                 <h2
-                  className="text-[16px] font-semibold m-0"
+                  className="text-[20px] tracking-tight font-semibold m-0"
                   style={{ color: 'var(--dplex-text)' }}
                 >
                   {TAB_HEADINGS[activeTab].title}
@@ -432,7 +470,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
               </div>
               <button
                 onClick={onClose}
-                className="p-1 hover:bg-[var(--dplex-hover)] rounded-md transition-colors"
+                className="p-1.5 flex-shrink-0 hover:bg-[var(--dplex-hover)] rounded-md transition-colors"
                 style={{ color: 'var(--dplex-text-muted)' }}
                 aria-label="Close settings"
               >
@@ -440,7 +478,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
               </button>
             </div>
 
-            <div className="flex-1 px-6 py-5 overflow-y-auto">
+            <div className="dplex-settings-body flex-1 px-6 py-5 overflow-y-auto">
               {activeTab === 'appearance' && (
                 <SettingItem label="Theme" settingId="theme">
                   <h4
@@ -449,7 +487,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                   >
                     Dark
                   </h4>
-                  <div className="grid grid-cols-4 gap-2 mb-3">
+                  <div className="dplex-settings-themes mb-5">
                     {darkThemes.map((t) => (
                       <ThemeTile
                         key={t.id}
@@ -466,7 +504,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
                   >
                     Light
                   </h4>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="dplex-settings-themes">
                     {lightThemes.map((t) => (
                       <ThemeTile
                         key={t.id}
@@ -1162,27 +1200,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps): React.JS
               <span className="text-[12px]" style={{ color: 'var(--dplex-text-dim)' }}>
                 Changes apply immediately
               </span>
-              <button
-                onClick={onClose}
-                className="inline-flex items-center gap-1.5 text-[12.5px] font-medium px-3.5 py-1.5 rounded-lg transition-transform"
-                style={{
-                  background: 'linear-gradient(180deg, var(--dplex-accent), var(--dplex-accent-2))',
-                  color: '#fff',
-                  border: 0,
-                  boxShadow:
-                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px var(--dplex-accent-glow)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                  e.currentTarget.style.boxShadow =
-                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 20px var(--dplex-accent-glow)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = ''
-                  e.currentTarget.style.boxShadow =
-                    '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px var(--dplex-accent-glow)'
-                }}
-              >
+              <button onClick={onClose} className="dplex-primary-button">
                 Done
               </button>
             </div>

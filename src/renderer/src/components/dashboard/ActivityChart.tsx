@@ -17,8 +17,6 @@ const PROVIDER_COLORS = [
   'var(--dplex-status-warning)'
 ]
 
-const PLOT_HEIGHT = 150
-
 function dayLabel(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { weekday: 'short' })
 }
@@ -54,83 +52,87 @@ export function ActivityChart({ overTime, providerSplit }: ActivityChartProps): 
   const tickEvery = Math.max(1, Math.ceil(n / 10))
 
   return (
-    <div>
-      <div className="flex items-end" style={{ height: PLOT_HEIGHT, gap }}>
-        {overTime.map((bucket) => {
-          const heightPct = (bucket.total / maxTotal) * 100
-          const onMove = (e: React.MouseEvent): void => {
-            tip.show(
-              e,
-              <span>
-                <b>{fullDate(bucket.dateMs)}</b> · {bucket.total} session
-                {bucket.total === 1 ? '' : 's'}
-                {bucket.total > 0 &&
-                  providerOrder
-                    .filter((pid) => (bucket.byProvider[pid] ?? 0) > 0)
-                    .map((pid) => (
-                      <span
-                        key={pid}
-                        style={{ display: 'block', color: 'var(--dplex-text-muted)' }}
-                      >
-                        {getLabel(pid)}: {bucket.byProvider[pid]}
-                      </span>
-                    ))}
-              </span>
-            )
-          }
-          return (
-            <div
-              key={bucket.dateMs}
-              className="flex-1 h-full flex flex-col justify-end min-w-0"
-              onMouseEnter={onMove}
-              onMouseMove={onMove}
-              onMouseLeave={tip.hide}
-            >
+    <div className="flex h-full flex-col">
+      <div className="relative flex-1 min-h-[150px]">
+        {/* Absolute bounds keep percentage bar heights definite even in a naturally sized card. */}
+        <div className="absolute inset-0 flex items-end" style={{ gap }}>
+          {overTime.map((bucket) => {
+            const heightPct = (bucket.total / maxTotal) * 100
+            const onMove = (e: React.MouseEvent): void => {
+              tip.show(
+                e,
+                <span>
+                  <b>{fullDate(bucket.dateMs)}</b> · {bucket.total} session
+                  {bucket.total === 1 ? '' : 's'}
+                  {bucket.total > 0 &&
+                    providerOrder
+                      .filter((pid) => (bucket.byProvider[pid] ?? 0) > 0)
+                      .map((pid) => (
+                        <span
+                          key={pid}
+                          style={{ display: 'block', color: 'var(--dplex-text-muted)' }}
+                        >
+                          {getLabel(pid)}: {bucket.byProvider[pid]}
+                        </span>
+                      ))}
+                </span>
+              )
+            }
+            return (
               <div
-                className="w-full flex flex-col justify-end rounded-t-[3px] overflow-hidden"
-                style={{ height: `${heightPct}%` }}
+                key={bucket.dateMs}
+                className="flex-1 h-full flex flex-col justify-end min-w-0"
+                onMouseEnter={onMove}
+                onMouseMove={onMove}
+                onMouseLeave={tip.hide}
               >
-                {bucket.total === 0 ? (
-                  <div
-                    className="w-full"
-                    style={{ height: 2, backgroundColor: 'var(--dplex-bg-elev-3)' }}
-                  />
-                ) : (
-                  providerOrder.map((pid) => {
-                    const v = bucket.byProvider[pid] ?? 0
-                    if (v <= 0) return null
-                    return (
-                      <div
-                        key={pid}
-                        style={{
-                          height: `${(v / bucket.total) * 100}%`,
-                          backgroundColor: colorFor.get(pid)
-                        }}
-                      />
-                    )
-                  })
-                )}
+                <div
+                  data-activity-bar
+                  className="w-full flex flex-col justify-end rounded-t-[3px] overflow-hidden"
+                  style={{ height: `${heightPct}%` }}
+                >
+                  {bucket.total === 0 ? (
+                    <div
+                      className="w-full"
+                      style={{ height: 2, backgroundColor: 'var(--dplex-bg-elev-3)' }}
+                    />
+                  ) : (
+                    providerOrder.map((pid) => {
+                      const v = bucket.byProvider[pid] ?? 0
+                      if (v <= 0) return null
+                      return (
+                        <div
+                          key={pid}
+                          style={{
+                            height: `${(v / bucket.total) * 100}%`,
+                            backgroundColor: colorFor.get(pid)
+                          }}
+                        />
+                      )
+                    })
+                  )}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
       {/* Dedicated x-axis row — labels sit under the bars, never over them. */}
-      <div className="flex mt-1.5" style={{ gap }}>
+      <div className="flex flex-shrink-0 mt-1.5" style={{ gap }} data-testid="activity-chart-axis">
         {overTime.map((bucket, i) => (
           <span
             key={bucket.dateMs}
-            className="flex-1 text-center font-mono min-w-0 truncate"
+            className="flex-1 text-center font-mono min-w-0 whitespace-nowrap"
             style={{ fontSize: 9, color: 'var(--dplex-text-faint)' }}
           >
-            {i % tickEvery === 0 ? dayLabel(bucket.dateMs) : ''}
+            {i % tickEvery === 0 && <span className="inline-block">{dayLabel(bucket.dateMs)}</span>}
           </span>
         ))}
       </div>
 
       <div
-        className="flex flex-wrap gap-4 mt-3 text-[11px] font-mono"
+        className="flex flex-wrap flex-shrink-0 gap-4 mt-3 text-[11px] font-mono"
         style={{ color: 'var(--dplex-text-muted)' }}
       >
         {providerOrder.map((pid) => (

@@ -418,10 +418,7 @@ export function SidePanel(): React.JSX.Element | null {
             style={{ borderBottom: '1px solid var(--dplex-border-subtle)' }}
           >
             <div className="flex items-center" style={{ height: 24 }}>
-              <span
-                className="text-[11px] font-bold uppercase tracking-wider"
-                style={{ color: 'var(--dplex-text-2)', letterSpacing: '0.08em' }}
-              >
+              <span className="text-[13px] font-semibold" style={{ color: 'var(--dplex-text)' }}>
                 {title}
               </span>
               <div className="ml-auto">{headerActions}</div>
@@ -448,24 +445,15 @@ export function SidePanel(): React.JSX.Element | null {
                     ? setProjectSearchQuery(e.target.value)
                     : setSearchQuery(e.target.value)
                 }
-                className="w-full text-[12.5px] outline-none transition-colors"
+                aria-label={activeTab === 'projects' ? 'Search projects' : 'Search sessions'}
+                className="dplex-input w-full text-[12px] outline-none"
                 style={{
                   backgroundColor: 'var(--dplex-bg-input)',
                   border: '1px solid var(--dplex-border)',
-                  borderRadius: 8,
+                  borderRadius: 6,
                   color: 'var(--dplex-text)',
-                  padding: '8px 32px',
+                  padding: '6px 48px 6px 30px',
                   fontFamily: 'inherit'
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--dplex-accent)'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px var(--dplex-accent-soft)'
-                  e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--dplex-border)'
-                  e.currentTarget.style.boxShadow = 'none'
-                  e.currentTarget.style.backgroundColor = 'var(--dplex-bg-input)'
                 }}
               />
               <kbd
@@ -474,8 +462,8 @@ export function SidePanel(): React.JSX.Element | null {
                   right: 8,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'var(--dplex-text-faint)',
-                  backgroundColor: 'var(--dplex-bg-elev-2)',
+                  color: 'var(--dplex-text-dim)',
+                  backgroundColor: 'var(--dplex-bg-panel)',
                   border: '1px solid var(--dplex-border-subtle)',
                   padding: '2px 5px',
                   borderRadius: 4,
