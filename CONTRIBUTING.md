@@ -114,6 +114,9 @@ and the command used to resume a session.
 - **Styling.** Tailwind utility classes, themed through
   `var(--dplex-*)` custom properties. Don't hardcode colors — they
   must adapt across light/dark themes.
+  UI text uses bundled IBM Plex Sans from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/ibmplexsans);
+  its OFL notice ships in `resources/licenses/IBM-Plex-Sans-OFL.txt`.
+  Keep fonts local so the app works offline; terminal/editor fonts remain user-configurable.
 - **Icons.** `lucide-react` exclusively.
 - **Cross-platform.** DPlex targets macOS, Windows, and Linux. No
   hardcoded path separators, shell invocations, or signals that only

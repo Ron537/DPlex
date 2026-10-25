@@ -135,7 +135,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
     <div
       className="flex items-center select-none"
       style={{
-        height: 36,
+        height: 40,
         backgroundColor: 'var(--dplex-bg-alt)',
         borderBottom: '1px solid var(--dplex-border-subtle)'
       }}
@@ -145,7 +145,15 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
       }}
       onDrop={handleTabBarDrop}
     >
-      <div className="flex items-center gap-0 overflow-x-auto no-scrollbar flex-1">
+      <div
+        className="dplex-tab-scroll flex items-center gap-0 overflow-x-auto flex-1 min-w-0"
+        onWheel={(e) => {
+          if (e.ctrlKey || e.deltaX !== 0 || e.deltaY === 0) return
+          const strip = e.currentTarget
+          const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? strip.clientWidth : 1
+          strip.scrollLeft += e.deltaY * unit
+        }}
+      >
         {group.tabs.map((tab, index) => {
           const isFileDiff = isFileDiffTab(tab)
           const isFileEditor = isFileEditorTab(tab)
@@ -169,7 +177,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               ? `${tabColor}38`
               : `${tabColor}1F`
             : isActive
-              ? 'var(--dplex-bg)'
+              ? 'var(--dplex-bg-elev-2)'
               : 'var(--dplex-bg-alt)'
           // Isolate mode hides non-matching tabs entirely; dim mode keeps them
           // visible but de-emphasized. Iterate the real `group.tabs` (returning
@@ -191,19 +199,14 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, index)}
               title={projectTitle ? `${tab.title} — ${projectTitle}` : undefined}
-              className={`group flex items-center gap-2 px-3.5 cursor-pointer text-[12.5px] transition-colors relative ${
+              className={`group flex items-center gap-2 px-3 cursor-pointer text-[12px] transition-colors relative ${
                 dragOverIndex === index ? 'border-l-2' : ''
               }`}
               style={{
-                height: 36,
-                // Active tab loses its right separator and is pulled 1px
-                // below the bar (and grows by 1px to keep its top edge
-                // aligned) so it covers the bar's bottom border directly
-                // beneath itself — the tab visually merges with the
-                // editor content below, like VS Code / browser tabs.
-                borderRight: isActive ? 'none' : '1px solid var(--dplex-border-subtle)',
-                marginBottom: isActive ? -1 : 0,
-                paddingBottom: isActive ? 1 : 0,
+                height: 28,
+                margin: '4px 2px',
+                borderRadius: 6,
+                boxShadow: isActive ? 'inset 0 0 0 1px var(--dplex-border-strong)' : undefined,
                 borderLeftColor: dragOverIndex === index ? 'var(--dplex-accent)' : 'transparent',
                 backgroundColor: tabBg,
                 color: isActive ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
@@ -228,21 +231,16 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                 setMenu({ tabId: tab.id, x: e.clientX, y: e.clientY })
               }}
             >
-              {/* Only the active tab gets the 2-px top stripe — flat VS Code
-                  style. It adopts the tab's chosen colour (falling back to the
-                  accent). Inactive tabs, coloured or not, carry no stripe; a
-                  coloured inactive tab is identified by its full-chip tint. */}
               {isActive && (
                 <span
                   aria-hidden
                   style={{
                     position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 2,
+                    bottom: 0,
+                    left: 10,
+                    right: 10,
+                    height: 1,
                     backgroundColor: tabColor ?? 'var(--dplex-accent)',
-                    boxShadow: `0 0 8px ${tabColor ? `${tabColor}66` : 'var(--dplex-accent-glow)'}`,
                     pointerEvents: 'none'
                   }}
                 />
@@ -313,7 +311,7 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   className="truncate max-w-[140px]"
                   style={{
                     fontStyle: isPreview ? 'italic' : undefined,
-                    fontWeight: isActive ? 600 : undefined
+                    fontWeight: isActive ? 500 : undefined
                   }}
                   data-testid="editor-tab-label"
                 >
@@ -325,19 +323,13 @@ export function GroupTabBar({ group, isActiveGroup }: GroupTabBarProps): React.J
                   e.stopPropagation()
                   requestCloseTab(tab.id)
                 }}
-                className={`rounded p-0.5 transition-all ml-0.5 ${
-                  isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                className={`rounded p-0.5 transition-opacity ml-0.5 hover:bg-[var(--dplex-hover)] ${
+                  isDirty || isActive
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
                 }`}
                 style={{ color: 'var(--dplex-text-dim)' }}
                 title={isDirty ? 'Unsaved changes — close' : 'Close'}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev-2)'
-                  e.currentTarget.style.color = 'var(--dplex-text)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                  e.currentTarget.style.color = 'var(--dplex-text-dim)'
-                }}
               >
                 {isDirty && (
                   <span

@@ -90,8 +90,8 @@ export function CommandPalette(): React.JSX.Element | null {
         if (e.target === e.currentTarget) close()
       }}
       style={{
-        backgroundColor: 'rgba(10,10,12,0.65)',
-        backdropFilter: 'blur(8px)',
+        backgroundColor: 'var(--dplex-overlay)',
+        backdropFilter: 'blur(4px)',
         paddingTop: '14vh'
       }}
       data-testid="command-palette"
@@ -99,7 +99,7 @@ export function CommandPalette(): React.JSX.Element | null {
       <div
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
-        className="w-full max-w-[680px] mx-4 rounded-xl overflow-hidden flex flex-col"
+        className="w-full max-w-[640px] mx-4 rounded-xl overflow-hidden flex flex-col"
         style={{
           backgroundColor: 'var(--dplex-bg-elev)',
           border: '1px solid var(--dplex-border-strong)',
@@ -130,11 +130,11 @@ export function CommandPalette(): React.JSX.Element | null {
             aria-controls={LIST_ID}
             aria-activedescendant={active}
             aria-autocomplete="list"
-            className="dplex-palette-input flex-1 bg-transparent outline-none"
+            className="dplex-palette-input flex-1 min-w-0 bg-transparent outline-none"
             style={{
               color: 'var(--dplex-text)',
               fontWeight: 400,
-              fontSize: 16,
+              fontSize: 15,
               lineHeight: 1.2,
               fontFamily: 'var(--dplex-font-sans)'
             }}

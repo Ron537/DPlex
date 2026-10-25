@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0] — 2026-10-19
+
+### Features
+
+- Search across your workspace directly from the title bar.
+- Find Spaces by name or filter to those that need your attention.
+
+### Improvements
+
+- A redesigned mission-control workspace with labeled navigation and clearer active tabs.
+- A new dashboard layout puts agent activity and decisions first, followed by workspace health and historical insights.
+- Richer Spaces cards show projects and session previews with always-visible management controls.
+- Refined dark and light themes, typography, keyboard focus, and reduced-motion support throughout the interface.
+- Settings fit smaller windows and show more useful theme previews.
+
+### Bug Fixes
+
+- The dashboard activity chart now fills its card instead of leaving unused space below the bars.
+
 ## [0.34.0] — 2026-07-29
 
 ### Features
@@ -716,7 +735,8 @@ AI-assisted development.
 - Eight built-in themes (dark and light variants).
 - Keyboard shortcuts for tabs, splits, sidebar, and settings.
 
-[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.34.0...HEAD
+[Unreleased]: https://github.com/Ron537/DPlex/compare/v0.35.0...HEAD
+[0.35.0]: https://github.com/Ron537/DPlex/compare/v0.34.0...v0.35.0
 [0.34.0]: https://github.com/Ron537/DPlex/compare/v0.33.1...v0.34.0
 [0.33.1]: https://github.com/Ron537/DPlex/compare/v0.33.0...v0.33.1
 [0.33.0]: https://github.com/Ron537/DPlex/compare/v0.32.0...v0.33.0

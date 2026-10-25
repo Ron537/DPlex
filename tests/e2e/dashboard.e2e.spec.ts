@@ -1,5 +1,6 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { closeApp, launchApp } from './support/electronApp'
+import type { DashboardMetrics } from '../../src/preload'
 
 /**
  * E2E coverage for the Overview Dashboard tab: the activity-bar entry opens
@@ -82,5 +83,133 @@ test.describe('DPlex dashboard', () => {
       'aria-pressed',
       'true'
     )
+  })
+
+  test('dense activity charts keep weekday labels readable', async () => {
+    if (!window || !app) throw new Error('Window not available')
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(1000, 720))
+    await window.getByTestId('activity-bar-dashboard').click()
+    await window.getByRole('button', { name: '90d', exact: true }).click()
+    await expect(window.getByText('last 90 days · by provider')).toBeVisible()
+    const axis = window.getByTestId('activity-chart-axis')
+    await expect(axis.locator('span > span').first()).toBeVisible()
+    const report = await axis.evaluate((el) => {
+      const labels = [...el.querySelectorAll<HTMLElement>(':scope > span > span')]
+      return labels.map((label, i) => {
+        const rect = label.getBoundingClientRect()
+        const previous = labels[i - 1]?.getBoundingClientRect()
+        return {
+          clipped: getComputedStyle(label.parentElement!).overflowX === 'hidden',
+          overlaps: previous ? previous.right > rect.left : false
+        }
+      })
+    })
+    expect(report.length).toBeGreaterThan(1)
+    expect(report.every((label) => !label.clipped && !label.overlaps)).toBe(true)
+  })
+
+  test('mission-control panels fit a narrow split without pushing outside the workspace', async () => {
+    if (!window || !app) throw new Error('Window not available')
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(1000, 720))
+    await window.getByTestId('activity-bar-dashboard').click()
+    await window.getByTitle('Split right', { exact: true }).first().click()
+    const page = window.locator('.dplex-mission-page').first()
+    await expect(page).toBeVisible()
+    expect(await page.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1)
+    const mainCards = page.locator('.dplex-mission-metrics > button')
+    await expect(mainCards).toHaveCount(4)
+    const rectangles = await mainCards.evaluateAll((elements) =>
+      elements.map((el) => ({
+        left: el.getBoundingClientRect().left,
+        width: el.getBoundingClientRect().width
+      }))
+    )
+    expect(new Set(rectangles.map((rect) => rect.left)).size).toBe(1)
+    expect(rectangles.every((rect) => rect.width > 120)).toBe(true)
+  })
+
+  test('activity bars fill a tall card and resize correctly when cards stack', async () => {
+    if (!window || !app) throw new Error('Window not available')
+    await window.evaluate(() => localStorage.setItem('dplex-demo', '1'))
+    await window.reload()
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(1400, 900))
+    await window.getByTestId('activity-bar-dashboard').click()
+    await expect(window.getByTestId('activity-chart-axis')).toBeVisible()
+    await window.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __dplex: {
+            dashboardStore: {
+              getState: () => { metrics: DashboardMetrics | null }
+              setState: (patch: { metrics: DashboardMetrics; dirty: boolean }) => void
+            }
+          }
+        }
+      ).__dplex.dashboardStore
+      const metrics = store.getState().metrics
+      if (!metrics) throw new Error('Dashboard metrics not loaded')
+      store.setState({
+        dirty: false,
+        metrics: {
+          ...metrics,
+          overTime: [2, 4, 0].map((total, i) => ({
+            dateMs: Date.now() - (2 - i) * 86_400_000,
+            total,
+            byProvider: { 'copilot-cli': total / 2, 'claude-code': total / 2 }
+          })),
+          providerSplit: [
+            { providerId: 'copilot-cli', sessions: 3 },
+            { providerId: 'claude-code', sessions: 3 }
+          ],
+          topRepos: Array.from({ length: 8 }, (_, i) => ({
+            repo: `chart-layout-repo-${i}`,
+            cwd: null,
+            sessions: 8 - i,
+            messages: 0,
+            toolCalls: 0,
+            lastActiveMs: Date.now(),
+            branches: ['main']
+          }))
+        }
+      })
+    })
+
+    const card = window.locator('.dplex-dashboard-card').filter({
+      has: window.getByRole('heading', { name: 'Session activity', exact: true })
+    })
+    const measure = (): Promise<{ height: number; barHeights: number[]; bottomGap: number }> =>
+      card.evaluate((el) => {
+        const chart = el.lastElementChild!.firstElementChild!
+        const plot = chart.firstElementChild!
+        const bars = plot.querySelectorAll<HTMLElement>('[data-activity-bar]')
+        const legend = chart.lastElementChild!
+        const style = getComputedStyle(el)
+        return {
+          height: plot.getBoundingClientRect().height,
+          barHeights: [...bars].map((bar) => bar.getBoundingClientRect().height),
+          bottomGap:
+            el.getBoundingClientRect().bottom -
+            parseFloat(style.paddingBottom) -
+            parseFloat(style.borderBottomWidth) -
+            legend.getBoundingClientRect().bottom
+        }
+      })
+    await card.scrollIntoViewIfNeeded()
+    await expect.poll(async () => (await measure()).height).toBeGreaterThan(300)
+    const wide = await measure()
+    expect(Math.abs(wide.bottomGap)).toBeLessThanOrEqual(2)
+    expect(wide.barHeights[0]).toBeCloseTo(wide.height / 2, 0)
+    expect(wide.barHeights[1]).toBeCloseTo(wide.height, 0)
+    expect(wide.barHeights[2]).toBe(0)
+    await card.screenshot({ path: test.info().outputPath('activity-chart-wide.png') })
+
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(800, 900))
+    await expect.poll(async () => (await measure()).height).toBeLessThan(wide.height)
+    const narrow = await measure()
+    expect(narrow.height).toBeGreaterThanOrEqual(150)
+    expect(Math.abs(narrow.bottomGap)).toBeLessThanOrEqual(2)
+    expect(narrow.barHeights[0]).toBeCloseTo(narrow.height / 2, 0)
+    expect(narrow.barHeights[1]).toBeCloseTo(narrow.height, 0)
+    await card.screenshot({ path: test.info().outputPath('activity-chart-narrow.png') })
   })
 })

@@ -3,6 +3,7 @@ import * as os from 'os'
 import * as path from 'path'
 import * as fs from 'fs/promises'
 import { closeApp, launchApp } from './support/electronApp'
+import { expectSolidContrast } from './support/contrast'
 
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
 
@@ -215,26 +216,29 @@ test.describe('DPlex file explorer', () => {
       .toContain('AUTO_SAVED_E2E')
   })
 
-  test('prompts to save a dirty tab when closing', async () => {
-    const win = await launch({ editorAutoSave: 'manual' })
-    if (!projectPath) throw new Error('Project not available')
-    await openExplorer(win, projectPath)
-    await openReadmeEditor(win)
+  for (const theme of ['dplex', 'dplex-light']) {
+    test(`prompts to save a dirty tab with readable confirmation (${theme})`, async () => {
+      const win = await launch({ editorAutoSave: 'manual', theme })
+      if (!projectPath) throw new Error('Project not available')
+      await openExplorer(win, projectPath)
+      await openReadmeEditor(win)
+      await expect(win.getByRole('textbox', { name: /Editor content/ })).toBeEditable()
 
-    await replaceEditorContent(win, 'CLOSE_SAVE_E2E\n')
-    await expect(win.getByText('Save •')).toBeVisible({ timeout: 5_000 })
+      await replaceEditorContent(win, 'CLOSE_SAVE_E2E\n')
+      await expect(win.getByText('Save •')).toBeVisible({ timeout: 5_000 })
 
-    // Close the dirty tab via its close button → confirm modal appears.
-    const tab = win.getByTestId('editor-tab-label').filter({ hasText: 'README.md' }).first()
-    await tab.hover()
-    await tab.locator('xpath=following-sibling::button[1]').click()
+      // Close the dirty tab via its close button → confirm modal appears.
+      const tab = win.getByTestId('editor-tab-label').filter({ hasText: 'README.md' }).first()
+      await tab.hover()
+      await tab.locator('xpath=following-sibling::button[1]').click()
 
-    await expect(win.getByTestId('close-confirm-save')).toBeVisible({ timeout: 5_000 })
-    await win.getByTestId('close-confirm-save').click()
+      await expectSolidContrast(win.getByTestId('close-confirm-save'))
+      await win.getByTestId('close-confirm-save').click()
 
-    await expect
-      .poll(() => fs.readFile(path.join(projectPath!, 'README.md'), 'utf8'), { timeout: 10_000 })
-      .toContain('CLOSE_SAVE_E2E')
-    await expect(tab).toHaveCount(0, { timeout: 5_000 })
-  })
+      await expect
+        .poll(() => fs.readFile(path.join(projectPath!, 'README.md'), 'utf8'), { timeout: 10_000 })
+        .toContain('CLOSE_SAVE_E2E')
+      await expect(tab).toHaveCount(0, { timeout: 5_000 })
+    })
+  }
 })

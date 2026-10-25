@@ -27,26 +27,18 @@ export function SpaceWelcome({ space }: { space: Space }): JSX.Element {
   const primaryProvider = providers.find((p) => p.id === defaultAITool) ?? providers[0]
 
   return (
-    <div
-      className="flex items-center justify-center h-full px-6 overflow-y-auto dplex-scroll-autohide"
-      style={{
-        backgroundImage:
-          'radial-gradient(ellipse 800px 400px at 50% 25%, var(--dplex-accent-faint) 0%, transparent 70%)'
-      }}
-    >
+    <div className="dplex-mission-page dplex-scroll-autohide">
       <div
-        className="flex flex-col items-center gap-6 text-center w-full"
-        style={{ maxWidth: 460 }}
+        className="flex flex-col items-center gap-7 text-center w-full mx-auto px-6 py-12"
+        style={{ maxWidth: 560 }}
       >
         <div className="flex flex-col items-center gap-3">
-          <SpaceAvatar space={space} size={56} />
+          <div className="dplex-welcome-emblem">
+            <SpaceAvatar space={space} size={56} radius={16} />
+          </div>
           <div className="flex flex-col gap-1.5">
-            <h1
-              className="text-[24px] font-semibold tracking-tight"
-              style={{ color: 'var(--dplex-text)', letterSpacing: '-0.02em' }}
-            >
-              {space.name}
-            </h1>
+            <span className="dplex-eyebrow justify-center">Ready when you are</span>
+            <h1 className="dplex-mission-title break-words">{space.name}</h1>
             <p
               className="text-[13.5px] leading-relaxed"
               style={{ color: 'var(--dplex-text-muted)' }}

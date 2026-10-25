@@ -231,7 +231,7 @@ function SpaceModalForm({
                           borderRadius: 5,
                           border: `1.5px solid ${selected ? 'var(--dplex-accent)' : 'var(--dplex-border-strong)'}`,
                           backgroundColor: selected ? 'var(--dplex-accent)' : 'transparent',
-                          color: selected ? '#fff' : 'transparent'
+                          color: selected ? 'var(--dplex-accent-fg)' : 'transparent'
                         }}
                       >
                         <Check size={10} strokeWidth={3} />
@@ -277,8 +277,8 @@ function SpaceModalForm({
               borderRadius: 10,
               fontSize: 12.5,
               fontWeight: 600,
-              color: '#fff',
-              background: 'linear-gradient(135deg, var(--dplex-accent), var(--dplex-accent-2))',
+              color: 'var(--dplex-accent-fg)',
+              background: 'var(--dplex-accent)',
               opacity: canSave ? 1 : 0.5,
               cursor: canSave ? 'pointer' : 'not-allowed',
               boxShadow: '0 8px 22px -10px var(--dplex-accent-glow)'

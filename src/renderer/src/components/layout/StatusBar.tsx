@@ -89,8 +89,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
                 width: 8,
                 height: 8,
                 borderRadius: '50%',
-                backgroundColor: activeSpace.color,
-                boxShadow: `0 0 6px color-mix(in srgb, ${activeSpace.color} 70%, transparent)`
+                backgroundColor: activeSpace.color
               }}
             />
           ) : (
@@ -114,8 +113,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps): React.JSX.Element
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                backgroundColor: 'var(--dplex-status-active)',
-                boxShadow: '0 0 6px var(--dplex-status-active)'
+                backgroundColor: 'var(--dplex-status-active)'
               }}
             />
             <span style={{ fontFamily: 'var(--dplex-font-mono)' }}>{activeSessionCount}</span>{' '}

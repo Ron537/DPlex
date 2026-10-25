@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import {
   Activity,
+  Radio,
   AlertTriangle,
   TrendingUp,
   Hammer,
@@ -130,31 +131,32 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
   }
 
   return (
-    <div className="h-full overflow-y-auto" style={{ backgroundColor: 'var(--dplex-bg)' }}>
-      <div className="@container max-w-[1200px] mx-auto px-6 py-6">
+    <div className="dplex-mission-page dplex-scroll-autohide">
+      <div className="dplex-mission-content">
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+        <div className="dplex-mission-heading">
           <div>
-            <h1
-              className="text-[22px] font-bold tracking-tight"
-              style={{ color: 'var(--dplex-text)' }}
-            >
-              Overview
-            </h1>
-            <p className="text-[13px] mt-0.5" style={{ color: 'var(--dplex-text-muted)' }}>
-              What&apos;s running, what needs you, and where you work.
+            <span className="dplex-eyebrow">
+              <Radio size={12} /> Mission control
+            </span>
+            <h1 className="dplex-mission-title">Overview</h1>
+            <p className="dplex-mission-subtitle">
+              Every agent. Every project. Your next decision, in focus.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span
-              className="text-[11px] font-mono uppercase tracking-wider hidden @md:inline"
+              className="text-[11px] hidden @md:inline"
               style={{ color: 'var(--dplex-text-dim)' }}
             >
               History
             </span>
             <div
-              className="flex items-center rounded-lg overflow-hidden"
-              style={{ border: '1px solid var(--dplex-border)' }}
+              className="flex items-center gap-0.5 p-0.5 rounded-lg overflow-hidden"
+              style={{
+                border: '1px solid var(--dplex-border)',
+                backgroundColor: 'var(--dplex-bg-panel)'
+              }}
               title="Time range for the historical cards (live cards are unaffected)"
             >
               {WINDOW_OPTIONS.map((d) => (
@@ -162,10 +164,11 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
                   key={d}
                   type="button"
                   onClick={() => setWindowDays(d)}
-                  className="px-2.5 py-1 text-[11px] font-mono transition-colors"
+                  aria-pressed={d === windowDays}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-medium tabular-nums transition-colors hover:bg-[var(--dplex-hover)]"
                   style={{
-                    color: d === windowDays ? 'var(--dplex-accent-fg)' : 'var(--dplex-text-muted)',
-                    backgroundColor: d === windowDays ? 'var(--dplex-accent)' : 'transparent'
+                    color: d === windowDays ? 'var(--dplex-text)' : 'var(--dplex-text-muted)',
+                    backgroundColor: d === windowDays ? 'var(--dplex-bg-elev-2)' : undefined
                   }}
                 >
                   {d}d
@@ -203,7 +206,7 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
         {/* KPI row (live). Container-query columns adapt to the dashboard
             PANE width (not the window), so KPIs never cram when the pane is
             narrow (split view, sidebar open): 1-up → 2-up → 4-up. */}
-        <div className="grid grid-cols-1 @md:grid-cols-2 @4xl:grid-cols-4 gap-3.5 mb-3.5">
+        <div className="dplex-mission-metrics">
           <KpiCard
             label="Active now"
             value={kpis.activeCount}
@@ -255,9 +258,35 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
           />
         </div>
 
+        <div className="dplex-section-heading">
+          <h2>Live operations</h2>
+          <span className="dplex-mission-live">Session activity</span>
+        </div>
+        <div className="grid grid-cols-1 @3xl:grid-cols-12 gap-4">
+          <DashboardCard
+            className="@3xl:col-span-7"
+            title="Needs attention"
+            meta="Your decision queue"
+          >
+            <AttentionFeed />
+          </DashboardCard>
+          <DashboardCard
+            className="@3xl:col-span-5"
+            title="Status right now"
+            meta="Across your sessions"
+          >
+            <StatusDonut counts={kpis.statusCounts} />
+          </DashboardCard>
+        </div>
+
+        <div className="dplex-section-heading">
+          <h2>Workspace health</h2>
+          <span>Keep work moving</span>
+        </div>
         {/* Housekeeping — actionable, live (no new data sources). */}
-        <div className="grid grid-cols-1 @md:grid-cols-2 @4xl:grid-cols-4 gap-3.5 mb-3.5">
+        <div className="dplex-mission-housekeeping">
           <KpiCard
+            compact
             label="Oldest awaiting you"
             value={
               housekeeping.oldestWaitingMs !== null
@@ -279,6 +308,7 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
             sub={housekeeping.oldestWaitingLabel ?? 'Nothing waiting'}
           />
           <KpiCard
+            compact
             label="Stale sessions"
             value={housekeeping.staleCount}
             unit={`quiet >${idleTooLongMinutes}m`}
@@ -294,6 +324,7 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
             }
           />
           <KpiCard
+            compact
             label="Longest active"
             value={
               housekeeping.longestActiveMs !== null
@@ -310,6 +341,7 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
             sub={housekeeping.longestActiveName ?? 'No active sessions'}
           />
           <KpiCard
+            compact
             label="Uncommitted"
             value={uncommittedTotal}
             unit="files"
@@ -323,9 +355,13 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
           />
         </div>
 
+        <div className="dplex-section-heading">
+          <h2>Your work, over time</h2>
+          <span>Last {windowDays} days</span>
+        </div>
         {/* Content grid — 12 columns once the pane is wide enough, otherwise
             every card stacks full-width. */}
-        <div className="grid grid-cols-1 @3xl:grid-cols-12 gap-3.5">
+        <div className="grid grid-cols-1 @3xl:grid-cols-12 gap-4">
           {/* Activity + status */}
           <DashboardCard
             className="@3xl:col-span-8"
@@ -338,13 +374,8 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
               <Placeholder loading={loading} />
             )}
           </DashboardCard>
-          <DashboardCard className="@3xl:col-span-4" title="Status right now" meta="live">
-            <StatusDonut counts={kpis.statusCounts} />
-          </DashboardCard>
-
-          {/* Top repos + attention */}
           <DashboardCard
-            className="@3xl:col-span-6"
+            className="@3xl:col-span-4"
             title="Repositories you use most"
             meta={`${windowDays}d · by sessions`}
           >
@@ -354,10 +385,6 @@ export function DashboardTabView({ isActive }: DashboardTabViewProps): React.JSX
               <Placeholder loading={loading} />
             )}
           </DashboardCard>
-          <DashboardCard className="@3xl:col-span-6" title="Needs attention" meta="live">
-            <AttentionFeed />
-          </DashboardCard>
-
           {/* Cadence + provider mix */}
           <DashboardCard className="@3xl:col-span-8" title="Your cadence">
             {m ? (

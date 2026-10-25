@@ -40,8 +40,7 @@ const ITEM_BY_ID: Record<ActivityBarId, ActivityItem> = {
   search: { label: 'Search', shortcut: `${MOD}${SHIFT}F`, Icon: Search }
 }
 
-// v2 rail — wider footprint for the larger active-state stripe + glow.
-const BAR_WIDTH = 56
+const BAR_WIDTH = 68
 
 interface ActivityBarProps {
   onOpenSettings: () => void
@@ -170,13 +169,13 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
     <div
       role="tablist"
       aria-label="Sidebar views"
-      className="flex flex-col items-center flex-shrink-0"
+      className="dplex-activity-rail flex flex-col items-center flex-shrink-0"
       style={{
         width: BAR_WIDTH,
         backgroundColor: 'var(--dplex-bg-activity)',
         borderRight: '1px solid var(--dplex-border-subtle)',
-        paddingTop: 12,
-        paddingBottom: 12
+        paddingTop: 8,
+        paddingBottom: 8
       }}
     >
       {/* Dashboard — an action (opens/focuses the dashboard tab), not a
@@ -188,31 +187,11 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
         title="Dashboard"
         onClick={() => openDashboard()}
         data-testid="activity-bar-dashboard"
-        className="relative grid place-items-center transition-colors"
-        style={{
-          width: 40,
-          height: 40,
-          marginBottom: 8,
-          borderRadius: 10,
-          color: dashboardActive ? 'var(--dplex-accent)' : 'var(--dplex-text-dim)',
-          backgroundColor: dashboardActive ? 'var(--dplex-accent-soft)' : 'transparent'
-        }}
-        onMouseEnter={(e) => {
-          if (!dashboardActive) {
-            e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
-            e.currentTarget.style.color = 'var(--dplex-text-2)'
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = dashboardActive
-            ? 'var(--dplex-accent-soft)'
-            : 'transparent'
-          e.currentTarget.style.color = dashboardActive
-            ? 'var(--dplex-accent)'
-            : 'var(--dplex-text-dim)'
-        }}
+        className="dplex-activity-button"
+        style={{ marginBottom: 8 }}
       >
         <LayoutDashboard size={18} strokeWidth={1.8} />
+        <span className="dplex-rail-label">Overview</span>
       </button>
       <div
         aria-hidden
@@ -254,30 +233,10 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
             onDrop={(e) => handleDrop(e, id)}
             onDragEnd={handleDragEnd}
             data-testid={`activity-bar-${id}`}
-            className="relative grid place-items-center transition-colors"
+            className="dplex-activity-button"
             style={{
-              width: 40,
-              height: 40,
-              marginBottom: 4,
-              borderRadius: 10,
               cursor: 'grab',
-              opacity: isDragging ? 0.4 : 1,
-              color: isActive ? 'var(--dplex-accent)' : 'var(--dplex-text-dim)',
-              backgroundColor: isActive ? 'var(--dplex-accent-soft)' : 'transparent'
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
-                e.currentTarget.style.color = 'var(--dplex-text-2)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = isActive
-                ? 'var(--dplex-accent-soft)'
-                : 'transparent'
-              e.currentTarget.style.color = isActive
-                ? 'var(--dplex-accent)'
-                : 'var(--dplex-text-dim)'
+              opacity: isDragging ? 0.4 : 1
             }}
           >
             {(showInsertBefore || showInsertAfter) && (
@@ -292,8 +251,7 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
                   borderRadius: 1,
                   top: showInsertBefore ? -3 : undefined,
                   bottom: showInsertAfter ? -3 : undefined,
-                  backgroundColor: 'var(--dplex-accent)',
-                  boxShadow: '0 0 8px var(--dplex-accent-glow)'
+                  backgroundColor: 'var(--dplex-accent)'
                 }}
               />
             )}
@@ -302,18 +260,18 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
                 aria-hidden
                 className="absolute"
                 style={{
-                  left: -8,
+                  left: -6,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  width: 3,
-                  height: 20,
+                  width: 2,
+                  height: 18,
                   borderRadius: '0 2px 2px 0',
-                  backgroundColor: 'var(--dplex-accent)',
-                  boxShadow: '0 0 12px var(--dplex-accent-glow)'
+                  backgroundColor: 'var(--dplex-accent)'
                 }}
               />
             )}
             <Icon size={18} strokeWidth={1.8} />
+            <span className="dplex-rail-label">{id === 'git' ? 'Changes' : label}</span>
             {badge && (
               <span
                 data-testid={`activity-bar-${id}-badge`}
@@ -411,24 +369,11 @@ export function ActivityBar({ onOpenSettings }: ActivityBarProps): React.JSX.Ele
         title={`Settings (${MOD},)`}
         onClick={onOpenSettings}
         data-testid="activity-bar-settings"
-        className="grid place-items-center transition-colors"
-        style={{
-          width: 40,
-          height: 40,
-          marginTop: 4,
-          borderRadius: 10,
-          color: 'var(--dplex-text-dim)'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--dplex-bg-elev)'
-          e.currentTarget.style.color = 'var(--dplex-text-2)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent'
-          e.currentTarget.style.color = 'var(--dplex-text-dim)'
-        }}
+        className="dplex-activity-button"
+        style={{ marginTop: 4 }}
       >
         <Settings size={18} strokeWidth={1.8} />
+        <span className="dplex-rail-label">Settings</span>
       </button>
     </div>
   )

@@ -12,9 +12,7 @@ import { GroupLayout } from '../terminal/GroupLayout'
 import { SettingsModal } from '../settings/SettingsModal'
 import { CloseConfirmModal } from '../common/CloseConfirmModal'
 import { ExternalResumeConfirmModal } from '../common/ExternalResumeConfirmModal'
-import { AttentionBellButton } from '../attention/AttentionBellButton'
-import { ProjectFocusControl } from './ProjectFocusControl'
-import { DPlexLogo } from '../common/DPlexLogo'
+import { AppTitleBar } from './AppTitleBar'
 import { SpaceSwitcher } from '../spaces/SpaceSwitcher'
 import { SpacesOverview } from '../spaces/SpacesOverview'
 import { SpaceWelcome } from '../spaces/SpaceWelcome'
@@ -256,35 +254,13 @@ export function AppLayout(): React.JSX.Element {
       className="flex flex-col h-screen overflow-hidden"
       style={{ backgroundColor: theme.ui.bg, color: theme.ui.text }}
     >
-      {/* macOS title bar / drag region — v2: gradient logo + name centered */}
-      <div
-        className="h-10 drag-region flex-shrink-0 flex items-center"
-        style={{
-          backgroundColor: 'var(--dplex-bg-panel)',
-          borderBottom: '1px solid var(--dplex-border-subtle)'
-        }}
-      >
-        <div className="w-[76px] flex-shrink-0" />
-        <div className="flex-1 flex items-center justify-center gap-2 pointer-events-none select-none">
-          <DPlexLogo size={18} flat />
-          <span
-            className="text-[11px] font-semibold"
-            style={{ color: 'var(--dplex-text-2)', letterSpacing: '0.02em' }}
-          >
-            DPlex
-          </span>
-        </div>
-        <div className="flex-shrink-0 flex items-center justify-end gap-2 pl-3 pr-2 no-drag">
-          <ProjectFocusControl />
-          <AttentionBellButton />
-        </div>
-      </div>
+      <AppTitleBar />
 
       <div className="flex flex-1 min-h-0">
         <ActivityBar onOpenSettings={() => setSettingsOpen(true)} />
         <SidePanel />
 
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="dplex-workspace-frame flex flex-col flex-1 min-w-0">
           {activeSpaceId === null ? (
             <div className="flex-1 min-w-0 min-h-0 relative">
               {/* Hold the Overview until Spaces have hydrated: rendering it

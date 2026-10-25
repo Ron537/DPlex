@@ -302,7 +302,6 @@ export function ProjectItem({
               width: 2,
               borderRadius: '0 2px 2px 0',
               backgroundColor: 'var(--dplex-accent)',
-              boxShadow: '0 0 8px var(--dplex-accent-glow)',
               pointerEvents: 'none'
             }}
           />
@@ -376,7 +375,7 @@ export function ProjectItem({
           {/* Line 1: project name */}
           <div className="flex items-center gap-1.5 min-w-0">
             <span
-              className="text-[13px] font-semibold truncate tracking-tight"
+              className="text-[12.5px] font-medium truncate"
               style={{ color: 'var(--dplex-text)' }}
             >
               {project.name}

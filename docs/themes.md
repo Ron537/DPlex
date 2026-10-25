@@ -84,7 +84,8 @@ every state color:
   thinking, executing, approval, waiting, success, warning, error, and
   informational states.
 - `variant` also selects the browser's native `color-scheme` and the
-  foreground used on accent-filled controls.
+  foreground used on accent-filled controls, plus theme-appropriate
+  overlay and shadow colors for dialogs and menus.
 
 Status colors are intentionally not part of `AppTheme`. Do not hardcode
 replacement status colors in components or add them to an individual

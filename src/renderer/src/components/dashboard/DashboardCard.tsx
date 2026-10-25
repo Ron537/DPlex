@@ -23,26 +23,13 @@ export function DashboardCard({
   action
 }: DashboardCardProps): React.JSX.Element {
   return (
-    <div
-      className={`rounded-xl p-4 min-w-0 flex flex-col ${className}`}
-      style={{
-        backgroundColor: 'var(--dplex-bg-elev)',
-        border: '1px solid var(--dplex-border)'
-      }}
-    >
+    <div className={`dplex-surface dplex-dashboard-card min-w-0 flex flex-col ${className}`}>
       {(title || meta || action) && (
-        <div className="flex items-center justify-between mb-3 gap-2">
-          {title && (
-            <h3
-              className="text-[14px] font-semibold truncate"
-              style={{ color: 'var(--dplex-text)' }}
-            >
-              {title}
-            </h3>
-          )}
-          <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="dplex-dashboard-card-head">
+          {title && <h3 style={{ color: 'var(--dplex-text)' }}>{title}</h3>}
+          <div className="flex items-center gap-2 min-w-0">
             {meta && (
-              <span className="text-[11px] font-mono" style={{ color: 'var(--dplex-text-dim)' }}>
+              <span className="text-[11px]" style={{ color: 'var(--dplex-text-dim)' }}>
                 {meta}
               </span>
             )}

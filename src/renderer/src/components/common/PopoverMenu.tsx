@@ -108,13 +108,14 @@ export function PopoverMenu({
       />
       <div
         ref={menuRef}
-        className={`fixed z-[1001] rounded-md shadow-xl py-1 ${className}`}
+        className={`fixed z-[1001] rounded-lg py-1 ${className}`}
         style={{
           top: pos.top,
           left: pos.left,
           visibility: pos.visibility,
-          backgroundColor: 'var(--dplex-bg)',
-          border: '1px solid var(--dplex-border)'
+          backgroundColor: 'var(--dplex-bg-elev)',
+          border: '1px solid var(--dplex-border-strong)',
+          boxShadow: 'var(--dplex-shadow-lg)'
         }}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}

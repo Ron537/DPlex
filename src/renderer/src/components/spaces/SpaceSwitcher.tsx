@@ -49,17 +49,7 @@ export function SpaceSwitcher(): JSX.Element | null {
   if (!active) return null
 
   return (
-    <div
-      ref={rootRef}
-      className="relative flex items-center flex-shrink-0"
-      style={{
-        height: 48,
-        gap: 10,
-        padding: '0 12px',
-        backgroundColor: 'var(--dplex-bg-panel)',
-        borderBottom: '1px solid var(--dplex-border-subtle)'
-      }}
-    >
+    <div ref={rootRef} className="dplex-space-context relative flex-shrink-0">
       <SwitcherButton space={active} open={open} onToggle={() => setOpen((v) => !v)} />
       <div className="flex-1" />
       <SpaceQuickStart space={active} />
@@ -80,7 +70,7 @@ export function SpaceSwitcher(): JSX.Element | null {
         }}
       >
         <LayoutGrid size={14} />
-        Overview
+        <span className="dplex-space-overview-label">All spaces</span>
       </button>
       {open && <SwitcherDropdown activeSpaceId={activeSpaceId} onClose={() => setOpen(false)} />}
     </div>
@@ -106,33 +96,34 @@ function SwitcherButton({
       onClick={onToggle}
       aria-expanded={open}
       data-testid="space-switcher-button"
-      className="flex items-center gap-2.5 text-left transition-colors"
+      className="flex items-center gap-2.5 min-w-0 text-left rounded-md transition-colors hover:bg-[var(--dplex-hover)]"
       style={{
-        maxWidth: 340,
-        height: 34,
-        padding: '0 9px',
-        borderRadius: 9,
-        backgroundColor: open ? 'var(--dplex-hover)' : 'transparent'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--dplex-hover)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = open ? 'var(--dplex-hover)' : 'transparent'
+        maxWidth: 420,
+        minHeight: 38,
+        padding: '3px 7px',
+        backgroundColor: open ? 'var(--dplex-hover)' : undefined
       }}
     >
-      <SpaceAvatar space={space} size={22} />
-      <span
-        className="truncate"
-        style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--dplex-text)', maxWidth: 190 }}
-      >
-        {space.name}
+      <SpaceAvatar space={space} size={30} radius={9} />
+      <span className="min-w-0" style={{ maxWidth: 210 }}>
+        <span
+          className="block text-[9px] uppercase tracking-wider"
+          style={{ color: 'var(--dplex-text-dim)' }}
+        >
+          Workspace
+        </span>
+        <span
+          className="block truncate text-[13px] font-medium"
+          style={{ color: 'var(--dplex-text)' }}
+        >
+          {space.name}
+        </span>
       </span>
       {attention.total > 0 ? (
         <AttentionChip attention={attention} />
       ) : (
         <span
-          className="tabular-nums flex-shrink-0"
+          className="dplex-space-context-detail tabular-nums flex-shrink-0"
           style={{ fontSize: 11, color: 'var(--dplex-text-dim)' }}
         >
           {projects} proj · {sessions} {sessions === 1 ? 'session' : 'sessions'}
