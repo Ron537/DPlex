@@ -214,7 +214,7 @@ async function main(): Promise<void> {
     sidebarPanelCollapsed: false,
     sidebarActiveTab: 'projects',
     sidebarWidth: 280,
-    theme: 'dark',
+    theme: 'dplex',
     projectPanelShowFooter: true,
     projects: seeded
   }
@@ -405,11 +405,9 @@ async function main(): Promise<void> {
   // 5. Light theme — repeat the hero shot.
   await window.evaluate(() => {
     // @ts-expect-error injected
-    window.__dplex.settingsStore.getState().updateSettings({ theme: 'github-light' })
+    window.__dplex.settingsStore.getState().updateSettings({ theme: 'dplex-light' })
     // @ts-expect-error injected
-    window.__dplex.applyCssVarsSync('github-light')
-    // @ts-expect-error injected
-    window.__dplex.terminalRegistry.applyThemeToAll('github-light')
+    window.__dplex.applyCssVarsSync('dplex-light')
   })
   await sleep(800)
   await paintTerminal()
@@ -420,9 +418,7 @@ async function main(): Promise<void> {
   await window.evaluate(() => {
     // @ts-expect-error injected
     const s = window.__dplex.settingsStore.getState()
-    s.updateSettings({ theme: 'dark', sidebarActiveTab: 'git' })
-    // @ts-expect-error injected
-    window.__dplex.terminalRegistry.applyThemeToAll('dark')
+    s.updateSettings({ theme: 'dplex', sidebarActiveTab: 'git' })
   })
   await sleep(700)
   await window.evaluate(() => {

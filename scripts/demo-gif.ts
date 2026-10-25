@@ -872,7 +872,7 @@ async function main(): Promise<void> {
       sidebarPanelCollapsed: false,
       sidebarActiveTab: 'projects',
       sidebarWidth: 280,
-      theme: 'dark',
+      theme: 'dplex',
       projectPanelShowFooter: true,
       projects: seeded
     })
